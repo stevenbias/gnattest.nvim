@@ -157,6 +157,8 @@ end
 function M.setup(opt)
   M.opt = opt
 
+  local utils = require("gnattest.utils")
+
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = M.ro_group,
     callback = function()
@@ -166,7 +168,10 @@ function M.setup(opt)
 
   vim.api.nvim_create_autocmd("BufReadPost", {
     group = M.ro_group,
-    pattern = { "*.adb", "*.ads" },
+    pattern = {
+      utils.gnattest_pattern .. "*.adb",
+      utils.gnattest_pattern .. "*.ads",
+    },
     callback = function()
       prepare_gnattest()
 
@@ -178,7 +183,10 @@ function M.setup(opt)
 
       vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         group = M.ro_group,
-        pattern = { "*.adb", "*.ads" },
+        pattern = {
+          utils.gnattest_pattern .. "*.adb",
+          utils.gnattest_pattern .. "*.ads",
+        },
         callback = function()
           if protect_flag then
             protect_flag = false

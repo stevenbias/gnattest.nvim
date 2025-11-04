@@ -4,6 +4,10 @@ local M = {}
 
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
+    pattern = {
+      utils.gnattest_pattern .. "*.adb",
+      utils.gnattest_pattern .. "*.ads",
+    },
     callback = function(ev)
       local _, j = string.find(utils.get_bufdir(), "gnattest")
       local gnattest_dir = string.sub(utils.get_bufdir(), 1, j)

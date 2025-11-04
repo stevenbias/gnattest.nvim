@@ -1,4 +1,6 @@
-local utils = {}
+local utils = {
+  gnattest_pattern = "**/gnattest/",
+}
 
 utils.plugin_name = "GNATtest"
 
