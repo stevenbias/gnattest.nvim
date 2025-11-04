@@ -4,3 +4,8 @@ repos:
     hooks:
       - id: commitizen
         stages: [prepare-commit-msg, commit-msg]
+  # Format Lua code
+  - repo: https://github.com/JohnnyMorganz/StyLua
+    rev: v2.3.1
+    hooks:
+      - id: stylua
