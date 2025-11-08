@@ -9,7 +9,7 @@ function utils.notify(msg, lvl)
   if utils.is_loaded("notify") then
     require("notify")(msg, lvl, { title = title })
   else
-    vim.api.nvim_err_writeln(title .. ": " .. msg)
+    vim.api.nvim_echo({ { title .. ": " .. msg } }, true, { err = true })
   end
 end
 
