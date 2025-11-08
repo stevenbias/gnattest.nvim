@@ -73,7 +73,6 @@ local function fix_ro_region()
   local utils = require("gnattest.utils")
   protect_flag = true
   vim.cmd([[stopinsert]])
-  vim.cmd("undo")
   utils.notify("This is a read only region!", "error")
 end
 
@@ -93,11 +92,13 @@ local function protect_ro_regions()
   end
 
   vim.schedule(function()
-    local lnum = vim.fn.line(".") - 1
+    local cursor_pos = vim.fn.getpos(".")
+    local lnum = cursor_pos[2] - 1 -- set to 0-based
+    local cnum = cursor_pos[3]
+    require("gnattest.utils").notify(vim.inspect(cnum), "error")
 
     local all_marks =
       vim.api.nvim_buf_get_extmarks(0, M.namespace, 0, -1, { details = true })
-    -- require("gnattest.utils").notify(vim.inspect(all_marks), "INFO")
 
     for _, mark in ipairs(all_marks) do
       local mark_id = mark[1]
@@ -110,6 +111,16 @@ local function protect_ro_regions()
 
       if lnum >= start_row and lnum <= end_row then
         fix_ro_region()
+        vim.api.nvim_buf_set_lines(0, start_row, end_row, true, {})
+        vim.api.nvim_buf_set_lines(
+          0,
+          start_row,
+          start_row,
+          true,
+          M.extmark[mark_id].lines
+        )
+        -- reset cursor position
+        vim.api.nvim_win_set_cursor(0, { lnum + 1, cnum })
         return
       end
     end
