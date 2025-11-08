@@ -15,8 +15,7 @@ function M.setup(opts)
   local utils = require("gnattest.utils")
   vim.api.nvim_create_autocmd("BufReadPre", {
     pattern = {
-      utils.gnattest_pattern .. "*.adb",
-      utils.gnattest_pattern .. "*.ads",
+      utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function()
       if not M.is_started then

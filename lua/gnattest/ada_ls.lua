@@ -5,19 +5,18 @@ local M = {}
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
-      utils.gnattest_pattern .. "*.adb",
-      utils.gnattest_pattern .. "*.ads",
+      utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function(ev)
       local _, j = string.find(utils.get_bufdir(), "gnattest")
       local gnattest_dir = string.sub(utils.get_bufdir(), 1, j)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
-      if client.name == "ada" then
+      if client ~= nil and client.name == "ada" then
         local ada_ls = assert(vim.lsp.get_clients({ name = "ada" })[1])
         local config = {}
         config["projectFile"] = gnattest_dir .. "/harness/test_driver.gpr"
         config = { ada = config }
-        ada_ls.notify("workspace/didChangeConfiguration", { settings = config })
+        ada_ls:notify("workspace/didChangeConfiguration", { settings = config })
       end
     end,
   })
