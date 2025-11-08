@@ -69,21 +69,20 @@ local function get_regions()
   end
 end
 
-local function fix_ro_region()
-  local utils = require("gnattest.utils")
+local function protected_region_notif()
   protect_flag = true
-  vim.cmd([[stopinsert]])
-  utils.notify("This is a read only region!", "error")
-end
-
-local function highlight_regions()
-  require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
+  require("gnattest.utils").notify("This is a read only region!", "error")
 end
 
 local function prepare_gnattest()
   comments = require("gnattest.utils").get_all_comments("ada")
   get_regions()
-  highlight_regions()
+  require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
+end
+
+local function restore_lines(start, end_row, lines)
+  vim.api.nvim_buf_set_lines(0, start, end_row, true, {})
+  vim.api.nvim_buf_set_lines(0, start, start, true, lines)
 end
 
 local function protect_ro_regions()
@@ -95,7 +94,6 @@ local function protect_ro_regions()
     local cursor_pos = vim.fn.getpos(".")
     local lnum = cursor_pos[2] - 1 -- set to 0-based
     local cnum = cursor_pos[3]
-    require("gnattest.utils").notify(vim.inspect(cnum), "error")
 
     local all_marks =
       vim.api.nvim_buf_get_extmarks(0, M.namespace, 0, -1, { details = true })
@@ -109,16 +107,10 @@ local function protect_ro_regions()
         return
       end
 
-      if lnum >= start_row and lnum <= end_row then
-        fix_ro_region()
-        vim.api.nvim_buf_set_lines(0, start_row, end_row, true, {})
-        vim.api.nvim_buf_set_lines(
-          0,
-          start_row,
-          start_row,
-          true,
-          M.extmark[mark_id].lines
-        )
+      if lnum >= start_row and lnum < end_row then
+        protected_region_notif()
+        vim.cmd([[stopinsert]])
+        restore_lines(start_row, end_row, M.extmark[mark_id].lines)
         -- reset cursor position
         vim.api.nvim_win_set_cursor(0, { lnum + 1, cnum })
         return
@@ -130,7 +122,7 @@ end
 function M.setup(opt)
   M.opt = opt
 
-  local utils = require("gnattest.utils")
+  local gnattest_pattern = require("gnattest.utils").gnattest_pattern
 
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = M.ro_group,
@@ -142,7 +134,7 @@ function M.setup(opt)
   vim.api.nvim_create_autocmd("BufReadPost", {
     group = M.ro_group,
     pattern = {
-      utils.gnattest_pattern .. "*.ad[bs]",
+      gnattest_pattern .. "*.ad[bs]",
     },
     callback = function()
       prepare_gnattest()
@@ -150,7 +142,7 @@ function M.setup(opt)
       vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         group = M.ro_group,
         pattern = {
-          utils.gnattest_pattern .. "*.ad[bs]",
+          gnattest_pattern .. "*.ad[bs]",
         },
         callback = function()
           prepare_gnattest()
