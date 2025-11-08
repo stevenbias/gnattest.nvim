@@ -1,14 +1,12 @@
-local hl = require("gnattest.highlight")
-
 local M = {
   namespace = vim.api.nvim_create_namespace("read_only"),
   ro_group = vim.api.nvim_create_augroup("read_only", { clear = true }),
   hl_group = "hl_ro",
+  extmark = {},
   opt = {},
 }
 
 local comments = {}
-local regions = {}
 local protect_flag = false
 local function parse_comment(comment, opt)
   -- Remove common comment prefixes to get to the actual content
@@ -57,8 +55,14 @@ local function get_regions()
       elseif marker.type == "end" and region then
         region.ending = marker.line
         local mark_id = set_extmark(region.start, region.ending)
-        M.extmark_lines[mark_id] =
-          require("gnattest.utils").get_lines(region.start, region.ending)
+        M.extmark[mark_id] = {
+          lines = require("gnattest.utils").get_lines(
+            region.start,
+            region.ending
+          ),
+          start_row = region.start,
+          end_row = region.ending,
+        }
         region = nil
       end
     end
@@ -100,15 +104,12 @@ local function protect_ro_regions()
       local start_row = mark[2]
       local end_row = mark[4].end_row
 
-      -- require("gnattest.utils").notify(start_row .. end_row, "INFO")
       if end_row == nil then
         return
       end
 
       if lnum >= start_row and lnum <= end_row then
-        require("gnattest.utils").notify(vim.inspect(mark), "INFO")
         fix_ro_region()
-        prepare_gnattest()
         return
       end
     end
@@ -141,6 +142,7 @@ function M.setup(opt)
           utils.gnattest_pattern .. "*.ad[bs]",
         },
         callback = function()
+          prepare_gnattest()
           if protect_flag then
             protect_flag = false
             return
