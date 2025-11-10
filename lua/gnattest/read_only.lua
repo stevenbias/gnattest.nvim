@@ -71,7 +71,7 @@ local function get_regions(cb)
       elseif marker.type == "end" and region then
         region.ending = marker.line
         idx = idx + 1
-        cb(region.start, region.ending, idx, cb)
+        cb(region.start, region.ending, idx)
         region = nil
       end
     end
