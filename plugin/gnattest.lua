@@ -5,15 +5,15 @@ local test_project = "obj/gnattest/harness/test_driver.gpr"
 local test_runner = "obj/gnattest/harness/test_runner"
 
 local function clean_tests()
-  vim.fn.system("gprclean -P " .. test_project)
+  vim.cmd("!gprclean -P " .. test_project)
 end
 
 local function build_tests()
-  vim.fn.system("gprbuild -P " .. test_project)
+  vim.cmd("!gprbuild -P " .. test_project)
 end
 
 local function run_tests()
-  vim.fn.system("./" .. test_runner)
+  vim.cmd("!./" .. test_runner)
 end
 
 ---@class MyCmdSubcommand
