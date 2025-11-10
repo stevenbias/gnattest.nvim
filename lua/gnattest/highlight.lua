@@ -44,12 +44,10 @@ function M.set_highlight(namespace, hl_group)
   local hl = get_hl()
   local new_bg = "#303030"
 
-  local percent = 0
+  local percent = 3
 
-  if vim.o.background == "dark" then
-    percent = 5
-  else
-    percent = -5
+  if vim.o.background == "light" then
+    percent = -percent
   end
 
   if hl ~= nil then
