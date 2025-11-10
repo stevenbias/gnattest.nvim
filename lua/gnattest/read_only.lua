@@ -59,10 +59,6 @@ local function set_extmark(start_row, end_row, mark_id)
   }
 end
 
-local function regions_cb(start_row, end_row, id, cb)
-  return cb(start_row, end_row, id)
-end
-
 local function get_regions(cb)
   local region = nil
   local idx = 0
@@ -75,7 +71,7 @@ local function get_regions(cb)
       elseif marker.type == "end" and region then
         region.ending = marker.line
         idx = idx + 1
-        regions_cb(region.start, region.ending, idx, cb)
+        cb(region.start, region.ending, idx, cb)
         region = nil
       end
     end
@@ -98,8 +94,7 @@ local function prepare_gnattest()
 end
 
 local function restore_lines(start, end_row, lines)
-  vim.api.nvim_buf_set_lines(0, start, end_row, true, {})
-  vim.api.nvim_buf_set_lines(0, start, start, true, lines)
+  vim.api.nvim_buf_set_lines(0, start, end_row, true, lines)
 end
 
 local function fix_ro_regions()
@@ -125,23 +120,22 @@ local function fix_ro_regions()
       local start_row = mark[2]
       local end_row = mark[4].end_row
 
-      if end_row == nil then
-        return
-      end
-
-      local lines = require("gnattest.utils").get_lines(start_row, end_row - 1)
-      if not vim.deep_equal(lines, M.extmark[mark_id].lines) then
-        protected_region_notif()
-        vim.cmd([[stopinsert]])
-        restore_lines(start_row, end_row, M.extmark[mark_id].lines)
-        set_extmark(
-          M.extmark[mark_id].start_row,
-          M.extmark[mark_id].end_row,
-          mark_id
-        )
-        -- reset cursor position
-        vim.api.nvim_win_set_cursor(0, { lnum, cnum })
-        return
+      if end_row ~= nil then
+        local lines =
+          require("gnattest.utils").get_lines(start_row, end_row - 1)
+        if not vim.deep_equal(lines, M.extmark[mark_id].lines) then
+          protected_region_notif()
+          vim.cmd([[stopinsert]])
+          restore_lines(start_row, end_row, M.extmark[mark_id].lines)
+          set_extmark(
+            M.extmark[mark_id].start_row,
+            M.extmark[mark_id].end_row,
+            mark_id
+          )
+          -- reset cursor position
+          vim.api.nvim_win_set_cursor(0, { lnum, cnum })
+          return
+        end
       end
     end
   end)
