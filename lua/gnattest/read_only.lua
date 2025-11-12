@@ -59,6 +59,8 @@ local function set_extmark(start_row, end_row, mark_id)
   }
 end
 
+-- Calls `cb(start_line, end_line, index)` for each detected region.
+-- `cb` should be a function accepting (start_line, end_line, index) parameters.
 local function get_regions(cb)
   local region = nil
   local idx = 0
