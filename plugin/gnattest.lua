@@ -87,3 +87,15 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
   end,
   bang = true,
 })
+
+vim.api.nvim_create_user_command("TSTest", function()
+  local root = vim.treesitter.get_parser():parse()[1]:root()
+  local query_string = "(Attribute (Name) @property)"
+  local query = vim.treesitter.query.parse("xml", query_string)
+
+  for id, node in query:iter_captures(root, 0) do
+    local text = vim.treesitter.get_node_text(node, 0)
+    query_string = "(Attribute (Name) @property)"
+    print(vim.inspect(text))
+  end
+end, {})
