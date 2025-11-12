@@ -88,6 +88,8 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
   bang = true,
 })
 
+local source_files = {}
+
 vim.api.nvim_create_user_command("TSTest", function()
   local root = vim.treesitter.get_parser():parse()[1]:root()
   local query_string = '\
@@ -98,9 +100,11 @@ vim.api.nvim_create_user_command("TSTest", function()
 
   for i, node in query:iter_captures(root, 0) do
     if i % 2 == 0 then
-      local text = vim.treesitter.get_node_text(node, 0)
-      text = text:gsub('"', "")
-      print(text)
+      local filename = vim.treesitter.get_node_text(node, 0)
+      filename = filename:gsub('"', "")
+      table.insert(source_files, filename)
+      print(filename)
     end
   end
+  print(vim.inspect(source_files))
 end, {})
