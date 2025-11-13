@@ -88,117 +88,83 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
   bang = true,
 })
 
-local tests = {}
-
 vim.api.nvim_create_user_command("TSTest", function()
+  local tests = {}
+  local source_files = {}
+
+  --------------
+  -- **UNIT** --
+  --------------
+  local query_unit_string = '\
+    (element\
+      (STag (Name) @tag (#eq? @tag "unit"))\
+    )@element'
+
+  local query_source_files =
+    vim.treesitter.query.parse("xml", query_unit_string)
+
   local root = vim.treesitter.get_parser():parse()[1]:root()
-  print(root)
-  -- (STag (Name) @tag (#eq? @tag "unit")\
-  --   (Attribute (AttValue) @string.special.path)\
-  -- )'
-  --
-  local query_string = '\
-  (content (element (STag ((Attribute ((Name) @tag.attribute)\
-            (#eq? @tag.attribute "source_file")\
-            (AttValue) @source_file))))\
-  ) @element'
-
-  local query_source_files = vim.treesitter.query.parse("xml", query_string)
-
-  for i, node, metadata, match, tree in
-    query_source_files:iter_captures(root, 0)
-  do
-    -- if query_source_files.captures[i] == "element" then
-    local text = vim.treesitter.get_node_text(node, 0)
-    local filename = text:gsub('"', "")
-    print(node)
-    print(query_source_files.captures[i])
-    -- local source_files = {
-    --   [filename] = {},
-    -- }
-    --
-    -- query_string = '\
-    --   (STag (Name) @node\
-    --         (#eq? @node "tested")\
-    --         (Attribute (AttValue) @subprogram)\
-    --   )'
-    --
-    -- local query_subprograms = vim.treesitter.query.parse("xml", query_string)
-    local filename_node = node
-    print(filename_node)
-    -- print(vim.inspect(filename_node))
-    --
-    -- local captures_count = 0
-    -- local subpr_test = {}
-    -- local subprogram = {}
-    -- for _, n in query_subprograms:iter_captures(filename_node, 0) do
-    --   --   -- if i % 2 == 0 then
-    --   text = vim.treesitter.get_node_text(n, 0)
-    --   if text == "tested" then
-    --     captures_count = captures_count + 1
-    --   else
-    --     captures_count = captures_count - 1
-    --     text = text:gsub('"', "")
-    --     -- print(text)
-    --     -- table.insert(subprogram, text)
-    --     -- if captures_count == 0 then
-    --     --   table.insert(subpr_test, subprogram)
-    --     --   subprogram = {}
-    --     -- end
-    --   end
-    --   --   table.insert(source_files[filename], subpr_test)
-    -- end
-    -- table.insert(tests, source_files)
-    -- end
-  end
-
-  query_string = '\
-        (STag (Name) @node\
-              (#eq? @node "tested")\
-              (Attribute (AttValue) @subprogram)\
+  for i, node in query_source_files:iter_captures(root, 0) do
+    ------------------
+    -- **FILENAME** --
+    ------------------
+    if query_source_files.captures[i] == "element" then
+      local text = vim.treesitter.get_node_text(node, 0)
+      local query_file_string = '\
+        (STag ((Attribute ((Name) @tag.attribute)\
+                          (#eq? @tag.attribute "source_file")\
+                          (AttValue) @source_file))\
         )'
+      local query_files = vim.treesitter.query.parse("xml", query_file_string)
+      local filename_node = node
+      for _, n in query_files:iter_captures(filename_node, 0) do
+        text = vim.treesitter.get_node_text(n, 0)
+        if text ~= "source_file" then
+          local filename = text:gsub('"', "")
+          local subpr_test = {}
+          source_files = {
+            [filename] = {},
+          }
+          --------------------
+          -- **SUBPROGRAM** --
+          --------------------
+          local query_subpr_string = '\
+            (STag (Name) @node\
+                  (#eq? @node "tested")\
+                  (Attribute (Name) @string\
+                             (AttValue) @subprogram)\
+            )'
+          local captures_flag = ""
+          local query_subprograms =
+            vim.treesitter.query.parse("xml", query_subpr_string)
+          for _, subpr_node in query_subprograms:iter_captures(filename_node, 0) do
+            text = vim.treesitter.get_node_text(subpr_node, 0)
 
-  local query_subprograms = vim.treesitter.query.parse("xml", query_string)
-  -- local filename_node =
-  --   vim.treesitter.get_string_parser(filename, "xml")[1]:root()
-  -- print(vim.inspect(filename_node))
+            if captures_flag == "name" then
+              subpr_test.name = text:gsub('"', "")
+            elseif captures_flag == "line" then
+              subpr_test.line = text:gsub('"', "")
+            elseif captures_flag == "column" then
+              subpr_test.column = text:gsub('"', "")
+              table.insert(source_files[filename], subpr_test)
+              subpr_test = {}
+            end
 
-  local captures_count = 0
-  local subpr_test = {}
-  local subprogram = {}
-  for _, n in query_subprograms:iter_captures(root, 0) do
-    --   -- if i % 2 == 0 then
-    local text = vim.treesitter.get_node_text(n, 0)
-    if text == "tested" then
-      captures_count = captures_count + 1
-    else
-      captures_count = captures_count - 1
-      text = text:gsub('"', "")
-      print(text)
-      -- table.insert(subprogram, text)
-      -- if captures_count == 0 then
-      --   table.insert(subpr_test, subprogram)
-      --   subprogram = {}
-      -- end
+            captures_flag = text:gsub('"', "")
+          end
+          table.insert(tests, source_files)
+        end
+      end
     end
-    --   table.insert(source_files[filename], subpr_test)
   end
-  -- table.insert(tests, source_files)
+  print(vim.inspect(tests))
 
-  -- query_string = '\
-  --   (content (element (STag (Name) @tag\
-  --         (#eq? @tag "tested")\
-  --         (Attribute (AttValue) @subprogram)))\
-  --   )'
-  -- local query_subprograms = vim.treesitter.query.parse("xml", query_string)
-  --
-  -- for i, node in query_subprograms:iter_captures(root, 0) do
-  --   -- if i % 2 == 0 then
-  --   local subprograms = vim.treesitter.get_node_text(node, 0)
-  --   -- subprograms = subprograms:gsub('"', "")
-  --   table.insert(source_files, subprograms)
-  --   print(subprograms)
-  --   -- end
+  -- Check the correct number of tests are detected, just for debugging
+  -- local count = 0
+  -- for _, test in pairs(tests) do
+  --   for _, t in pairs(test) do
+  --     count = count + #t
+  --   end
   -- end
-  -- print(vim.inspect(tests))
+  -- print(vim.inspect(count))
 end, {})
