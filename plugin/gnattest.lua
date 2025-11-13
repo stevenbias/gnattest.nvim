@@ -42,6 +42,23 @@ local subcommand_tbl = {
     impl = function()
       run_tests()
     end,
+    complete = function(subcmd_arg_lead)
+      local tests_info = require("gnattest.xml").get_tests()
+      local run_args = {}
+      for _, files in pairs(tests_info) do
+        for _, tests in pairs(files) do
+          for _, test in pairs(tests) do
+            table.insert(run_args, test.pkg .. ":" .. test.name)
+          end
+        end
+      end
+      return vim
+        .iter(run_args)
+        :filter(function(run_args)
+          return run_args:find(subcmd_arg_lead) ~= nil
+        end)
+        :totable()
+    end,
   },
 }
 
