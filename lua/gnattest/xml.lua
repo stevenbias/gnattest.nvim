@@ -61,7 +61,9 @@ local function create_xml_buf()
 end
 
 function M.get_tests()
-  M.tests = {}
+  if next(M.tests) ~= nil then
+    return M.tests
+  end
 
   local buf_id = create_xml_buf()
   local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
