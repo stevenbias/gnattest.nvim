@@ -39,8 +39,15 @@ local subcommand_tbl = {
     end,
   },
   Run = {
-    impl = function()
-      run_tests()
+    impl = function(args, _)
+      local str_args = vim.split(args[1], ":")
+      local pkg = str_args[1]
+      local name = str_args[2]
+      local test = require("gnattest.xml").get_tests_by_name(pkg, name)
+      if test == nil then
+        return
+      end
+      run_tests(test.filename, test.line)
     end,
     complete = function(subcmd_arg_lead)
       local tests_info = require("gnattest.xml").get_tests()
