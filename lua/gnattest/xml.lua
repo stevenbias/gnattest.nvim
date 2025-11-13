@@ -129,4 +129,23 @@ function M.get_tests()
   return M.tests
 end
 
+function M.get_tests_by_name(pkg, name)
+  if next(M.tests) == nil then
+    M.get_tests()
+  end
+
+  for _, files in pairs(M.tests) do
+    for filename, tests in pairs(files) do
+      for _, test in pairs(tests) do
+        if test.pkg == pkg and test.name == name then
+          test.filename = filename
+          return test
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
 return M
