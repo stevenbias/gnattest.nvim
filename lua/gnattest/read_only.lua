@@ -139,7 +139,6 @@ local function fix_ro_regions()
     if marks_to_restore ~= nil then
       for _, mark in ipairs(marks_to_restore) do
         local mark_id = mark.id
-        print(vim.inspect(mark_id))
         protected_region_notif()
         vim.cmd([[stopinsert]])
         restore_lines(mark.start_row, mark.end_row, M.extmark[mark_id].lines)
