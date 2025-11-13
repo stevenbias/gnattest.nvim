@@ -43,9 +43,25 @@ function M.query_subpr(capture_name, match)
 
   return vim.treesitter.query.parse("xml", query_string)
 end
+
+local function create_xml_buf()
+  local xml_file = vim.fs.find(function(name)
+    return name:match(".*%gnattest.xml$")
+  end)[1]
+  xml_file = vim.fn.readfile(xml_file)
+
+  -- Create a new scratch buffer
+  local buf_id = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_file)
+
+  return buf_id
+end
+
 function M.get_tests()
   M.tests = {}
-  local root = vim.treesitter.get_parser():parse()[1]:root()
+
+  local buf_id = create_xml_buf()
+  local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
 
   --------------
   -- **UNIT** --
@@ -54,14 +70,14 @@ function M.get_tests()
   local unit_capture_name = unit_match
   local query = M.query_units(unit_capture_name, unit_match)
 
-  for _, node in query:iter_captures(root, 0) do
+  for _, node in query:iter_captures(root, buf_id) do
     ------------------
     -- **FILENAME** --
     ------------------
     local src_file_capture_name = "src_file"
     query = M.query_src_file(src_file_capture_name)
-    for _, n in query:iter_captures(node, 0) do
-      local text = vim.treesitter.get_node_text(n, 0)
+    for _, n in query:iter_captures(node, buf_id) do
+      local text = vim.treesitter.get_node_text(n, buf_id)
       if text ~= "source_file" then
         local filename = text:gsub('"', "")
         local subpr_test = {}
@@ -74,8 +90,8 @@ function M.get_tests()
         local captures_flag = ""
         local subpr_capture_name = "subpr"
         query = M.query_subpr(subpr_capture_name)
-        for _, subpr_node in query:iter_captures(node, 0) do
-          text = vim.treesitter.get_node_text(subpr_node, 0)
+        for _, subpr_node in query:iter_captures(node, buf_id) do
+          text = vim.treesitter.get_node_text(subpr_node, buf_id)
 
           if captures_flag == "name" then
             subpr_test.name = text:gsub('"', "")
@@ -94,7 +110,7 @@ function M.get_tests()
     end
   end
 
-  -- Check the correct number of tests are detected, just for debugging
+  -- -- Check the correct number of tests are detected, just for debugging
   -- local count = 0
   -- for _, test in pairs(M.tests) do
   --   for _, t in pairs(test) do

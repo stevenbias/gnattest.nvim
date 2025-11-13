@@ -90,5 +90,6 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
 
 vim.api.nvim_create_user_command("TSTest", function()
   local xml = require("gnattest.xml")
-  print(vim.inspect(xml.get_tests()))
+  local res = xml.get_tests()
+  print(vim.inspect(res))
 end, {})
