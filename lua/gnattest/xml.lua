@@ -31,12 +31,15 @@ end
 
 function M.query_subpr(capture_name, match)
   if match == nil then
-    match = "tested"
+    match = {
+      '"tested"',
+      '"test_unit"',
+    }
   end
 
   local query_string = "\
             (STag (Name) @node\
-                  (#eq? @node " .. match .. ")\
+                  (#any-of? @node " .. table.concat(match, " ") .. ")\
                   (Attribute (Name) @string\
                              (AttValue) @" .. capture_name .. ")\
             )"
@@ -87,18 +90,22 @@ function M.get_tests()
         --------------------
         -- **SUBPROGRAM** --
         --------------------
+        local pkg = ""
         local captures_flag = ""
         local subpr_capture_name = "subpr"
         query = M.query_subpr(subpr_capture_name)
         for _, subpr_node in query:iter_captures(node, buf_id) do
           text = vim.treesitter.get_node_text(subpr_node, buf_id)
 
-          if captures_flag == "name" then
+          if captures_flag == "target_file" then
+            pkg = text:gsub('"', "")
+          elseif captures_flag == "name" then
             subpr_test.name = text:gsub('"', "")
           elseif captures_flag == "line" then
             subpr_test.line = text:gsub('"', "")
           elseif captures_flag == "column" then
             subpr_test.column = text:gsub('"', "")
+            subpr_test.pkg = pkg
             table.insert(M.source_files[filename], subpr_test)
             subpr_test = {}
           end
