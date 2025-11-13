@@ -28,17 +28,17 @@ end
 
 ---@type table<string, MyCmdSubcommand>
 local subcommand_tbl = {
-  Clean = {
+  clean = {
     impl = function()
       clean_tests()
     end,
   },
-  Build = {
+  build = {
     impl = function()
       build_tests()
     end,
   },
-  Run = {
+  run = {
     impl = function(args, _)
       local str_args = vim.split(args[1], ":")
       local pkg = str_args[1]
