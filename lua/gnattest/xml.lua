@@ -1,6 +1,5 @@
 local M = {
   tests = {},
-  source_files = {},
 }
 
 function M.query_units(capture_name, match)
@@ -53,7 +52,6 @@ local function create_xml_buf()
   end)[1]
   xml_file = vim.fn.readfile(xml_file)
 
-  -- Create a new scratch buffer
   local buf_id = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_file)
 
@@ -86,7 +84,7 @@ function M.get_tests()
       if text ~= "source_file" then
         local filename = text:gsub('"', "")
         local subpr_test = {}
-        M.source_files = {
+        local source_files = {
           [filename] = {},
         }
         --------------------
@@ -108,13 +106,13 @@ function M.get_tests()
           elseif captures_flag == "column" then
             subpr_test.column = text:gsub('"', "")
             subpr_test.pkg = pkg
-            table.insert(M.source_files[filename], subpr_test)
+            table.insert(source_files[filename], subpr_test)
             subpr_test = {}
           end
 
           captures_flag = text:gsub('"', "")
         end
-        table.insert(M.tests, M.source_files)
+        table.insert(M.tests, source_files)
       end
     end
   end
