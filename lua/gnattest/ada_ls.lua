@@ -12,10 +12,20 @@ function M.setup()
       local gnattest_dir = string.sub(utils.get_bufdir(), 1, j)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
       if client ~= nil and client.name == "ada" then
-        local ada_ls = assert(vim.lsp.get_clients({ name = "ada" })[1])
-        local config = {}
-        config["projectFile"] = gnattest_dir .. "/harness/test_driver.gpr"
-        config = { ada = config }
+        local clients = vim.lsp.get_clients({ name = "ada" })
+        if not clients or #clients == 0 then
+          require("gnattest.utils").notify(
+            "Ada LSP client not found",
+            vim.log.levels.WARN
+          )
+          return
+        end
+        local ada_ls = clients[1]
+        local config = {
+          ada = {
+            projectFile = gnattest_dir .. "/harness/test_driver.gpr",
+          },
+        }
         ada_ls:notify("workspace/didChangeConfiguration", { settings = config })
       end
     end,

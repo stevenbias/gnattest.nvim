@@ -115,7 +115,7 @@ local function fix_ro_regions()
     local marks_to_restore = {}
 
     local all_marks = vim.api.nvim_buf_get_extmarks(
-      0,
+      require("gnattest.utils").get_bufid(),
       M.namespace,
       0,
       -1,
