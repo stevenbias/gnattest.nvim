@@ -8,8 +8,9 @@ function M.setup()
       utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function(ev)
-      local _, j = string.find(utils.get_bufdir(), "gnattest")
-      local gnattest_dir = string.sub(utils.get_bufdir(), 1, j)
+      local path = utils.get_bufdir()
+      local _, j = string.find(path, "gnattest")
+      local gnattest_dir = string.sub(path, 1, j)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
       if client ~= nil and client.name == "ada" then
         local clients = vim.lsp.get_clients({ name = "ada" })
