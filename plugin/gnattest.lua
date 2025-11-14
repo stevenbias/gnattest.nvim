@@ -67,6 +67,11 @@ local subcommand_tbl = {
         :totable()
     end,
   },
+  run_all = {
+    impl = function()
+      run_tests()
+    end,
+  },
 }
 
 ---@param opts table :h lua-guide-commands-create
