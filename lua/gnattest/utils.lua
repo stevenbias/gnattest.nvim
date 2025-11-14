@@ -4,12 +4,30 @@ local utils = {
 
 utils.plugin_name = "GNATtest"
 
+local function log_lvl_tostring(lvl)
+  if lvl == 0 then
+    return "TRACE"
+  elseif lvl == 1 then
+    return "DEBUG"
+  elseif lvl == 2 then
+    return "INFO"
+  elseif lvl == 3 then
+    return "WARN"
+  elseif lvl == 4 then
+    return "ERROR"
+  elseif lvl == 5 then
+    return "OFF"
+  else
+    return "ERROR"
+  end
+end
+
 function utils.notify(msg, lvl)
-  local title = utils.plugin_name .. " " .. lvl .. " message"
+  local title = utils.plugin_name .. " " .. log_lvl_tostring(lvl) .. " message"
   if utils.is_loaded("notify") then
     require("notify")(msg, lvl, { title = title })
   else
-    vim.api.nvim_echo({ { title .. ": " .. msg } }, true, { err = true })
+    vim.notify(title .. ": " .. msg, lvl)
   end
 end
 
@@ -39,8 +57,13 @@ local function get_parser()
 
   if ok then
     return parser
+  elseif not ok or not parser then
+    vim.notify(
+      "GNATtest: Ada treesitter parser missing, skipping syntax analysis",
+      vim.log.levels.WARN
+    )
+    return nil
   end
-  return nil
 end
 
 -- Get the root node of the syntax tree

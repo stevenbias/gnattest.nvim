@@ -86,7 +86,10 @@ end
 
 local function protected_region_notif()
   protect_flag = true
-  require("gnattest.utils").notify("This is a read only region!", "error")
+  require("gnattest.utils").notify(
+    "This is a read only region!",
+    vim.log.levels.ERROR
+  )
 end
 
 local function prepare_gnattest()
