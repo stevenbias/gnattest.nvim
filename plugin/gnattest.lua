@@ -8,6 +8,14 @@ local function clean_tests()
   vim.cmd("!gprclean -P " .. test_project)
 end
 
+local function generate_tests()
+  local lsp = vim.lsp.get_clients({ name = "ada" })[1]
+  local json_file = lsp.config.root_dir .. "/.als.json"
+  local config = vim.fn.json_decode(vim.fn.readfile(json_file))
+
+  vim.cmd("!gnattest -P " .. config.projectFile)
+end
+
 local function build_tests()
   vim.cmd("!gprbuild -P " .. test_project)
 end
@@ -31,6 +39,11 @@ local subcommand_tbl = {
   clean = {
     impl = function()
       clean_tests()
+    end,
+  },
+  generate = {
+    impl = function()
+      generate_tests()
     end,
   },
   build = {
