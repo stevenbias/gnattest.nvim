@@ -2,53 +2,18 @@ local M = {
   tests = {},
 }
 
-function M.query_pkg(capture_name, match)
+function M.query_pkg(match)
   if match == nil then
     match = "unit"
   end
 
-  -- local query_string = "\
-  --   (element\
-  --     (STag (Name) @tag (#eq? @tag " .. match .. "))\
-  --   )@" .. capture_name
   local query_string = '\
                     (STag (Name) @tag\
-                          (#any-match? @tag "unit" "test_unit")\
+                          (#any-of? @tag "unit" "test_unit")\
                           (Attribute (Name) \
                                      (AttValue) @value)\
                      )'
 
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
-function M.query_src_file(capture_name, match)
-  if match == nil then
-    match = "source_file"
-  end
-
-  local query_string = "\
-    (STag\
-        ((Attribute ((Name) @tag.attribute)\
-        (#eq? @tag.attribute " .. match .. ")\
-        (AttValue) @" .. capture_name .. "))\
-    )"
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
-function M.query_subpr(capture_name, match)
-  if match == nil then
-    match = {
-      '"tested"',
-      '"test_unit"',
-    }
-  end
-
-  local query_string = "\
-            (STag (Name) @node\
-                  (#any-of? @node " .. table.concat(match, " ") .. ")\
-                  (Attribute (Name) @string\
-                             (AttValue) @" .. capture_name .. ")\
-            )"
   return vim.treesitter.query.parse("xml", query_string)
 end
 
@@ -108,7 +73,7 @@ function M.query_subpr_by_pkg(pkg)
   return vim.treesitter.query.parse("xml", query_string)
 end
 
-function M.query_test_info(capture_name, match)
+function M.query_test_info(match)
   if match == nil then
     match = {
       '"tested"',
@@ -172,59 +137,45 @@ function M.get_tests()
   -- **UNIT** --
   --------------
   local unit_match = "unit"
-  local unit_capture_name = unit_match
-  local query = M.query_pkg(unit_capture_name, unit_match)
 
   ------------------
   -- **PACKAGE** --
   ------------------
   local pkg_capture_flag = ""
+  local query = M.query_pkg(unit_match)
   for _, node in query:iter_captures(root, buf_id) do
     local text = vim.treesitter.get_node_text(node, buf_id):gsub('"', "")
     if pkg_capture_flag == "unit" then
       filename = text
-    elseif pkg_capture_flag == "test_unit" then
+    elseif
+      pkg_capture_flag == "test_unit" and source_files[filename] == nil
+    then
       pkg = text
       source_files[filename] = { [pkg] = {} }
     end
 
-    -- local src_file_capture_name = "src_file"
-    -- query = M.query_src_file(src_file_capture_name)
-    -- for _, n in query:iter_captures(node, buf_id) do
-    --   text = vim.treesitter.get_node_text(n, buf_id):gsub('"', "")
-    --   print(text)
-    --   if text ~= "source_file" then
-    --     filename = text
-    --     -----------------
-    --     -- **SOURCES** --
-    --     -----------------
     pkg_capture_flag = text
   end
-  -- print(vim.inspect(source_files))
+
   local subpr_test = {}
   local capture_flag = ""
-  local subpr_capture_name = "subpr"
 
-  for filename, file_info in pairs(source_files) do
-    for pkg, info in pairs(file_info) do
-      -- print(filename)
-      -- print(vim.inspect(pkg))
-      query = M.query_subpr_by_pkg(pkg)
+  -----------------
+  -- **SOURCES** --
+  -----------------
+  for name, file_info in pairs(source_files) do
+    for p, _ in pairs(file_info) do
+      query = M.query_subpr_by_pkg(p)
       for _, subpr_node in query:iter_captures(root, buf_id) do
-        local text = vim.treesitter.get_node_text(subpr_node, buf_id)
-        -- print(text)
-
-        -- if capture_flag == "target_file" then
-        --   pkg = text
-        -- elseif capture_flag == "name" then
+        local text =
+          vim.treesitter.get_node_text(subpr_node, buf_id):gsub('"', "")
         if capture_flag == "name" then
           subpr_test.name = text
         elseif capture_flag == "line" then
           subpr_test.line = text
         elseif capture_flag == "column" then
           subpr_test.column = text
-          -- subpr_test.pkg = pkg
-          source_files[filename][pkg] = subpr_test
+          table.insert(source_files[name][p], subpr_test)
           subpr_test = {}
         end
 
@@ -236,8 +187,8 @@ function M.get_tests()
 
   -- -- Check the correct number of tests are detected, just for debugging
   -- local count = 0
-  -- for _, test in pairs(M.tests) do
-  --   for _, t in pairs(test) do
+  -- for _, files in pairs(M.tests) do
+  --   for _, t in pairs(files) do
   --     count = count + #t
   --   end
   -- end
@@ -246,17 +197,35 @@ function M.get_tests()
   return M.tests
 end
 
-function M.get_tests_by_name(pkg, name)
+local function get_pkg_tests(pkg)
   if next(M.tests) == nil then
     M.get_tests()
   end
 
   for _, files in pairs(M.tests) do
-    for filename, test in pairs(files) do
-      if test.pkg == pkg and test.name == name then
-        test.filename = filename
-        return test
+    for p, tst_pkg in pairs(files) do
+      if p == pkg then
+        return tst_pkg
       end
+    end
+  end
+
+  return nil
+end
+
+function M.get_tests_by_name(pkg, name)
+  if next(M.tests) == nil then
+    M.get_tests()
+  end
+
+  local tst_pkg = get_pkg_tests(pkg)
+  if tst_pkg == nil then
+    return nil
+  end
+
+  for _, test in pairs(tst_pkg) do
+    if test.name == name then
+      return test
     end
   end
 
