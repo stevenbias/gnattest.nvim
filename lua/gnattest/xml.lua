@@ -2,15 +2,22 @@ local M = {
   tests = {},
 }
 
-function M.query_units(capture_name, match)
+function M.query_pkg(capture_name, match)
   if match == nil then
     match = "unit"
   end
 
-  local query_string = "\
-    (element\
-      (STag (Name) @tag (#eq? @tag " .. match .. "))\
-    )@" .. capture_name
+  -- local query_string = "\
+  --   (element\
+  --     (STag (Name) @tag (#eq? @tag " .. match .. "))\
+  --   )@" .. capture_name
+  local query_string = '\
+                    (STag (Name) @tag\
+                          (#any-match? @tag "unit" "test_unit")\
+                          (Attribute (Name) \
+                                     (AttValue) @value)\
+                     )'
+
   return vim.treesitter.query.parse("xml", query_string)
 end
 
@@ -42,6 +49,97 @@ function M.query_subpr(capture_name, match)
                   (Attribute (Name) @string\
                              (AttValue) @" .. capture_name .. ")\
             )"
+  return vim.treesitter.query.parse("xml", query_string)
+end
+
+function M.query_subpr_by_pkg(pkg)
+  if pkg == nil then
+    pkg = ""
+  end
+
+  local query_string = '\
+                    (element\
+                      (STag (Name)\
+                            (Attribute (Name)\
+                                       (AttValue) @pkg)\
+                            (#eq? @pkg "\\"' .. pkg .. '\\"")\
+                      )\
+                      (content\
+                        (element\
+                          (STag (Name)\
+                                (Attribute (Name) @string\
+                                           (AttValue) @val)\
+                          )\
+                        )\
+                      )\
+                    )'
+
+  -- local query_string = "\
+  --                   (element\
+  --                     (STag (Name)\
+  --                           (Attribute (Name)\
+  --                                      (AttValue) @pkg)\
+  --                     )\
+  --                   )"
+
+  -- print(query_string)
+  -- local query_string = "\
+  --               (element\
+  --                 (STag (Name)\
+  --                       (Attribute (Name) @string\
+  --                                  (AttValue) @pkg)\
+  --                 )\
+  --                 (content\
+  --                   (element\
+  --                     (EmptyElemTag (Name)\
+  --                       (Attribute (Name) @string\
+  --                                  (AttValue) @test)\
+  --                     )\
+  --                   )\
+  --                   (element\
+  --                     (STag (Name)\
+  --                           (Attribute (Name) @string\
+  --                                      (AttValue) @val)\
+  --                     )\
+  --                   )\
+  --                 )\
+  --               )"
+
+  return vim.treesitter.query.parse("xml", query_string)
+end
+
+function M.query_test_info(capture_name, match)
+  if match == nil then
+    match = {
+      '"tested"',
+      '"test_unit"',
+    }
+  end
+
+  -- local query_string = "\
+  --           (STag (Name) @node\
+  --                 (#any-of? @node " .. table.concat(match, " ") .. ")\
+  --                 (Attribute (Name) @string\
+  --                            (AttValue) @" .. capture_name .. ")\
+  --           )"
+
+  local query_string = '\
+                      (element\
+                        (STag (Attribute (AttValue) @subpr))\
+                        (#eq? @subpr "Next_Turn")\
+                        (content\
+                          (element\
+                            (content\
+                              (element\
+                                (EmptyElemTag (Name)\
+                                  (Attribute (Name) @string\
+                                             (AttValue) @test)\
+                                )\
+                              )\
+                            )\
+                          )\
+                        )\
+                      )'
 
   return vim.treesitter.query.parse("xml", query_string)
 end
@@ -66,54 +164,73 @@ function M.get_tests()
   local buf_id = create_xml_buf()
   local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
 
+  local filename = ""
+  local pkg = ""
+  local source_files = {}
+
   --------------
   -- **UNIT** --
   --------------
   local unit_match = "unit"
   local unit_capture_name = unit_match
-  local query = M.query_units(unit_capture_name, unit_match)
+  local query = M.query_pkg(unit_capture_name, unit_match)
 
+  ------------------
+  -- **PACKAGE** --
+  ------------------
+  local pkg_capture_flag = ""
   for _, node in query:iter_captures(root, buf_id) do
-    ------------------
-    -- **FILENAME** --
-    ------------------
-    local src_file_capture_name = "src_file"
-    query = M.query_src_file(src_file_capture_name)
-    for _, n in query:iter_captures(node, buf_id) do
-      local text = vim.treesitter.get_node_text(n, buf_id)
-      if text ~= "source_file" then
-        local filename = text:gsub('"', "")
-        local subpr_test = {}
-        local source_files = {
-          [filename] = {},
-        }
-        --------------------
-        -- **SUBPROGRAM** --
-        --------------------
-        local pkg = ""
-        local captures_flag = ""
-        local subpr_capture_name = "subpr"
-        query = M.query_subpr(subpr_capture_name)
-        for _, subpr_node in query:iter_captures(node, buf_id) do
-          text = vim.treesitter.get_node_text(subpr_node, buf_id)
+    local text = vim.treesitter.get_node_text(node, buf_id):gsub('"', "")
+    if pkg_capture_flag == "unit" then
+      filename = text
+    elseif pkg_capture_flag == "test_unit" then
+      pkg = text
+      source_files[filename] = { [pkg] = {} }
+    end
 
-          if captures_flag == "target_file" then
-            pkg = text:gsub('"', "")
-          elseif captures_flag == "name" then
-            subpr_test.name = text:gsub('"', "")
-          elseif captures_flag == "line" then
-            subpr_test.line = text:gsub('"', "")
-          elseif captures_flag == "column" then
-            subpr_test.column = text:gsub('"', "")
-            subpr_test.pkg = pkg
-            table.insert(source_files[filename], subpr_test)
-            subpr_test = {}
-          end
+    -- local src_file_capture_name = "src_file"
+    -- query = M.query_src_file(src_file_capture_name)
+    -- for _, n in query:iter_captures(node, buf_id) do
+    --   text = vim.treesitter.get_node_text(n, buf_id):gsub('"', "")
+    --   print(text)
+    --   if text ~= "source_file" then
+    --     filename = text
+    --     -----------------
+    --     -- **SOURCES** --
+    --     -----------------
+    pkg_capture_flag = text
+  end
+  -- print(vim.inspect(source_files))
+  local subpr_test = {}
+  local capture_flag = ""
+  local subpr_capture_name = "subpr"
 
-          captures_flag = text:gsub('"', "")
+  for filename, file_info in pairs(source_files) do
+    for pkg, info in pairs(file_info) do
+      -- print(filename)
+      -- print(vim.inspect(pkg))
+      query = M.query_subpr_by_pkg(pkg)
+      for _, subpr_node in query:iter_captures(root, buf_id) do
+        local text = vim.treesitter.get_node_text(subpr_node, buf_id)
+        -- print(text)
+
+        -- if capture_flag == "target_file" then
+        --   pkg = text
+        -- elseif capture_flag == "name" then
+        if capture_flag == "name" then
+          subpr_test.name = text
+        elseif capture_flag == "line" then
+          subpr_test.line = text
+        elseif capture_flag == "column" then
+          subpr_test.column = text
+          -- subpr_test.pkg = pkg
+          source_files[filename][pkg] = subpr_test
+          subpr_test = {}
         end
-        table.insert(M.tests, source_files)
+
+        capture_flag = text
       end
+      M.tests = vim.deepcopy(source_files)
     end
   end
 
@@ -135,12 +252,10 @@ function M.get_tests_by_name(pkg, name)
   end
 
   for _, files in pairs(M.tests) do
-    for filename, tests in pairs(files) do
-      for _, test in pairs(tests) do
-        if test.pkg == pkg and test.name == name then
-          test.filename = filename
-          return test
-        end
+    for filename, test in pairs(files) do
+      if test.pkg == pkg and test.name == name then
+        test.filename = filename
+        return test
       end
     end
   end
