@@ -96,37 +96,6 @@ function M.query_subpr_by_pkg(pkg)
                       )\
                     )'
 
-  -- local query_string = "\
-  --                   (element\
-  --                     (STag (Name)\
-  --                           (Attribute (Name)\
-  --                                      (AttValue) @pkg)\
-  --                     )\
-  --                   )"
-
-  -- print(query_string)
-  -- local query_string = "\
-  --               (element\
-  --                 (STag (Name)\
-  --                       (Attribute (Name) @string\
-  --                                  (AttValue) @pkg)\
-  --                 )\
-  --                 (content\
-  --                   (element\
-  --                     (EmptyElemTag (Name)\
-  --                       (Attribute (Name) @string\
-  --                                  (AttValue) @test)\
-  --                     )\
-  --                   )\
-  --                   (element\
-  --                     (STag (Name)\
-  --                           (Attribute (Name) @string\
-  --                                      (AttValue) @val)\
-  --                     )\
-  --                   )\
-  --                 )\
-  --               )"
-
   return vim.treesitter.query.parse("xml", query_string)
 end
 

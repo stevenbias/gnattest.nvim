@@ -74,8 +74,8 @@ local subcommand_tbl = {
       end
       return vim
         .iter(run_args)
-        :filter(function(run_args)
-          return run_args:find(subcmd_arg_lead) ~= nil
+        :filter(function(args)
+          return args:find(subcmd_arg_lead) ~= nil
         end)
         :totable()
     end,
@@ -136,10 +136,10 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
   bang = true,
 })
 
-vim.api.nvim_create_user_command("TSTest", function()
-  vim.cmd(":Lazy reload gnattest.nvim")
-  local xml = require("gnattest.xml")
-  local res = xml.get_tests()
-  -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
-  -- print(vim.inspect(res))
-end, {})
+-- vim.api.nvim_create_user_command("TSTest", function()
+--   vim.cmd(":Lazy reload gnattest.nvim")
+--   local xml = require("gnattest.xml")
+--   local res = xml.get_tests()
+--   -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
+--   -- print(vim.inspect(res))
+-- end, {})
