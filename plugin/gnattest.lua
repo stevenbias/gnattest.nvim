@@ -8,6 +8,16 @@ local function clean_tests()
   vim.cmd("!gprclean -P " .. test_project)
 end
 
+local function generate_tests()
+  local ada_ls = require("gnattest.ada_ls").get_ada_ls()
+  if ada_ls ~= nil then
+    local json_file = ada_ls.config.root_dir .. "/.als.json"
+    local config = vim.fn.json_decode(vim.fn.readfile(json_file))
+
+    vim.cmd("!gnattest -P " .. config.projectFile)
+  end
+end
+
 local function build_tests()
   vim.cmd("!gprbuild -P " .. test_project)
 end
@@ -33,6 +43,11 @@ local subcommand_tbl = {
       clean_tests()
     end,
   },
+  generate = {
+    impl = function()
+      generate_tests()
+    end,
+  },
   build = {
     impl = function()
       build_tests()
@@ -53,16 +68,16 @@ local subcommand_tbl = {
       local tests_info = require("gnattest.xml").get_tests()
       local run_args = {}
       for _, files in pairs(tests_info) do
-        for _, tests in pairs(files) do
-          for _, test in pairs(tests) do
-            table.insert(run_args, test.pkg .. ":" .. test.name)
+        for pkg, tst_pkg in pairs(files) do
+          for _, test in pairs(tst_pkg) do
+            table.insert(run_args, pkg .. ":" .. test.name)
           end
         end
       end
       return vim
         .iter(run_args)
-        :filter(function(run_args)
-          return run_args:find(subcmd_arg_lead) ~= nil
+        :filter(function(args)
+          return args:find(subcmd_arg_lead) ~= nil
         end)
         :totable()
     end,
@@ -124,7 +139,9 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
 })
 
 -- vim.api.nvim_create_user_command("TSTest", function()
+--   vim.cmd(":Lazy reload gnattest.nvim")
 --   local xml = require("gnattest.xml")
 --   local res = xml.get_tests()
---   print(vim.inspect(res))
+--   -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
+--   -- print(vim.inspect(res))
 -- end, {})
