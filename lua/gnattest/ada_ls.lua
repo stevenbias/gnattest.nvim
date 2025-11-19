@@ -2,6 +2,19 @@ local utils = require("gnattest.utils")
 
 local M = {}
 
+function M.get_ada_ls()
+  local clients = vim.lsp.get_clients({ name = "ada" })
+  if not clients or #clients == 0 then
+    require("gnattest.utils").notify(
+      "Ada LSP client not found",
+      vim.log.levels.WARN
+    )
+    return nil
+  else
+    return clients[1]
+  end
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
@@ -13,21 +26,17 @@ function M.setup()
       local gnattest_dir = string.sub(path, 1, j)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
       if client ~= nil and client.name == "ada" then
-        local clients = vim.lsp.get_clients({ name = "ada" })
-        if not clients or #clients == 0 then
-          require("gnattest.utils").notify(
-            "Ada LSP client not found",
-            vim.log.levels.WARN
-          )
-          return
-        end
-        local ada_ls = clients[1]
         local config = {
           ada = {
             projectFile = gnattest_dir .. "/harness/test_driver.gpr",
           },
         }
-        ada_ls:notify("workspace/didChangeConfiguration", { settings = config })
+        client:notify("workspace/didChangeConfiguration", { settings = config })
+      else
+        require("gnattest.utils").notify(
+          "Ada LSP client not found",
+          vim.log.levels.WARN
+        )
       end
     end,
   })

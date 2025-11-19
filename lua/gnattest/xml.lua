@@ -59,21 +59,6 @@ function M.query_att_value(match)
   return vim.treesitter.query.parse("xml", query_string)
 end
 
-function M.query_pkg(match)
-  if match == nil then
-    match = "unit"
-  end
-
-  local query_string = '\
-                    (STag (Name) @tag\
-                          (#any-of? @tag "unit" "test_unit")\
-                          (Attribute (Name) \
-                                     (AttValue) @value)\
-                     )'
-
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
 function M.query_subpr_by_pkg(pkg)
   if pkg == nil then
     pkg = ""

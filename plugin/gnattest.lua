@@ -9,11 +9,13 @@ local function clean_tests()
 end
 
 local function generate_tests()
-  local lsp = vim.lsp.get_clients({ name = "ada" })[1]
-  local json_file = lsp.config.root_dir .. "/.als.json"
-  local config = vim.fn.json_decode(vim.fn.readfile(json_file))
+  local ada_ls = require("gnattest.ada_ls").get_ada_ls()
+  if ada_ls ~= nil then
+    local json_file = ada_ls.config.root_dir .. "/.als.json"
+    local config = vim.fn.json_decode(vim.fn.readfile(json_file))
 
-  vim.cmd("!gnattest -P " .. config.projectFile)
+    vim.cmd("!gnattest -P " .. config.projectFile)
+  end
 end
 
 local function build_tests()
