@@ -196,6 +196,7 @@ function M.get_tests()
   -- **SOURCES** --
   -----------------
   local test_capture_flag = ""
+  local src_info = {}
   local test_info = {}
   local test_query = M.query_test_info()
 
@@ -212,12 +213,24 @@ function M.get_tests()
         local capture_id = test_query.captures[id]
         if capture_id == "src" then
           if test_capture_flag == "name" then
-            test_info.name = test_text
+            src_info.name = test_text
+          elseif test_capture_flag == "line" then
+            src_info.line = test_text
+          elseif test_capture_flag == "column" then
+            src_info.column = test_text
+          end
+        elseif capture_id == "tst" then
+          if test_capture_flag == "file" then
+            test_info.file = test_text
           elseif test_capture_flag == "line" then
             test_info.line = test_text
           elseif test_capture_flag == "column" then
             test_info.column = test_text
-            table.insert(pkg_info, test_info)
+          elseif test_capture_flag == "name" then
+            test_info.name = test_text
+            src_info.test = test_info
+            table.insert(pkg_info, src_info)
+            src_info = {}
             test_info = {}
           end
         end
@@ -241,14 +254,14 @@ function M.get_tests()
   end
   M.tests = vim.deepcopy(source_files)
 
-  -- Check the correct number of tests are detected, just for debugging
-  local count = 0
-  for _, files in pairs(M.tests) do
-    for _, t in pairs(files) do
-      count = count + #t
-    end
-  end
-  print(vim.inspect(count))
+  -- -- Check the correct number of tests are detected, just for debugging
+  -- local count = 0
+  -- for _, files in pairs(M.tests) do
+  --   for _, t in pairs(files) do
+  --     count = count + #t
+  --   end
+  -- end
+  -- print(vim.inspect(count))
 
   return M.tests
 end
@@ -258,10 +271,10 @@ local function get_pkg_tests(pkg)
     M.get_tests()
   end
 
-  for _, files in pairs(M.tests) do
+  for filename, files in pairs(M.tests) do
     for p, tst_pkg in pairs(files) do
       if p == pkg then
-        return tst_pkg
+        return tst_pkg, filename
       end
     end
   end
@@ -274,13 +287,15 @@ function M.get_tests_by_name(pkg, name)
     M.get_tests()
   end
 
-  local tst_pkg = get_pkg_tests(pkg)
+  local tst_pkg, filename = get_pkg_tests(pkg)
   if tst_pkg == nil then
     return nil
   end
 
   for _, test in pairs(tst_pkg) do
     if test.name == name then
+      test.filename = filename
+      test.pkg = pkg
       return test
     end
   end
