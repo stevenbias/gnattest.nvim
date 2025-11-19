@@ -66,16 +66,16 @@ local subcommand_tbl = {
       local tests_info = require("gnattest.xml").get_tests()
       local run_args = {}
       for _, files in pairs(tests_info) do
-        for _, tests in pairs(files) do
-          for _, test in pairs(tests) do
-            table.insert(run_args, test.pkg .. ":" .. test.name)
+        for pkg, tst_pkg in pairs(files) do
+          for _, test in pairs(tst_pkg) do
+            table.insert(run_args, pkg .. ":" .. test.name)
           end
         end
       end
       return vim
         .iter(run_args)
-        :filter(function(run_args)
-          return run_args:find(subcmd_arg_lead) ~= nil
+        :filter(function(args)
+          return args:find(subcmd_arg_lead) ~= nil
         end)
         :totable()
     end,
@@ -137,7 +137,9 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
 })
 
 -- vim.api.nvim_create_user_command("TSTest", function()
+--   vim.cmd(":Lazy reload gnattest.nvim")
 --   local xml = require("gnattest.xml")
 --   local res = xml.get_tests()
---   print(vim.inspect(res))
+--   -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
+--   -- print(vim.inspect(res))
 -- end, {})
