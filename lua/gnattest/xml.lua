@@ -143,6 +143,7 @@ function M.get_tests()
   -- **PACKAGE** --
   ------------------
   local pkg = {}
+  local pkg_info = {}
   local pkg_capture_flag = ""
   local pkg_match = "test_unit"
   local pkg_query = M.query_element(pkg_match)
@@ -157,7 +158,6 @@ function M.get_tests()
   for _, unit_node in query:iter_captures(root, buf_id) do
     local unit_text =
       vim.treesitter.get_node_text(unit_node, buf_id):gsub('"', "")
-    local pkg_info = {}
     for _, pkg_node in pkg_query:iter_captures(unit_node, buf_id) do
       local pkg_text =
         vim.treesitter.get_node_text(pkg_node, buf_id):gsub('"', "")
@@ -193,6 +193,7 @@ function M.get_tests()
       end
       if pkg_capture_flag == "target_file" and pkg[pkg_text] == nil then
         pkg[pkg_text] = pkg_info
+        pkg_info = {}
       end
 
       pkg_capture_flag = pkg_text
