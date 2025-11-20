@@ -32,7 +32,7 @@ describe("gnattest.init", function()
   it("rejects unsupported options in setup", function()
     local opts = { foo = "bar" }
     assert.has_error(function()
-      _G.vim.api.nvim_create_autocmd = function(event, tbl)
+      _G.vim.api.nvim_create_autocmd = function(_, tbl)
         -- simulate autocmd by calling callback
         tbl.callback("BufReadPre")
       end
@@ -43,11 +43,8 @@ describe("gnattest.init", function()
   end)
 
   it("calls read_only.setup and ada_ls.setup if no options", function()
-    local ro_mock = require("gnattest.read_only")
-    local ada_mock = require("gnattest.ada_ls")
-
     local called_callback
-    _G.vim.api.nvim_create_autocmd = function(event, tbl)
+    _G.vim.api.nvim_create_autocmd = function(_, tbl)
       tbl.callback("BufReadPre")
       called_callback = true
     end
@@ -56,11 +53,8 @@ describe("gnattest.init", function()
   end)
 
   it("calls read_only.setup and ada_ls.setup if empty options", function()
-    local ro_mock = require("gnattest.read_only")
-    local ada_mock = require("gnattest.ada_ls")
-
     local called_callback
-    _G.vim.api.nvim_create_autocmd = function(event, tbl)
+    _G.vim.api.nvim_create_autocmd = function(_, tbl)
       tbl.callback("BufReadPre")
       called_callback = true
     end
