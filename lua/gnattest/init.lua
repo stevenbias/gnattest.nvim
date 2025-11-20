@@ -17,7 +17,7 @@ function M.setup(opts)
       utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function()
-      if next(opts) ~= nil then
+      if opts ~= nil and next(opts) ~= nil then
         error("Options are not supported")
       else
         require("gnattest.read_only").setup(M.opts)
