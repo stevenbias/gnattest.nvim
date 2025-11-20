@@ -24,8 +24,6 @@ end
 
 local function run_tests(filename, lnum)
   if filename == nil or lnum == nil then
-    filename = ""
-    lnum = ""
     vim.cmd("!./" .. test_runner)
   else
     vim.cmd("!./" .. test_runner .. " --routines=" .. filename .. ":" .. lnum)
