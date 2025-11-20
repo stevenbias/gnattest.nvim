@@ -9,3 +9,12 @@ repos:
     rev: v2.3.1
     hooks:
       - id: stylua
+  # Lint Lua code
+  - repo: local
+    hooks:
+      - id: luacheck
+        name: Lint lua code
+        entry: luacheck
+        language: system
+        files: ".*\\.lua$"
+        stages: [pre-commit]

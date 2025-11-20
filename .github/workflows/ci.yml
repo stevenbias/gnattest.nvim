@@ -1,18 +1,13 @@
-name: Lua style checking
+name: Lua style and linting checking
 on: [push, pull_request]
 jobs:
-  # luacheck:
-  #   name: Luacheck
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Prepare
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y luarocks
-  #         sudo luarocks install luacheck
-  #     - name: Lint
-  #       run: sudo make lint
+  lua_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Luacheck linter
+        uses: lunarmodules/luacheck@v1
   stylua:
     name: stylua
     runs-on: ubuntu-latest
@@ -22,5 +17,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          # CLI arguments
           args: --color always --check lua/
+  Busted:
+    name: Run tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim_version: ['stable']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        uses: nvim-neorocks/nvim-busted-action@v1
+        with:
+          nvim_version: ${{ matrix.neovim_version }}
