@@ -1,7 +1,7 @@
 name: Lua style and linting checking
 on: [push, pull_request]
 jobs:
-  luacheck:
+  lua_lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,5 +17,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          # CLI arguments
           args: --color always --check lua/
+  Busted:
+    name: Run tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim_version: ['stable']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        uses: nvim-neorocks/nvim-busted-action@v1
+        with:
+          nvim_version: ${{ matrix.neovim_version }}
