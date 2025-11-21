@@ -1,4 +1,4 @@
--- local stub = require("luassert.stub")
+local stub = require("luassert.stub")
 
 describe("gnattest.utils", function()
   local utils
@@ -7,12 +7,15 @@ describe("gnattest.utils", function()
     -- Stub basic Neovim API functions used in utils.lua
     _G.vim = _G.vim or {}
     _G.vim.api = {
+      nvim_echo = function(msg)
+        return msg
+      end,
       nvim_get_current_buf = function()
         return 0
       end,
-      -- nvim_buf_get_lines = function(_, start_row, end_row_plus1, _)
-      --   return { "line1", "line2" }
-      -- end,
+      nvim_buf_get_lines = function()
+        return { "line1", "line2" }
+      end,
       nvim__get_runtime = function()
         return {}
       end,
@@ -42,25 +45,25 @@ describe("gnattest.utils", function()
         error("No parser")
       end,
       query = {
-        -- parse = function(lang, query_str)
-        --   return {
-        --     iter_captures = function(root, bufnr)
-        --       local node = {
-        --         range = function()
-        --           return 10
-        --         end, -- let range return something
-        --       }
-        --       local id = 1
-        --       return coroutine.wrap(function()
-        --         coroutine.yield(id, node)
-        --       end)
-        --     end,
-        --     captures = { "comment" },
-        --   }
-        -- end,
+        parse = function()
+          return {
+            iter_captures = function()
+              -- Stub node object
+              local node = {
+                range = function()
+                  return 7, 7, 0, 0
+                end, -- typical return: start_row, end_row, start_col, end_col
+              }
+              local id = 1
+              return coroutine.wrap(function()
+                coroutine.yield(id, node)
+              end)
+            end,
+            captures = { "comment" },
+          }
+        end,
       },
       get_node_text = function(_, _)
-        -- Always return a comment text string for tests
         return "--begin read only"
       end,
     }
@@ -74,47 +77,34 @@ describe("gnattest.utils", function()
       end,
     }
     -- Stub notify plugin and vim.notify
-    package.loaded["notify"] = nil
-    -- vim.notify = stub.new()
-
-    _G.original_require = _G.require
-    -- Remplace require pour retourner le mock
-    _G.require = function(modname)
-      if modname == "notify" then
-        return vim.api.nvim_echo
-      else
-        return _G.original_require(modname)
-      end
+    package.preload["notify"] = function()
+      return stub.new()
     end
-
-    -- Only load utils **after** all necessary stubs
-    local ok, err = pcall(function()
-      require("gnattest.utils")
-    end)
-    print(ok, err)
 
     utils = require("gnattest.utils")
   end)
 
   after_each(function()
     package.loaded["gnattest.utils"] = nil
-    _G.require = _G.original_require
+    package.preload["notify"] = nil
   end)
 
-  it("notifies using nvim_echo when notify not loaded", function()
+  it("notifies not using vim.notify when notify is loaded", function()
+    local s = spy.on(vim, "notify")
     utils.is_loaded = function()
-      return false
+      return true
     end
     utils.notify("foo", "warn")
-    assert.stub(vim.api.nvim_echo).was_called()
+    assert.spy(s).was.called(0)
   end)
 
-  it("notifies using vim.notify if present", function()
+  it("notifies using vim.notify when notify module is not present", function()
+    local s = spy.on(vim, "notify")
     utils.is_loaded = function()
       return false
     end
     utils.notify("bar", "info")
-    assert.stub(vim.notify).was_called()
+    assert.spy(s).was.called(1)
   end)
 
   it("returns current buffer id", function()
@@ -125,13 +115,13 @@ describe("gnattest.utils", function()
     assert.is_true(utils.is_gnattest_file())
   end)
 
-  -- it("returns lines from get_lines", function()
-  --   assert.are.same({ "line1", "line2" }, utils.get_lines(0, 1))
-  -- end)
-  --
-  -- it("returns comments via get_all_comments", function()
-  --   local comments = utils.get_all_comments("ada")
-  --   assert.truthy(comments)
-  --   assert.same("--begin read only", comments[1].text)
-  -- end)
+  it("returns lines from get_lines", function()
+    assert.are.same({ "line1", "line2" }, utils.get_lines(0, 1))
+  end)
+
+  it("returns comments via get_all_comments", function()
+    local comments = utils.get_all_comments("ada")
+    assert.truthy(comments)
+    assert.same("--begin read only", comments[1].text)
+  end)
 end)
