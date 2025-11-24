@@ -1,0 +1,127 @@
+local stub = require("luassert.stub")
+
+describe("gnattest.utils", function()
+  local utils
+
+  before_each(function()
+    -- Stub basic Neovim API functions used in utils.lua
+    _G.vim = _G.vim or {}
+    _G.vim.api = {
+      nvim_echo = function(msg)
+        return msg
+      end,
+      nvim_get_current_buf = function()
+        return 0
+      end,
+      nvim_buf_get_lines = function()
+        return { "line1", "line2" }
+      end,
+      nvim__get_runtime = function()
+        return {}
+      end,
+    }
+    _G.vim.fn = {
+      expand = function(_)
+        return "gnattest/gnattest_file.adb"
+      end,
+    }
+    -- Stub Treesitter as used by utils.lua
+    _G.vim.treesitter = {
+      get_parser = function(_, lang)
+        if lang == "ada" then
+          return {
+            parse = function()
+              -- mimic parse tree with root
+              return {
+                {
+                  root = function()
+                    return 99
+                  end,
+                },
+              }
+            end,
+          }
+        end
+        error("No parser")
+      end,
+      query = {
+        parse = function()
+          return {
+            iter_captures = function()
+              -- Stub node object
+              local node = {
+                range = function()
+                  return 7, 7, 0, 0
+                end, -- typical return: start_row, end_row, start_col, end_col
+              }
+              local id = 1
+              return coroutine.wrap(function()
+                coroutine.yield(id, node)
+              end)
+            end,
+            captures = { "comment" },
+          }
+        end,
+      },
+      get_node_text = function(_, _)
+        return "--begin read only"
+      end,
+    }
+    -- Stub vim.fs if used anywhere by utils.lua or its dependencies
+    _G.vim.fs = {
+      find = function(_)
+        return {}
+      end,
+      dirname = function(_)
+        return "gnattest"
+      end,
+    }
+    -- Stub notify plugin and vim.notify
+    package.preload["notify"] = function()
+      return stub.new()
+    end
+
+    utils = require("gnattest.utils")
+  end)
+
+  after_each(function()
+    package.loaded["gnattest.utils"] = nil
+    package.preload["notify"] = nil
+  end)
+
+  it("notifies not using vim.notify when notify is loaded", function()
+    local s = spy.on(vim, "notify")
+    utils.is_loaded = function()
+      return true
+    end
+    utils.notify("foo", "warn")
+    assert.spy(s).was.called(0)
+  end)
+
+  it("notifies using vim.notify when notify module is not present", function()
+    local s = spy.on(vim, "notify")
+    utils.is_loaded = function()
+      return false
+    end
+    utils.notify("bar", "info")
+    assert.spy(s).was.called(1)
+  end)
+
+  it("returns current buffer id", function()
+    assert.equals(0, utils.get_bufid())
+  end)
+
+  it("detects gnattest file path", function()
+    assert.is_true(utils.is_gnattest_file())
+  end)
+
+  it("returns lines from get_lines", function()
+    assert.are.same({ "line1", "line2" }, utils.get_lines(0, 1))
+  end)
+
+  it("returns comments via get_all_comments", function()
+    local comments = utils.get_all_comments("ada")
+    assert.truthy(comments)
+    assert.same("--begin read only", comments[1].text)
+  end)
+end)
