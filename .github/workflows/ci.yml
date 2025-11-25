@@ -1,7 +1,10 @@
 name: Lua style and linting checking
+
 on: [push, pull_request]
+
 jobs:
-  lua_lint:
+  lint:
+    name: Lua linting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -9,7 +12,7 @@ jobs:
       - name: Luacheck linter
         uses: lunarmodules/luacheck@v1
   stylua:
-    name: stylua
+    name: Lua styling
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +28,12 @@ jobs:
       matrix:
         neovim_version: ['stable']
     steps:
+      - name: Prepare
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacov
+
       - uses: actions/checkout@v4
       - name: Run tests
         uses: nvim-neorocks/nvim-busted-action@v1
