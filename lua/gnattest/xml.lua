@@ -135,7 +135,7 @@ function M.get_tests()
   --------------
   -- **UNIT** --
   --------------
-  local filename = ""
+  local filename
   local unit_capture_flag = ""
   local unit_match = "unit"
   local query = M.query_element(unit_match)
