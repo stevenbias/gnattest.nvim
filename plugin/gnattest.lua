@@ -107,7 +107,7 @@ end
 
 vim.api.nvim_create_user_command(cmd_name, subcmd, {
   nargs = "+",
-  desc = cmd_name .. "commands",
+  desc = cmd_name .. " commands",
   complete = function(arg_lead, cmdline, _)
     -- Get the subcommand.
     local subcmd_key, subcmd_arg_lead =

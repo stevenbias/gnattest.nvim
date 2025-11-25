@@ -139,7 +139,7 @@ local function fix_ro_regions()
         end
       end
     end
-    if marks_to_restore ~= nil then
+    if #marks_to_restore > 0 then
       for _, mark in ipairs(marks_to_restore) do
         local mark_id = mark.id
         protected_region_notif()
