@@ -59,6 +59,8 @@ local function set_extmark(start_row, end_row, mark_id)
   }
 end
 
+-- Calls `cb(start_line, end_line, index)` for each detected region.
+-- `cb` should be a function accepting (start_line, end_line, index) parameters.
 local function get_regions(cb)
   local region = nil
   local idx = 0
@@ -84,7 +86,10 @@ end
 
 local function protected_region_notif()
   protect_flag = true
-  require("gnattest.utils").notify("This is a read only region!", "error")
+  require("gnattest.utils").notify(
+    "This is a read only region!",
+    vim.log.levels.ERROR
+  )
 end
 
 local function prepare_gnattest()
@@ -107,8 +112,10 @@ local function fix_ro_regions()
     local lnum = cursor_pos[2]
     local cnum = cursor_pos[3]
 
+    local marks_to_restore = {}
+
     local all_marks = vim.api.nvim_buf_get_extmarks(
-      0,
+      require("gnattest.utils").get_bufid(),
       M.namespace,
       0,
       -1,
@@ -124,18 +131,27 @@ local function fix_ro_regions()
         local lines =
           require("gnattest.utils").get_lines(start_row, end_row - 1)
         if not vim.deep_equal(lines, M.extmark[mark_id].lines) then
-          protected_region_notif()
-          vim.cmd([[stopinsert]])
-          restore_lines(start_row, end_row, M.extmark[mark_id].lines)
-          set_extmark(
-            M.extmark[mark_id].start_row,
-            M.extmark[mark_id].end_row,
-            mark_id
-          )
-          -- reset cursor position
-          vim.api.nvim_win_set_cursor(0, { lnum, cnum })
-          return
+          table.insert(marks_to_restore, {
+            start_row = start_row,
+            end_row = end_row,
+            id = mark_id,
+          })
         end
+      end
+    end
+    if #marks_to_restore > 0 then
+      for _, mark in ipairs(marks_to_restore) do
+        local mark_id = mark.id
+        protected_region_notif()
+        vim.cmd([[stopinsert]])
+        restore_lines(mark.start_row, mark.end_row, M.extmark[mark_id].lines)
+        set_extmark(
+          M.extmark[mark_id].start_row,
+          M.extmark[mark_id].end_row,
+          mark_id
+        )
+        -- reset cursor position
+        vim.api.nvim_win_set_cursor(0, { lnum, cnum })
       end
     end
   end)
@@ -171,6 +187,7 @@ function M.setup(opt)
     callback = function()
       if protect_flag then
         protect_flag = false
+        prepare_gnattest()
         return
       end
       fix_ro_regions()

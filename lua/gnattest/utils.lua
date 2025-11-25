@@ -1,35 +1,57 @@
-local utils = {
+local M = {
   gnattest_pattern = "**/gnattest/",
 }
 
-utils.plugin_name = "GNATtest"
+M.plugin_name = "GNATtest"
 
-function utils.notify(msg, lvl)
-  local title = utils.plugin_name .. " " .. lvl .. " message"
-  if utils.is_loaded("notify") then
-    require("notify")(msg, lvl, { title = title })
+local function log_lvl_tostring(lvl)
+  if lvl == 0 then
+    return "TRACE"
+  elseif lvl == 1 then
+    return "DEBUG"
+  elseif lvl == 2 then
+    return "INFO"
+  elseif lvl == 3 then
+    return "WARN"
+  elseif lvl == 4 then
+    return "ERROR"
+  elseif lvl == 5 then
+    return "OFF"
   else
-    vim.api.nvim_echo({ { title .. ": " .. msg } }, true, { err = true })
+    return "ERROR"
   end
 end
 
-function utils.is_loaded(plugin_name)
+function M.notify(msg, lvl)
+  local title = M.plugin_name .. " " .. log_lvl_tostring(lvl) .. " message"
+  if M.is_loaded("notify") then
+    require("notify")(msg, lvl, { title = title })
+  else
+    vim.notify(title .. ": " .. msg, lvl)
+  end
+end
+
+function M.is_loaded(plugin_name)
   return pcall(require, plugin_name) -- will also load the package if it isn't loaded already
 end
 
-function utils.get_bufid()
+function M.get_bufid()
   return vim.api.nvim_get_current_buf()
 end
 
-function utils.get_bufdir()
+function M.get_bufpath()
   return vim.fn.expand("%")
 end
 
-function utils.is_gnattest_file()
-  return string.find(utils.get_bufdir(), "gnattest") ~= nil
+function M.get_bufdir()
+  return vim.fs.dirname(M.get_bufpath())
 end
 
-function utils.get_lines(start_row, end_row)
+function M.is_gnattest_file()
+  return string.find(M.get_bufdir(), "gnattest") ~= nil
+end
+
+function M.get_lines(start_row, end_row)
   return vim.api.nvim_buf_get_lines(0, start_row, end_row + 1, true)
 end
 
@@ -39,8 +61,13 @@ local function get_parser()
 
   if ok then
     return parser
+  elseif not ok or not parser then
+    vim.notify(
+      "GNATtest: Ada treesitter parser missing, skipping syntax analysis",
+      vim.log.levels.WARN
+    )
+    return nil
   end
-  return nil
 end
 
 -- Get the root node of the syntax tree
@@ -52,7 +79,7 @@ local function get_root()
   return parser:parse()[1]:root()
 end
 
-function utils.get_all_comments(language)
+function M.get_all_comments(language)
   local root = get_root()
   if not root then
     return {}
@@ -80,4 +107,4 @@ function utils.get_all_comments(language)
   return cmts
 end
 
-return utils
+return M

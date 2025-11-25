@@ -8,7 +8,6 @@ local default_opts = {
 
 local M = {
   opts = default_opts,
-  is_started = false,
 }
 
 function M.setup(opts)
@@ -18,14 +17,11 @@ function M.setup(opts)
       utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function()
-      if not M.is_started then
-        M.is_started = true
-        if next(opts) ~= nil then
-          error("Options are not supported")
-        else
-          require("gnattest.read_only").setup(M.opts)
-          require("gnattest.ada_ls").setup()
-        end
+      if opts ~= nil and next(opts) ~= nil then
+        error("Options are not supported")
+      else
+        require("gnattest.read_only").setup(M.opts)
+        require("gnattest.ada_ls").setup()
       end
     end,
   })

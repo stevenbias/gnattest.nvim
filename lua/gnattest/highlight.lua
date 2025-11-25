@@ -1,5 +1,8 @@
 local M = {}
 
+local DEFAULT_HIGHLIGHT_COLOR = "#303030"
+local HIGHLIGHT_PERCENT_ADJUST = 3
+
 -- Helper function to convert a Hex string (#RRGGBB) to an RGB table {r, g, b}
 local function hex_to_rgb(hex)
   local r = tonumber(hex:sub(2, 3), 16)
@@ -34,7 +37,7 @@ end
 
 local function get_hl()
   local hl = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
-  if hl and hl.bg then
+  if hl and hl.bg ~= nil then
     return string.format("#%06x", hl.bg)
   end
   return nil
@@ -42,9 +45,9 @@ end
 
 function M.set_highlight(namespace, hl_group)
   local hl = get_hl()
-  local new_bg = "#303030"
+  local new_bg = DEFAULT_HIGHLIGHT_COLOR
 
-  local percent = 3
+  local percent = HIGHLIGHT_PERCENT_ADJUST
 
   if vim.o.background == "light" then
     percent = -percent
