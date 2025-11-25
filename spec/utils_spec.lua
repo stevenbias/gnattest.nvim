@@ -89,7 +89,7 @@ describe("gnattest.utils", function()
     package.preload["notify"] = nil
   end)
 
-  it("notifies not using vim.notify when notify is loaded", function()
+  it("does not use vim.notify when notify module is loaded", function()
     local s = spy.on(vim, "notify")
     utils.is_loaded = function()
       return true

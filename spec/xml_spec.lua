@@ -107,21 +107,6 @@ describe("gnattest.xml", function()
     end)
   end)
 
-  -- describe("get_tests", function()
-  --   it("returns table of discovered tests (mocked)", function()
-  --     local tests = xml.get_tests()
-  --     assert.is_table(tests)
-  --     -- The return value is a deepcopy of source_files. Since our stub returns a single source_file and package
-  --     print(vim.inspect(tests))
-  --     assert.is_true(next(tests) ~= nil)
-  --   end)
-  --   it("returns cached tests on repeated call", function()
-  --     xml.tests = { foo = { bar = { "baz" } } }
-  --     local tests = xml.get_tests()
-  --     assert.same({ foo = { bar = { "baz" } } }, tests)
-  --   end)
-  -- end)
-
   describe("get_tests_by_name", function()
     it("returns test by name if present", function()
       xml.tests = { file1 = { pkg1 = { { name = "testA" } } } }
@@ -136,23 +121,6 @@ describe("gnattest.xml", function()
       xml.tests = { file1 = { pkg1 = { { name = "testA" } } } }
       local test = xml.get_tests_by_name("pkg1", "missing")
       assert.is_nil(test)
-    end)
-  end)
-
-  describe("internal get_pkg_tests helper", function()
-    it("returns tests and filename for pkg", function()
-      xml.tests = { file1 = { pkg1 = { name = "X", "Y" } } }
-      require("gnattest.xml")
-      -- Use the direct call to the internal function via package.loaded
-      local M = package.loaded["gnattest.xml"]
-      if not M then
-        M = xml
-      end
-      local tst_pkg = M.get_tests_by_name("pkg1", "X")
-      -- get_tests_by_name calls get_pkg_tests internally
-      -- Here we just verify that the intended lookup works
-      assert.is_nil(tst_pkg)
-      -- It won't work directly unless we expose get_pkg_tests; so just verify indirect behavior above
     end)
   end)
 end)
