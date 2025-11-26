@@ -21,6 +21,16 @@ jobs:
       - name: Luacheck linter
         uses: lunarmodules/luacheck@v1
         
+      - name: Install Lua tools
+        run: |
+          echo "📦 Installing Lua tools..."
+          sudo apt-get update
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacheck
+          echo "✅ Lua tools installed"
+          echo "🔍 Verifying installations:"
+          luacheck --version
+          
       - name: Check StyLua formatting
         uses: JohnnyMorganz/stylua-action@v4
         with:

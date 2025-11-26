@@ -1,30 +1,23 @@
 name: CI Pipeline
-
 on:
   push:
     branches: ['*']
   pull_request:
     branches: ['*']
   workflow_dispatch:
-
 permissions:
   contents: read
   checks: write
   pull-requests: write
-
 jobs:
   # Workflow orchestration - calls other workflows
   lint:
     name: Lint and Format
     uses: ./.github/workflows/lint.yml
-    secrets: inherit
-    
   test:
     name: Test Suite
     needs: lint
     uses: ./.github/workflows/test.yml
-    secrets: inherit
-    
   # Status check job
   status:
     name: Pipeline Status
@@ -38,7 +31,7 @@ jobs:
           echo "🔍 Checking pipeline status..."
           echo "Lint: ${{ needs.lint.result }}"
           echo "Test: ${{ needs.test.result }}"
-          
+
           # Determine overall status
           if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.test.result }}" == "failure" ]]; then
             echo "❌ Pipeline failed"
@@ -52,17 +45,16 @@ jobs:
             echo "✅ Pipeline passed"
             echo "status=success" >> $GITHUB_OUTPUT
           fi
-          
       - name: Create status badge
         if: success()
         shell: bash
         run: |
           echo "🏆 All checks passed!"
           echo "📊 Ready for merge"
-          
       - name: Notify on failure
         if: failure()
         shell: bash
-        run: |
+        run: |-
           echo "🚨 Pipeline failed! Check the logs above."
           echo "🔧 Fix the issues and push again."
+

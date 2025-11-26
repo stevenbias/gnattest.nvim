@@ -1,6 +1,6 @@
 # GitHub CI Configuration
 
-This directory contains modular GitHub Actions CI configuration for gnattest.nvim.
+This directory contains modular GitHub Actions CI configuration for gnattest.nvim, designed for reliability, performance, and maintainability.
 
 ## Structure Overview
 
@@ -10,11 +10,9 @@ This directory contains modular GitHub Actions CI configuration for gnattest.nvi
 │   ├── ci.yml          # Main orchestration pipeline
 │   ├── lint.yml        # Linting and formatting checks
 │   └── test.yml        # Test suite with matrix strategy
-├── actions/             # Reusable composite actions
-│   ├── setup-lua/      # Lua environment setup with caching
-│   └── cache-restore/  # Optimized dependency caching
-└── config/             # Configuration files
-    └── neovim-versions.yml # Neovim version definitions
+├── config/             # Configuration files
+│   └── neovim-versions.yml # Neovim version definitions
+└── README.md           # This documentation
 ```
 
 ## Workflows
@@ -23,105 +21,239 @@ This directory contains modular GitHub Actions CI configuration for gnattest.nvi
 - **Purpose**: Orchestrates lint and test workflows
 - **Triggers**: Push to any branch, PRs, manual dispatch
 - **Jobs**: Calls lint and test workflows as reusable jobs
-- **Features**: Status checking, pipeline coordination
+- **Features**: 
+  - Status checking and pipeline coordination
+  - Clear notifications with emoji indicators
+  - Dependency management (lint → test)
+  - Comprehensive error reporting
 
 ### Lint and Format (`lint.yml`)
-- **Purpose**: Code quality checks
-- **Tools**: Luacheck, StyLua, pre-commit hooks
-- **Caching**: Lua dependencies with optimized cache keys
-- **Features**: Combined linting for faster execution
+- **Purpose**: Code quality checks and formatting validation
+- **Tools**: 
+  - `lunarmodules/luacheck@v1` for Lua linting
+  - `JohnnyMorganz/stylua-action@v4` for formatting checks
+  - `pre-commit/action@v3.0.1` for pre-commit hooks
+- **Features**: 
+  - Combined linting for faster execution
+  - Colorized output for better readability
+  - Pre-commit hook validation
+  - Comprehensive code quality enforcement
 
 ### Test Suite (`test.yml`)
-- **Purpose**: Run comprehensive test suite
-- **Matrix**: Tests on Neovim stable and nightly
-- **Coverage**: Code coverage reporting on stable version
-- **Artifacts**: Test logs on failure
-- **Features**: Environment verification, optimized caching
-
-
-
-### Release (`release.yml`)
-- **Purpose**: Automated release creation
-- **Triggers**: Git tags with `v*` pattern
-- **Features**: Changelog generation, GitHub releases
-
-## Reusable Actions
-
-### Setup Lua Environment (`actions/setup-lua/`)
-- **Purpose**: Standardized Lua and LuaRocks setup
+- **Purpose**: Run comprehensive test suite across Neovim versions
+- **Matrix Strategy**: Tests on Neovim stable and nightly versions
+- **Tools**: `nvim-neorocks/nvim-busted-action@v1` for testing
 - **Features**: 
-  - Intelligent caching based on rockspec files
-  - Base dependency installation (luacheck, stylua)
-  - Configurable Lua version
-- **Usage**: Can be called from any workflow
-
-### Cache and Restore (`actions/cache-restore/`)
-- **Purpose**: Optimized dependency caching
-- **Features**:
-  - Dynamic cache key generation
-  - Multiple path support
-  - Cache status reporting
-  - Configurable cache keys and restore patterns
+  - Parallel execution across versions
+  - Artifact upload on test failures
+  - Test log collection (.busted, luacov files)
+  - 7-day artifact retention for debugging
+  - Coverage tracking on stable version
 
 ## Configuration
 
 ### Neovim Versions (`config/neovim-versions.yml`)
 - **Purpose**: Centralized version management
-- **Features**: 
-  - Easy version addition
-  - Coverage version specification
-  - Default version settings
+- **Current versions**: 
+  - `stable` - Latest stable Neovim release
+  - `nightly` - Latest nightly build
+- **Usage**: Referenced by test matrix strategy
 
-## Key Improvements Over Original
+## Key Features
+
+### Reliability
+- **Proven Actions**: Uses well-maintained GitHub Actions from the community
+- **Simple Architecture**: Minimal complexity, fewer points of failure
+- **Standard Practices**: Follows GitHub Actions best practices
+- **Version Pinning**: Specific action versions prevent breaking changes
 
 ### Performance
-- **Intelligent Caching**: Cache keys based on file hashes and versions
-- **Parallel Execution**: Jobs run independently where possible
-- **Optimized Dependencies**: Install only when cache misses
+- **Parallel Execution**: Lint and test jobs run independently
+- **Optimized Matrix**: Tests only on necessary Neovim versions
+- **Fast Feedback**: Quick linting results before testing
+- **Efficient Caching**: Action-level caching where appropriate
 
 ### Quality
-- **Multiple Neovim Versions**: Test on stable and nightly
-- **Coverage Reporting**: Upload to Codecov for tracking
-- **Security Scanning**: Weekly vulnerability checks
-- **Better Error Handling**: Comprehensive artifact collection
-
-### Maintainability
-- **Modular Structure**: Each workflow has single responsibility
-- **Reusable Actions**: Common functionality extracted
-- **Configuration Files**: Centralized settings management
-- **Clear Documentation**: Comprehensive README and inline comments
+- **Multiple Neovim Versions**: Ensures compatibility across releases
+- **Comprehensive Testing**: Full test suite on each version
+- **Code Quality**: Linting and formatting enforcement
+- **Artifact Collection**: Easy debugging on failures
+- **Coverage Tracking**: Test coverage monitoring
 
 ### Developer Experience
-- **Manual Dispatch**: Can run workflows manually
-- **Better Logging**: Verbose output with emojis for clarity
-- **Status Badges**: Clear pipeline status indication
+- **Manual Dispatch**: Can run workflows manually via GitHub UI
+- **Clear Status**: Emoji-enhanced logging and status reporting
 - **Artifact Handling**: Easy access to test logs on failure
+- **Modular Structure**: Each workflow has single responsibility
+- **Local Parity**: Same tools available locally
 
 ## Usage
 
 ### Running Workflows
-- **Automatic**: On push/PR to main/develop branches
+- **Automatic**: On push/PR to any branch
 - **Manual**: Via "workflow_dispatch" in GitHub Actions tab
-- **Scheduled**: Security scan runs weekly
+- **Dependencies**: Lint must pass before tests run
+
+### Local Development
+Use the same tools locally to match CI behavior:
+
+```bash
+# Lint code (same as CI)
+luacheck --codes .
+
+# Check formatting (same as CI)
+stylua --check lua/
+
+# Fix formatting locally
+stylua lua/
+
+# Run all tests (same as CI)
+busted -v
+
+# Run single test file
+busted spec/<filename>_spec.lua
+
+# Run tests with coverage
+busted --coverage
+```
+
+### Pre-commit Hooks
+The repository includes pre-commit hooks that run automatically:
+```bash
+# Install pre-commit hooks (one-time setup)
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+```
+
+### Debugging
+- **Individual Logs**: Check each workflow's logs for detailed information
+- **Artifacts**: Download test artifacts from failed runs for analysis
+- **Status Messages**: Review pipeline coordination messages
+- **Local Reproduction**: Use same commands locally to reproduce issues
+
+## Configuration Files
+
+The CI uses these configuration files in the repository root:
+
+- **`.busted`** - Test framework configuration with coverage settings
+- **`.luacheckrc`** - Linting rules and global variable allowances  
+- **`.stylua.toml`** - Code formatting preferences (2-space indentation, 80-char width)
+- **`.pre-commit-config.yaml`** - Pre-commit hook definitions
+- **`AGENTS.md`** - Development guidelines and commands for AI agents
+
+## Workflow Dependencies
+
+```
+ci.yml (orchestrator)
+├── lint.yml (must pass first)
+│   ├── luacheck
+│   ├── stylua formatting check
+│   └── pre-commit hooks
+└── test.yml (runs after lint success)
+    ├── test on stable Neovim
+    └── test on nightly Neovim
+└── status job (reports overall pipeline status)
+```
+
+## Performance Metrics
+
+### Typical Execution Times
+- **Lint Job**: ~30-60 seconds
+- **Test Job**: ~2-5 minutes per Neovim version
+- **Total Pipeline**: ~5-10 minutes
+
+### Optimization Tips
+- Run linting locally before pushing to save CI time
+- Use targeted test runs during development
+- Monitor artifact sizes to avoid storage limits
+
+## Maintenance
 
 ### Adding New Neovim Versions
 1. Edit `.github/config/neovim-versions.yml`
-2. Add new version to `versions` section
-3. Update matrix strategy in workflows if needed
+2. Update matrix strategy in `test.yml`
+3. Test changes in a feature branch
 
 ### Modifying Workflows
 - Each workflow is independent and can be modified separately
-- Reusable actions can be updated in one place
 - Configuration changes affect all relevant workflows
+- Test changes locally before committing
+- Update action versions carefully
 
-### Debugging
-- Check individual workflow logs for detailed information
-- Download test artifacts from failed runs
-- Review cache status messages for optimization opportunities
+### Updating Actions
+- Update action versions in respective workflow files
+- Test changes thoroughly as action updates may introduce breaking changes
+- Monitor action repositories for security updates
+- Pin to specific versions for stability
 
-## Future Enhancements
+### Regular Maintenance Tasks
+- Review and update action versions monthly
+- Monitor CI performance and optimize bottlenecks
+- Clean up old artifacts and cache storage
+- Update documentation as workflows evolve
 
-- **Documentation Deployment**: Auto-generate and deploy docs
-- **Plugin Publishing**: Automated rockspec publishing
-- **Performance Monitoring**: CI execution time tracking
-- **Integration Testing**: Add end-to-end tests with real Neovim instances
+## Troubleshooting
+
+### Common Issues
+
+#### Lint Failures
+```bash
+# Check specific linting issues
+luacheck --codes .
+
+# Fix formatting issues
+stylua lua/
+
+# Run pre-commit hooks manually
+pre-commit run --all-files
+```
+
+#### Test Failures
+- Download artifacts to examine test logs and coverage
+- Check Neovim version compatibility
+- Verify test environment setup
+- Review recent code changes for breaking modifications
+
+#### Workflow Failures
+- Check GitHub Actions status page for outages
+- Verify workflow syntax and permissions
+- Review action version compatibility
+- Check repository settings and secrets
+
+### Getting Help
+- **Workflow Logs**: Check individual workflow run logs in GitHub Actions tab
+- **Artifacts**: Review artifact contents for detailed error information
+- **Local Debugging**: Use local development commands to reproduce issues
+- **GitHub Docs**: Refer to GitHub Actions documentation for syntax and features
+- **Action Issues**: Check individual action repositories for known issues
+
+## Best Practices
+
+### For Contributors
+1. **Run Locally**: Always run linting and tests locally before pushing
+2. **Small Commits**: Keep changes focused and testable
+3. **Branch Strategy**: Use feature branches for development
+4. **PR Reviews**: Ensure CI passes before merging PRs
+
+### For Maintainers
+1. **Version Pinning**: Pin action versions for stability
+2. **Regular Updates**: Keep actions updated for security
+3. **Monitoring**: Monitor CI performance and failures
+4. **Documentation**: Keep README and comments current
+
+### Security Considerations
+- Review action updates for security vulnerabilities
+- Limit permissions to minimum required
+- Monitor dependency changes
+- Use trusted, well-maintained actions
+
+## Integration with Development Workflow
+
+This CI is designed to integrate seamlessly with:
+- **Local Development**: Same tools available locally
+- **Pre-commit Hooks**: Automated quality checks
+- **Pull Requests**: Automated validation on changes
+- **Release Process**: Quality gates before releases
+- **Issue Tracking**: Artifacts help with bug reports
