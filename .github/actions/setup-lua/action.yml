@@ -1,0 +1,51 @@
+name: 'Setup Lua Environment'
+description: 'Setup Lua and LuaRocks with caching'
+author: 'gnattest.nvim'
+
+inputs:
+  lua-version:
+    description: 'Lua version to use'
+    required: false
+    default: '5.1'
+  cache-key-suffix:
+    description: 'Additional suffix for cache key'
+    required: false
+    default: ''
+
+outputs:
+  cache-hit:
+    description: 'Whether cache was hit'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache Lua dependencies
+      id: cache
+      uses: actions/cache@v3.3.2
+      with:
+        path: |
+          ~/.luarocks
+          .luarocks
+        key: ${{ runner.os }}-luarocks-${{ inputs.lua-version }}${{ inputs.cache-key-suffix }}-${{ hashFiles('**/rockspec') }}
+        restore-keys: |
+          ${{ runner.os }}-luarocks-${{ inputs.lua-version }}${{ inputs.cache-key-suffix }}-
+          ${{ runner.os }}-luarocks-${{ inputs.lua-version }}-
+          ${{ runner.os }}-luarocks-
+          
+    - name: Setup Lua
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: leafo/gh-actions-lua@v10.0.0
+      with:
+        luaVersion: ${{ inputs.lua-version }}
+        
+    - name: Setup LuaRocks
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: leafo/gh-actions-luarocks@v4.0.0
+        
+    - name: Install base dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        luarocks install luacheck
+        luarocks install stylua

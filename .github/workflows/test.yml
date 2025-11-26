@@ -1,0 +1,101 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_call:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  test:
+    name: Test on Neovim ${{ matrix.neovim_version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - neovim_version: 'stable'
+            coverage: true
+          - neovim_version: 'nightly'
+            coverage: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        
+      - name: Cache dependencies
+        uses: ./.github/actions/cache-restore
+        with:
+          cache-name: 'test-deps'
+          neovim-version: ${{ matrix.neovim_version }}
+          
+      - name: Setup Lua environment
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup-lua
+        with:
+          lua-version: '5.1'
+          cache-key-suffix: '-test-${{ matrix.neovim_version }}'
+          
+      - name: Install test dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "📦 Installing test dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y luarocks
+          luarocks install busted
+          luarocks install luacov
+          luarocks install nlua
+          
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1.2.4
+        with:
+          neovim: true
+          version: ${{ matrix.neovim_version }}
+          
+      - name: Verify environment
+        shell: bash
+        run: |
+          echo "🔍 Environment verification:"
+          echo "Lua: $(lua -v)"
+          echo "LuaRocks: $(luarocks --version)"
+          echo "Neovim: $(nvim --version | head -n1)"
+          echo "Busted: $(busted --version)"
+          
+      - name: Run tests
+        shell: bash
+        run: |
+          echo "🧪 Running tests with Neovim ${{ matrix.neovim_version }}..."
+          busted -v --coverage
+          
+      - name: Generate coverage report
+        if: matrix.coverage
+        shell: bash
+        run: |
+          echo "📊 Generating coverage report..."
+          luacov-report
+          
+      - name: Upload coverage to Codecov
+        if: matrix.coverage
+        uses: codecov/codecov-action@v3.1.4
+        with:
+          files: ./luacov.report.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3.1.3
+        with:
+          name: test-logs-${{ matrix.neovim_version }}
+          path: |
+            .busted
+            luacov.stats.out
+            luacov.report.out
+          retention-days: 7

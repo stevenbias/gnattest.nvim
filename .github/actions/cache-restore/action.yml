@@ -1,0 +1,62 @@
+name: 'Cache and Restore Dependencies'
+description: 'Optimized caching for Lua and Neovim dependencies'
+author: 'gnattest.nvim'
+
+inputs:
+  cache-name:
+    description: 'Name of the cache'
+    required: true
+  cache-key:
+    description: 'Additional cache key'
+    required: false
+    default: ''
+  neovim-version:
+    description: 'Neovim version for cache key'
+    required: false
+    default: ''
+  paths:
+    description: 'Paths to cache (newline separated)'
+    required: false
+    default: |
+      ~/.luarocks
+      .luarocks
+      ~/nvim
+      ~/.cache/nvim
+
+outputs:
+  cache-hit:
+    description: 'Whether cache was hit'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate cache key
+      id: key
+      shell: bash
+      run: |
+        BASE_KEY="${{ runner.os }}-${{ inputs.cache-name }}"
+        NEOVIM_SUFFIX="${{ inputs.neovim-version && format('-{0}', inputs.neovim-version) || '' }}"
+        ADDITIONAL_KEY="${{ inputs.cache-key && format('-{0}', inputs.cache-key) || '' }}"
+        HASH_KEY="${{ hashFiles('**/rockspec', '**/.busted', '**/.stylua.toml', '**/.luacheckrc') }}"
+        
+        echo "key=${BASE_KEY}${NEOVIM_SUFFIX}${ADDITIONAL_KEY}-${HASH_KEY}" >> $GITHUB_OUTPUT
+        echo "restore-keys=${BASE_KEY}${NEOVIM_SUFFIX}${ADDITIONAL_KEY}-" >> $GITHUB_OUTPUT
+        
+    - name: Cache dependencies
+      id: cache
+      uses: actions/cache@v3.3.2
+      with:
+        path: ${{ inputs.paths }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: |
+          ${{ steps.key.outputs.restore-keys }}
+          
+    - name: Cache status
+      shell: bash
+      run: |
+        if [ "${{ steps.cache.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Cache hit for ${{ inputs.cache-name }}"
+        else
+          echo "❌ Cache miss for ${{ inputs.cache-name }}"
+        fi
