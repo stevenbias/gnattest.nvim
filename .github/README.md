@@ -9,9 +9,7 @@ This directory contains modular GitHub Actions CI configuration for gnattest.nvi
 ├── workflows/           # Main workflow files
 │   ├── ci.yml          # Main orchestration pipeline
 │   ├── lint.yml        # Linting and formatting checks
-│   ├── test.yml        # Test suite with matrix strategy
-│   ├── security.yml    # Security vulnerability scanning
-│   └── release.yml     # Release automation
+│   └── test.yml        # Test suite with matrix strategy
 ├── actions/             # Reusable composite actions
 │   ├── setup-lua/      # Lua environment setup with caching
 │   └── cache-restore/  # Optimized dependency caching
@@ -22,9 +20,9 @@ This directory contains modular GitHub Actions CI configuration for gnattest.nvi
 ## Workflows
 
 ### Main CI Pipeline (`ci.yml`)
-- **Purpose**: Orchestrates all other workflows
-- **Triggers**: Push to main/develop, PRs, manual dispatch
-- **Jobs**: Calls other workflows as reusable jobs
+- **Purpose**: Orchestrates lint and test workflows
+- **Triggers**: Push to any branch, PRs, manual dispatch
+- **Jobs**: Calls lint and test workflows as reusable jobs
 - **Features**: Status checking, pipeline coordination
 
 ### Lint and Format (`lint.yml`)
@@ -40,11 +38,7 @@ This directory contains modular GitHub Actions CI configuration for gnattest.nvi
 - **Artifacts**: Test logs on failure
 - **Features**: Environment verification, optimized caching
 
-### Security Scan (`security.yml`)
-- **Purpose**: Vulnerability scanning
-- **Tool**: Trivy security scanner
-- **Schedule**: Weekly scans plus on-demand
-- **Features**: SARIF report upload, GitHub Security tab integration
+
 
 ### Release (`release.yml`)
 - **Purpose**: Automated release creation

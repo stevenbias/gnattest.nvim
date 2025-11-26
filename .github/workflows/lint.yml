@@ -2,9 +2,9 @@ name: Lint and Format
 
 on:
   push:
-    branches: [main, develop]
+    branches: ['*']
   pull_request:
-    branches: [main, develop]
+    branches: ['*']
   workflow_call:
 
 permissions:
@@ -16,27 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
         
-      - name: Setup Lua environment
-        uses: ./.github/actions/setup-lua
-        with:
-          lua-version: '5.1'
-          cache-key-suffix: '-lint'
-          
-      - name: Run Luacheck
-        shell: bash
-        run: |
-          echo "🔍 Running Luacheck..."
-          luacheck --version
-          luacheck --codes .
-          
+      - name: Luacheck linter
+        uses: lunarmodules/luacheck@v1
+        
       - name: Check StyLua formatting
-        shell: bash
-        run: |
-          echo "🎨 Checking StyLua formatting..."
-          stylua --version
-          stylua --check lua/
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --color always --check lua/
           
       - name: Run pre-commit hooks
         uses: pre-commit/action@v3.0.1
