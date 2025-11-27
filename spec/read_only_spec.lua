@@ -28,6 +28,7 @@ describe("gnattest.read_only", function()
       nvim__get_runtime = function()
         return {}
       end,
+      nvim_win_set_cursor = stub.new(),
     }
     _G.vim.fn = {
       getpos = function()
@@ -41,8 +42,12 @@ describe("gnattest.read_only", function()
         end,
       },
     }
+    _G.vim.cmd = stub.new()
     _G.vim.schedule = function(fn)
       fn()
+    end
+    _G.vim.deep_equal = function(a, b)
+      return vim.deep_equal(a, b)
     end
     package.preload["gnattest.utils"] = function()
       return {
@@ -76,5 +81,53 @@ describe("gnattest.read_only", function()
   it("should store opts on setup", function()
     ro.setup({ foo = "bar" })
     assert.same({ foo = "bar" }, ro.opt)
+  end)
+
+  describe("setup autocommands", function()
+    it("should create autocommands", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      assert.stub(_G.vim.api.nvim_create_autocmd).was_called()
+    end)
+  end)
+
+  describe("extmark storage", function()
+    it("should initialize extmark table", function()
+      assert.is_table(ro.extmark)
+    end)
+
+    it("should store options after setup", function()
+      local opts = { region_text = { start = "begin", ending = "end" } }
+      ro.setup(opts)
+      assert.is_equal("begin", ro.opt.region_text.start)
+      assert.is_equal("end", ro.opt.region_text.ending)
+    end)
+  end)
+
+  describe("namespace and augroup", function()
+    it("should have valid namespace", function()
+      assert.is_equal("test", ro.namespace)
+    end)
+
+    it("should have valid augroup", function()
+      assert.is_equal("autest", ro.ro_group)
+    end)
+
+    it("should have highlight group defined", function()
+      assert.is_equal("hl_ro", ro.hl_group)
+    end)
+  end)
+
+  describe("error handling", function()
+    it("should handle empty options", function()
+      assert.has_no_error(function()
+        ro.setup({})
+      end)
+    end)
+
+    it("should handle multiple setups", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup({ region_text = { start = "start", ending = "finish" } })
+      assert.is_equal("start", ro.opt.region_text.start)
+    end)
   end)
 end)
