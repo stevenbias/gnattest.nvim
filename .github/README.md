@@ -59,7 +59,7 @@ Use the same tools locally to match CI behavior:
 
 ```bash
 # Lint code (same as CI)
-luacheck --all-files
+luacheck .
 
 # Check formatting (same as CI)
 stylua --check lua/
