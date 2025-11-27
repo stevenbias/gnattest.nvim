@@ -43,12 +43,6 @@ describe("gnattest.read_only", function()
       },
     }
     _G.vim.cmd = stub.new()
-    _G.vim.schedule = function(fn)
-      fn()
-    end
-    _G.vim.deep_equal = function(a, b)
-      return vim.deep_equal(a, b)
-    end
     package.preload["gnattest.utils"] = function()
       return {
         get_bufid = function()

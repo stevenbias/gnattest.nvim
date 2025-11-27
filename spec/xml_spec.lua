@@ -57,14 +57,6 @@ local stub_vim_api = function()
     end,
     nvim_buf_set_lines = function() end,
   }
-  _G.vim.deepcopy = function(tbl)
-    -- return a simple shallow copy for test
-    local cp = {}
-    for k, v in pairs(tbl) do
-      cp[k] = v
-    end
-    return cp
-  end
   _G.vim.inspect = function(obj)
     return tostring(obj)
   end
