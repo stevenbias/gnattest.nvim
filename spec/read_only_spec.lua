@@ -543,4 +543,91 @@ describe("gnattest.read_only", function()
       assert.is_equal("NEW", ro.opt.region_text.start)
     end)
   end)
+
+  describe("region modification detection and protection", function()
+    it("should detect modified regions and trigger protection", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      local utils = require("gnattest.utils")
+      local bufread_callback = autocmd_callbacks[2].opts.callback
+      bufread_callback()
+
+      -- Verify extmark was populated
+      assert.is_not_nil(ro.extmark[42])
+
+      -- Mock deep_equal to return false (lines changed)
+      _G.vim.deep_equal = function()
+        return false
+      end
+
+      _G.vim.api.nvim_buf_get_extmarks = stub.new().returns({
+        { 42, 1, 0, { end_row = 2 } },
+      })
+      _G.vim.api.nvim_buf_get_lines = stub.new().returns({
+        "modified_A",
+        "modified_B",
+      })
+
+      _G.vim.schedule = function(cb)
+        cb()
+      end
+
+      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      text_changed_callback()
+
+      -- Verify protection notification was triggered
+      assert.stub(utils.notify).was_called()
+    end)
+
+    it("should not trigger protection if lines unchanged", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      local utils = require("gnattest.utils")
+      local bufread_callback = autocmd_callbacks[2].opts.callback
+      bufread_callback()
+
+      -- Mock deep_equal to return true (lines unchanged)
+      _G.vim.deep_equal = function()
+        return true
+      end
+
+      _G.vim.api.nvim_buf_get_extmarks = stub.new().returns({
+        { 42, 1, 0, { end_row = 2 } },
+      })
+      _G.vim.api.nvim_buf_get_lines = stub.new().returns({
+        "lineA",
+        "lineB",
+      })
+
+      _G.vim.schedule = function(cb)
+        cb()
+      end
+
+      local notify_count_before = #utils.notify.calls
+      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      text_changed_callback()
+      local notify_count_after = #utils.notify.calls
+
+      -- No new notifications should be triggered
+      assert.is_equal(notify_count_before, notify_count_after)
+    end)
+
+    it("should skip processing when in diff mode", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+
+      -- Set diff mode to true
+      _G.vim.opt.diff.get = function()
+        return true
+      end
+
+      local schedule_called = false
+      _G.vim.schedule = function()
+        schedule_called = true
+      end
+
+      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      text_changed_callback()
+
+      -- In diff mode, vim.schedule should not be called
+      assert.is_false(schedule_called)
+    end)
+  end)
 end)
