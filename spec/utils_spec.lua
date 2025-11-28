@@ -124,4 +124,45 @@ describe("gnattest.utils", function()
     assert.truthy(comments)
     assert.same("--begin read only", comments[1].text)
   end)
+
+  it("handles missing ada treesitter parser gracefully", function()
+    _G.vim.treesitter.get_parser = function(_, lang)
+      if lang == "ada" then
+        return nil
+      end
+      error("No parser")
+    end
+    utils = require("gnattest.utils")
+
+    local comments = utils.get_all_comments("ada")
+    assert.same({}, comments)
+  end)
+
+  it("handles treesitter query parse failure gracefully", function()
+    _G.vim.treesitter.query.parse = function()
+      return nil
+    end
+    utils = require("gnattest.utils")
+
+    local comments = utils.get_all_comments("ada")
+    assert.same({}, comments)
+  end)
+
+  it("handles failed parser pcall", function()
+    _G.vim.treesitter.get_parser = function()
+      error("Parser error")
+    end
+    utils = require("gnattest.utils")
+
+    local comments = utils.get_all_comments("ada")
+    assert.same({}, comments)
+  end)
+
+  it("returns get_bufpath via fn.expand", function()
+    assert.same("gnattest/gnattest_file.adb", utils.get_bufpath())
+  end)
+
+  it("returns get_bufdir via fs.dirname", function()
+    assert.same("gnattest", utils.get_bufdir())
+  end)
 end)
