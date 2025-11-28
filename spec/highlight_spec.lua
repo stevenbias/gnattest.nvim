@@ -37,4 +37,46 @@ describe("gnattest.highlight", function()
     highlight.setup({ foo = "bar" })
     assert.same({ foo = "bar" }, highlight.opt)
   end)
+
+  it("should use default color when nvim_get_hl returns no bg", function()
+    _G.vim.api.nvim_get_hl = function(_, _)
+      return {}
+    end
+    highlight = require("gnattest.highlight")
+
+    highlight.set_highlight(123, "MyHighlight")
+
+    assert
+      .stub(_G.vim.api.nvim_set_hl)
+      .was_called_with(123, "MyHighlight", { bg = "#303030", force = true })
+  end)
+
+  it("should use default color when nvim_get_hl returns nil", function()
+    _G.vim.api.nvim_get_hl = function(_, _)
+      return nil
+    end
+    highlight = require("gnattest.highlight")
+
+    highlight.set_highlight(123, "MyHighlight")
+
+    assert
+      .stub(_G.vim.api.nvim_set_hl)
+      .was_called_with(123, "MyHighlight", { bg = "#303030", force = true })
+  end)
+
+  it("should lighten color for light background", function()
+    _G.vim.o.background = "light"
+    highlight = require("gnattest.highlight")
+
+    highlight.set_highlight(123, "MyHighlight")
+
+    -- With 0x101010 and -3% adjustment for light background
+    -- 0x101010 = rgb(16, 16, 16)
+    -- -3% of 255 = -7.65 = -8 (floor of -7.65)
+    -- 16 - 8 = 8 = 0x08
+    -- Result should be #080808
+    assert
+      .stub(_G.vim.api.nvim_set_hl)
+      .was_called_with(123, "MyHighlight", { bg = "#080808", force = true })
+  end)
 end)
