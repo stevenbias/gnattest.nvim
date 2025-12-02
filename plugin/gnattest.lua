@@ -56,19 +56,19 @@ local subcommand_tbl = {
       local str_args = vim.split(args[1], ":")
       local pkg = str_args[1]
       local name = str_args[2]
-      local test = require("gnattest.xml").get_tests_by_name(pkg, name)
-      if test == nil then
+      local pkg_info = require("gnattest.xml").get_tests_by_name(pkg, name)
+      if pkg_info == nil then
         return
       end
-      run_tests(test.filename, test.line)
+      run_tests(pkg_info.source.name, pkg_info.source.line)
     end,
     complete = function(subcmd_arg_lead)
-      local tests_info = require("gnattest.xml").get_tests()
+      local tests_info = require("gnattest.xml").get_xml_info()
       local run_args = {}
       for _, files in pairs(tests_info) do
-        for pkg, tst_pkg in pairs(files) do
-          for _, test in pairs(tst_pkg) do
-            table.insert(run_args, pkg .. ":" .. test.name)
+        for pkg, pkg_info in pairs(files) do
+          for _, info in pairs(pkg_info) do
+            table.insert(run_args, pkg .. ":" .. info.source.name)
           end
         end
       end
