@@ -30,6 +30,10 @@ local function run_tests(filename, lnum)
   end
 end
 
+local function switch_source_test()
+  require("gnattest.navigation").switch_subprogram()
+end
+
 ---@class MyCmdSubcommand
 ---@field impl fun(args:string[], opts: table) The command implementation
 ---@field complete? fun(subcmd_arg_lead: string): string[] (optional) Command completions callback, taking the lead of the subcommand's arguments
@@ -85,6 +89,11 @@ local subcommand_tbl = {
       run_tests()
     end,
   },
+  switch = {
+    impl = function()
+      switch_source_test()
+    end,
+  },
 }
 
 ---@param opts table :h lua-guide-commands-create
@@ -136,15 +145,15 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
   bang = true,
 })
 
-vim.api.nvim_create_user_command("TSTest", function()
-  vim.cmd(":Lazy reload gnattest.nvim")
-  -- local xml = require("gnattest.xml")
-  -- local nav = require("gnattest.navigation")
-  -- local res = nav.switch_subprogram()
-  -- local res = xml.get_subprogram_name()
-  -- local res = xml.get_declaration()
-  -- local res = xml.get_gnattest_info_on_cursor()
-  -- local res = xml.get_xml_info()
-  -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
-  -- print(vim.inspect(res))
-end, {})
+-- vim.api.nvim_create_user_command("TSTest", function()
+--   vim.cmd(":Lazy reload gnattest.nvim")
+--   local xml = require("gnattest.xml")
+--   local nav = require("gnattest.navigation")
+--   local res = nav.switch_subprogram()
+--   local res = xml.get_subprogram_name()
+--   local res = xml.get_declaration()
+--   local res = xml.get_gnattest_info_on_cursor()
+--   local res = xml.get_xml_info()
+--   -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
+--   -- print(vim.inspect(res))
+-- end, {})
