@@ -10,8 +10,19 @@ function M.get_subprogram_name()
   for _, symbol in ipairs(symbols) do
     for _, child in ipairs(symbol.children) do
       local range = child.range or child.selectionRange
-      if range.start.line + 1 <= lnum and lnum <= range["end"].line then
+      if range.start.line + 1 == lnum then
         return child.name
+      elseif range.start.line + 1 <= lnum and lnum <= range["end"].line + 1 then
+        range = child.selectionRange
+        return child.name,
+          {
+            tonumber(range.start.line + 1),
+            tonumber(range.start.character + 1),
+          },
+          {
+            tonumber(range["end"].line + 1),
+            tonumber(range["end"].character + 1),
+          }
       end
     end
   end
@@ -50,23 +61,25 @@ function M.get_gnattest_info_on_cursor()
     M.get_xml_info()
   end
 
-  local lnum = vim.fn.getpos(".")[2]
   local filename = utils.get_filename()
-  local subpr_test
+
+  local subr_name, start_pos = M.get_subprogram_name()
+  if subr_name == nil then
+    return nil
+  end
+
   local search_file_flag = false
 
   if utils.is_gnattest_file() then
     search_file_flag = true
-    subpr_test = M.get_subprogram_name()
-    if subpr_test == nil then
-      return nil
-    end
   else
+    if start_pos ~= nil then
+      vim.api.nvim_win_set_cursor(0, start_pos)
+    end
     local declaration_info = M.get_declaration_info()[1]
     if declaration_info == nil then
       return nil
     end
-    lnum = declaration_info.line
     filename = vim.fs.basename(declaration_info.filepath)
   end
 
@@ -76,11 +89,11 @@ function M.get_gnattest_info_on_cursor()
         if not search_file_flag then
           if
             vim.fn.match(f, filename) == 0
-            and lnum == tonumber(info.source.line)
+            and vim.fn.match(info.source.name, subr_name) ~= -1
           then
             return { [f] = info }
           end
-        elseif vim.fn.match(info.test.name, subpr_test) ~= -1 then
+        elseif vim.fn.match(info.test.name, subr_name) ~= -1 then
           return { [f] = info }
         end
       end
