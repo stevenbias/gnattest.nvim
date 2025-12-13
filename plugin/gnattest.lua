@@ -34,6 +34,35 @@ local function switch_source_test()
   require("gnattest.navigation").switch_subprogram()
 end
 
+local function impl_run(args)
+  local str_args = vim.split(args[1], ":")
+  local pkg = str_args[1]
+  local name = str_args[2]
+  local pkg_info = require("gnattest.xml").get_tests_by_name(pkg, name)
+  if pkg_info == nil then
+    return
+  end
+  run_tests(pkg_info.source.name, pkg_info.source.line)
+end
+
+local function compl_run(subcmd_arg_lead)
+  local tests_info = require("gnattest.xml").get_xml_info()
+  local run_args = {}
+  for _, files in pairs(tests_info) do
+    for pkg, pkg_info in pairs(files) do
+      for _, info in pairs(pkg_info) do
+        table.insert(run_args, pkg .. ":" .. info.source.name)
+      end
+    end
+  end
+  return vim
+    .iter(run_args)
+    :filter(function(args)
+      return args:find(subcmd_arg_lead) ~= nil
+    end)
+    :totable()
+end
+
 ---@class MyCmdSubcommand
 ---@field impl fun(args:string[], opts: table) The command implementation
 ---@field complete? fun(subcmd_arg_lead: string): string[] (optional) Command completions callback, taking the lead of the subcommand's arguments
@@ -45,43 +74,22 @@ local subcommand_tbl = {
       clean_tests()
     end,
   },
-  generate = {
-    impl = function()
-      generate_tests()
-    end,
-  },
   build = {
     impl = function()
       build_tests()
     end,
   },
+  generate = {
+    impl = function()
+      generate_tests()
+    end,
+  },
   run = {
     impl = function(args, _)
-      local str_args = vim.split(args[1], ":")
-      local pkg = str_args[1]
-      local name = str_args[2]
-      local pkg_info = require("gnattest.xml").get_tests_by_name(pkg, name)
-      if pkg_info == nil then
-        return
-      end
-      run_tests(pkg_info.source.name, pkg_info.source.line)
+      impl_run(args)
     end,
-    complete = function(subcmd_arg_lead)
-      local tests_info = require("gnattest.xml").get_xml_info()
-      local run_args = {}
-      for _, files in pairs(tests_info) do
-        for pkg, pkg_info in pairs(files) do
-          for _, info in pairs(pkg_info) do
-            table.insert(run_args, pkg .. ":" .. info.source.name)
-          end
-        end
-      end
-      return vim
-        .iter(run_args)
-        :filter(function(args)
-          return args:find(subcmd_arg_lead) ~= nil
-        end)
-        :totable()
+    complete = function(arg)
+      return compl_run(arg)
     end,
   },
   run_all = {

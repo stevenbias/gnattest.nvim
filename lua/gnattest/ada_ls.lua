@@ -15,6 +15,10 @@ function M.get_ada_ls()
   end
 end
 
+function M.get_root_dir()
+  return require("gnattest.ada_ls").get_ada_ls().root_dir
+end
+
 function M.get_symbols()
   local client = M.get_ada_ls()
   if not client then

@@ -18,10 +18,6 @@ function M.get_subprogram_name()
           {
             tonumber(range.start.line + 1),
             tonumber(range.start.character + 1),
-          },
-          {
-            tonumber(range["end"].line + 1),
-            tonumber(range["end"].character + 1),
           }
       end
     end
@@ -110,20 +106,16 @@ function M.switch_subprogram()
     return nil
   end
 
-  local client = require("gnattest.ada_ls").get_ada_ls()
-  if not client then
-    return nil, "Ada LSP client not found"
-  end
-
+  local als = require("gnattest.ada_ls")
   local line, column, file
 
   for filename, file_info in pairs(info) do
     if utils.is_gnattest_file() then
-      file = client.root_dir .. "/src/" .. filename
+      file = als.get_root_dir() .. "/src/" .. filename
       line = tonumber(file_info.source.line)
       column = tonumber(file_info.source.column)
     else
-      file = client.root_dir .. "/obj/gnattest/tests/" .. file_info.test.file
+      file = als.get_root_dir() .. "/obj/gnattest/tests/" .. file_info.test.file
       line = tonumber(file_info.test.line)
       column = tonumber(file_info.test.column)
     end
