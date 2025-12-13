@@ -1,21 +1,11 @@
 local M = {}
 
 function M.get_subprogram_name()
-  local client = require("gnattest.ada_ls").get_ada_ls()
-  if not client then
-    return nil, "Ada LSP client not found"
-  end
-
-  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-  local result, err =
-    client:request_sync("textDocument/documentSymbol", params, 1000)
-
-  if err or not result or not result.result then
-    return nil, err or "No symbol found"
-  end
-
   local lnum = vim.fn.getpos(".")[2]
-  local symbols = result.result
+  local symbols = require("gnattest.ada_ls").get_symbols()
+  if not symbols then
+    return nil
+  end
 
   for _, symbol in ipairs(symbols) do
     for _, child in ipairs(symbol.children) do
@@ -32,7 +22,7 @@ function M.get_subprogram_name()
   return nil
 end
 
-function M.get_declaration()
+function M.get_declaration_info()
   local client = require("gnattest.ada_ls").get_ada_ls()
   if not client then
     return nil, "Ada LSP client not found"
@@ -46,15 +36,17 @@ function M.get_declaration()
     return nil, err or "No declaration found"
   end
 
-  local locations = vim.islist(result.result) and result.result
-    or { result.result }
-  local definitions = {}
+  local decla_info = require("gnattest.ada_ls").get_declarations()
+  if not decla_info then
+    return nil
+  end
+  local declarations = {}
 
-  for _, loc in ipairs(locations) do
+  for _, loc in ipairs(decla_info) do
     local uri = loc.uri or loc.targetUri
     local range = loc.range or loc.targetRange
 
-    table.insert(definitions, {
+    table.insert(declarations, {
       filepath = vim.uri_to_fname(uri),
       line = range.start.line + 1,
       column = range.start.character,
@@ -63,7 +55,7 @@ function M.get_declaration()
     })
   end
 
-  return definitions
+  return declarations
 end
 
 function M.get_gnattest_info_on_cursor()
@@ -86,7 +78,7 @@ function M.get_gnattest_info_on_cursor()
       return nil
     end
   else
-    local declaration_info = M.get_declaration()[1]
+    local declaration_info = M.get_declaration_info()[1]
     if declaration_info == nil then
       return nil
     end

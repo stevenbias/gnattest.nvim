@@ -15,6 +15,40 @@ function M.get_ada_ls()
   end
 end
 
+function M.get_symbols()
+  local client = M.get_ada_ls()
+  if not client then
+    return nil, "Ada LSP client not found"
+  end
+
+  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+  local result, err =
+    client:request_sync("textDocument/documentSymbol", params, 1000)
+
+  if err or not result or not result.result then
+    return nil, err or "No symbol found"
+  end
+
+  return result.result
+end
+
+function M.get_declarations()
+  local client = M.get_ada_ls()
+  if not client then
+    return nil, "Ada LSP client not found"
+  end
+
+  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+  local result, err =
+    client:request_sync("textDocument/declaration", params, 1000)
+
+  if err or not result or not result.result then
+    return nil, err or "No declaration found"
+  end
+
+  return vim.islist(result.result) and result.result or { result.result }
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
