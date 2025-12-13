@@ -38,11 +38,12 @@ local function impl_run(args)
   local str_args = vim.split(args[1], ":")
   local pkg = str_args[1]
   local name = str_args[2]
-  local pkg_info = require("gnattest.xml").get_tests_by_name(pkg, name)
+  local pkg_info, filename =
+    require("gnattest.xml").get_tests_by_name(pkg, name)
   if pkg_info == nil then
     return
   end
-  run_tests(pkg_info.source.name, pkg_info.source.line)
+  run_tests(filename, pkg_info.source.line)
 end
 
 local function compl_run(subcmd_arg_lead)

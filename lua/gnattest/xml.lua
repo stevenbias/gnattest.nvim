@@ -245,14 +245,14 @@ function M.get_tests_by_name(pkg, name)
     M.get_xml_info()
   end
 
-  local pkg_info, _ = get_pkg_tests(pkg)
+  local pkg_info, filename = get_pkg_tests(pkg)
   if pkg_info == nil then
     return nil
   end
 
   for _, p in pairs(pkg_info) do
     if p.source.name == name then
-      return p
+      return p, filename
     end
   end
 
