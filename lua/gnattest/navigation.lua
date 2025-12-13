@@ -9,12 +9,9 @@ function M.get_subprogram_name()
 
   for _, symbol in ipairs(symbols) do
     for _, child in ipairs(symbol.children) do
-      if child.alsIsAdaProcedure == true then
-        -- print(vim.inspect(child))
-        local range = child.range or child.locations.range
-        if range.start.line + 1 <= lnum and lnum <= range["end"].line then
-          return child.name
-        end
+      local range = child.range or child.selectionRange
+      if range.start.line + 1 <= lnum and lnum <= range["end"].line then
+        return child.name
       end
     end
   end
@@ -23,19 +20,6 @@ function M.get_subprogram_name()
 end
 
 function M.get_declaration_info()
-  local client = require("gnattest.ada_ls").get_ada_ls()
-  if not client then
-    return nil, "Ada LSP client not found"
-  end
-
-  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-  local result, err =
-    client:request_sync("textDocument/declaration", params, 1000)
-
-  if err or not result or not result.result then
-    return nil, err or "No declaration found"
-  end
-
   local decla_info = require("gnattest.ada_ls").get_declarations()
   if not decla_info then
     return nil
