@@ -43,6 +43,10 @@ function M.get_bufpath()
   return vim.fn.expand("%")
 end
 
+function M.get_filename()
+  return vim.fs.basename(M.get_bufpath())
+end
+
 function M.get_bufdir()
   return vim.fs.dirname(M.get_bufpath())
 end
