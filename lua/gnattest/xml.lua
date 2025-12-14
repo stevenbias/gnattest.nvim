@@ -258,4 +258,10 @@ function M.get_tests_by_name(pkg, name)
   return nil
 end
 
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M._create_xml_buf = create_xml_buf
+  M._get_pkg_tests = get_pkg_tests
+end
+
 return M

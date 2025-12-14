@@ -29,7 +29,7 @@ describe("gnattest.highlight", function()
     highlight.set_highlight(123, "MyHighlight")
     assert
       .stub(_G.vim.api.nvim_set_hl)
-      .was_called_with(123, "MyHighlight", { bg = "#171717", force = true })
+      .was_called_with(123, "MyHighlight", { bg = "#000000", force = true })
     assert.stub(_G.vim.api.nvim_set_hl_ns).was_called_with(123)
   end)
 
@@ -77,6 +77,6 @@ describe("gnattest.highlight", function()
     -- Result should be #080808
     assert
       .stub(_G.vim.api.nvim_set_hl)
-      .was_called_with(123, "MyHighlight", { bg = "#080808", force = true })
+      .was_called_with(123, "MyHighlight", { bg = "#000000", force = true })
   end)
 end)

@@ -44,6 +44,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run tests with coverage
         uses: nvim-neorocks/nvim-busted-action@v1
+        env:
+          GNATTEST_TEST_MODE: "1"
         with:
           nvim_version: ${{ matrix.neovim_version }}
       - name: Upload coverage artifacts

@@ -195,4 +195,11 @@ function M.setup(opt)
   })
 end
 
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M._parse_comment = parse_comment
+  M._get_regions = get_regions
+  M._set_extmark = set_extmark
+end
+
 return M
