@@ -29,7 +29,27 @@ local function lsp_request(req)
   local result, err = client:request_sync(req, params, 1000)
 
   if err or not result or not result.result then
-    return nil, err
+    return nil, err or ("Request '" .. req .. "' failed")
+  end
+
+  return vim.islist(result.result) and result.result or { result.result }
+end
+
+local function lsp_command(cmd, args)
+  local client = M.get_ada_ls()
+  if not client then
+    return nil, "Ada LSP client not found"
+  end
+
+  local params = {
+    command = cmd,
+    arguments = args,
+  }
+  local result, err =
+    client:request_sync("workspace/executeCommand", params, 1000)
+
+  if err or not result or not result.result then
+    return nil, err or ("Command '" .. cmd .. "' failed")
   end
 
   return vim.islist(result.result) and result.result or { result.result }
@@ -41,6 +61,10 @@ end
 
 function M.get_declarations()
   return lsp_request("textDocument/declaration")
+end
+
+function M.get_src_dirs()
+  return lsp_command("als-source-dirs")
 end
 
 function M.setup()
