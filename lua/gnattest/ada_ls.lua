@@ -19,38 +19,28 @@ function M.get_root_dir()
   return require("gnattest.ada_ls").get_ada_ls().root_dir
 end
 
-function M.get_symbols()
+local function lsp_request(req)
   local client = M.get_ada_ls()
   if not client then
     return nil, "Ada LSP client not found"
   end
 
   local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-  local result, err =
-    client:request_sync("textDocument/documentSymbol", params, 1000)
+  local result, err = client:request_sync(req, params, 1000)
 
   if err or not result or not result.result then
-    return nil, err or "No symbol found"
-  end
-
-  return result.result
-end
-
-function M.get_declarations()
-  local client = M.get_ada_ls()
-  if not client then
-    return nil, "Ada LSP client not found"
-  end
-
-  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-  local result, err =
-    client:request_sync("textDocument/declaration", params, 1000)
-
-  if err or not result or not result.result then
-    return nil, err or "No declaration found"
+    return nil, err
   end
 
   return vim.islist(result.result) and result.result or { result.result }
+end
+
+function M.get_symbols()
+  return lsp_request("textDocument/documentSymbol")
+end
+
+function M.get_declarations()
+  return lsp_request("textDocument/declaration")
 end
 
 function M.setup()
