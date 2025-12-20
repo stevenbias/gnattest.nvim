@@ -59,6 +59,19 @@ function M.get_lines(start_row, end_row)
   return vim.api.nvim_buf_get_lines(0, start_row, end_row + 1, true)
 end
 
+function M.find_file(filename, path)
+  if vim.islist(path) then
+    for _, p in pairs(path) do
+      local file = vim.fs.find({ filename }, { type = "file", path = p })
+      if next(file) ~= nil then
+        return file[1]
+      end
+    end
+  else
+    return vim.fs.find({ filename }, { type = "file", path = path })[1]
+  end
+end
+
 local function get_parser()
   local buf = vim.api.nvim_get_current_buf()
   local ok, parser = pcall(vim.treesitter.get_parser, buf, "ada")
