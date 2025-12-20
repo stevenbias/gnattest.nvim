@@ -111,7 +111,7 @@ function M.switch_subprogram()
 
   for filename, file_info in pairs(info) do
     if utils.is_gnattest_file() then
-      file = als.get_root_dir() .. "/src/" .. filename
+      file = utils.find_file(filename, als.get_src_dirs())
       line = tonumber(file_info.source.line)
       column = tonumber(file_info.source.column)
     else
