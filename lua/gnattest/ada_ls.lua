@@ -76,6 +76,36 @@ function M.get_src_dirs()
   return dirs
 end
 
+function M.get_obj_dir()
+  return lsp_command("als-object-dir")[1]
+end
+
+function M.get_harness_dirs()
+  local harness_dir = lsp_command(
+    "als-get-project-attribute-value",
+    { { attribute = "Harness_Dir", pkg = "Gnattest", index = "" } }
+  )
+
+  if harness_dir == nil then
+    return "gnattest/harness"
+  else
+    return harness_dir[1]
+  end
+end
+
+function M.get_tests_dir()
+  local harness_dir = lsp_command(
+    "als-get-project-attribute-value",
+    { { attribute = "Tests_Dir", pkg = "Gnattest", index = "" } }
+  )
+
+  if harness_dir == nil then
+    return "gnattest/tests"
+  else
+    return harness_dir[1]
+  end
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
