@@ -64,7 +64,16 @@ function M.get_declarations()
 end
 
 function M.get_src_dirs()
-  return lsp_command("als-source-dirs")
+  local src_dirs = lsp_command("als-source-dirs")
+  if src_dirs == nil then
+    return nil
+  end
+
+  local dirs = {}
+  for _, dir in pairs(src_dirs) do
+    table.insert(dirs, vim.uri_to_fname(dir.uri))
+  end
+  return dirs
 end
 
 function M.setup()
