@@ -31,9 +31,9 @@ local function modify_color(hex, percent)
 
   -- Apply the adjustment and clamp the value between 0 and 255
   local new_rgb = {
-    math.min(255, math.max(0, rgb.r + amount)),
-    math.min(255, math.max(0, rgb.g + amount)),
-    math.min(255, math.max(0, rgb.b + amount)),
+    r = math.min(255, math.max(0, rgb.r + amount)),
+    g = math.min(255, math.max(0, rgb.g + amount)),
+    b = math.min(255, math.max(0, rgb.b + amount)),
   }
 
   return rgb_to_hex(new_rgb)
