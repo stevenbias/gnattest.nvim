@@ -1,5 +1,12 @@
 local stub = require("luassert.stub")
 
+-- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
+local function test_private_functions(description, test_fn)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe(description, test_fn)
+  end
+end
+
 describe("gnattest.utils", function()
   local utils
 
@@ -164,5 +171,68 @@ describe("gnattest.utils", function()
 
   it("returns get_bufdir via fs.dirname", function()
     assert.same("gnattest", utils.get_bufdir())
+  end)
+
+  test_private_functions("private functions", function()
+    it("_log_lvl_tostring returns TRACE for level 0", function()
+      assert.equals("TRACE", utils._log_lvl_tostring(0))
+    end)
+
+    it("_log_lvl_tostring returns DEBUG for level 1", function()
+      assert.equals("DEBUG", utils._log_lvl_tostring(1))
+    end)
+
+    it("_log_lvl_tostring returns INFO for level 2", function()
+      assert.equals("INFO", utils._log_lvl_tostring(2))
+    end)
+
+    it("_log_lvl_tostring returns WARN for level 3", function()
+      assert.equals("WARN", utils._log_lvl_tostring(3))
+    end)
+
+    it("_log_lvl_tostring returns ERROR for level 4", function()
+      assert.equals("ERROR", utils._log_lvl_tostring(4))
+    end)
+
+    it("_log_lvl_tostring returns OFF for level 5", function()
+      assert.equals("OFF", utils._log_lvl_tostring(5))
+    end)
+
+    it("_log_lvl_tostring returns ERROR for unknown level", function()
+      assert.equals("ERROR", utils._log_lvl_tostring(99))
+      assert.equals("ERROR", utils._log_lvl_tostring(-1))
+    end)
+
+    it("_get_parser returns parser when ada parser exists", function()
+      local parser = utils._get_parser()
+      assert.is_not_nil(parser)
+      assert.is_function(parser.parse)
+    end)
+
+    it("_get_parser returns nil when ada parser fails", function()
+      _G.vim.treesitter.get_parser = function(_, lang)
+        if lang == "ada" then
+          error("No parser available")
+        end
+      end
+      utils = require("gnattest.utils")
+      local parser = utils._get_parser()
+      assert.is_nil(parser)
+    end)
+
+    it("_get_root returns root node when parser succeeds", function()
+      local root = utils._get_root()
+      assert.is_not_nil(root)
+      assert.equals(99, root)
+    end)
+
+    it("_get_root returns nil when parser fails", function()
+      _G.vim.treesitter.get_parser = function()
+        error("No parser")
+      end
+      utils = require("gnattest.utils")
+      local root = utils._get_root()
+      assert.is_nil(root)
+    end)
   end)
 end)

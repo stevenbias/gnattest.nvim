@@ -1,5 +1,12 @@
 local stub = require("luassert.stub")
 
+-- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
+local function test_private_functions(description, test_fn)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe(description, test_fn)
+  end
+end
+
 describe("gnattest.highlight", function()
   local highlight
 
@@ -29,7 +36,7 @@ describe("gnattest.highlight", function()
     highlight.set_highlight(123, "MyHighlight")
     assert
       .stub(_G.vim.api.nvim_set_hl)
-      .was_called_with(123, "MyHighlight", { bg = "#000000", force = true })
+      .was_called_with(123, "MyHighlight", { bg = "#171717", force = true })
     assert.stub(_G.vim.api.nvim_set_hl_ns).was_called_with(123)
   end)
 
@@ -77,6 +84,108 @@ describe("gnattest.highlight", function()
     -- Result should be #080808
     assert
       .stub(_G.vim.api.nvim_set_hl)
-      .was_called_with(123, "MyHighlight", { bg = "#000000", force = true })
+      .was_called_with(123, "MyHighlight", { bg = "#080808", force = true })
+  end)
+
+  test_private_functions("private functions", function()
+    it("_hex_to_rgb converts hex color to RGB table", function()
+      local rgb = highlight._hex_to_rgb("#ff0000")
+      assert.same({ r = 255, g = 0, b = 0 }, rgb)
+    end)
+
+    it("_hex_to_rgb handles various colors correctly", function()
+      assert.same({ r = 0, g = 0, b = 0 }, highlight._hex_to_rgb("#000000"))
+      assert.same(
+        { r = 255, g = 255, b = 255 },
+        highlight._hex_to_rgb("#ffffff")
+      )
+      assert.same({ r = 48, g = 48, b = 48 }, highlight._hex_to_rgb("#303030"))
+      assert.same(
+        { r = 171, g = 205, b = 239 },
+        highlight._hex_to_rgb("#abcdef")
+      )
+    end)
+
+    it("_rgb_to_hex converts RGB table to hex string", function()
+      local hex = highlight._rgb_to_hex({ r = 255, g = 0, b = 0 })
+      assert.equals("#ff0000", hex)
+    end)
+
+    it("_rgb_to_hex handles various RGB values", function()
+      assert.equals("#000000", highlight._rgb_to_hex({ r = 0, g = 0, b = 0 }))
+      assert.equals(
+        "#ffffff",
+        highlight._rgb_to_hex({ r = 255, g = 255, b = 255 })
+      )
+      assert.equals(
+        "#303030",
+        highlight._rgb_to_hex({ r = 48, g = 48, b = 48 })
+      )
+      assert.equals(
+        "#abcdef",
+        highlight._rgb_to_hex({ r = 171, g = 205, b = 239 })
+      )
+    end)
+
+    it("_rgb_to_hex returns #000000 for nil input", function()
+      assert.equals("#000000", highlight._rgb_to_hex(nil))
+    end)
+
+    it("_rgb_to_hex returns #000000 for incomplete RGB", function()
+      assert.equals("#000000", highlight._rgb_to_hex({ r = 255 }))
+      assert.equals("#000000", highlight._rgb_to_hex({ r = 255, g = 0 }))
+      assert.equals("#000000", highlight._rgb_to_hex({ g = 0, b = 0 }))
+    end)
+
+    it("_modify_color lightens color by positive percent", function()
+      local result = highlight._modify_color("#101010", 10)
+      -- 0x10 = 16, 10% of 255 = 25.5 -> 25
+      -- 16 + 25 = 41 = 0x29
+      assert.equals("#292929", result)
+    end)
+
+    it("_modify_color darkens color by negative percent", function()
+      local result = highlight._modify_color("#505050", -10)
+      -- 0x50 = 80, 10% of 255 = 25.5 -> 25 (floor)
+      -- 80 + (-25) = 55... wait, floor(-25.5) = -26
+      -- 80 + (-26) = 54 = 0x36
+      assert.equals("#363636", result)
+    end)
+
+    it("_modify_color clamps values to 0-255 range", function()
+      -- Test clamping to 255
+      local result_max = highlight._modify_color("#ff0000", 50)
+      -- ff + (255 * 0.5) = 255 + 127 = 382, clamped to 255 = 0xff
+      -- 00 + 127 = 127 = 0x7f
+      assert.equals("#ff7f7f", result_max)
+
+      -- Test clamping to 0
+      local result_min = highlight._modify_color("#101010", -50)
+      -- 16 - 127 = -111, clamped to 0
+      assert.equals("#000000", result_min)
+    end)
+
+    it("_get_hl returns hex color from Normal highlight", function()
+      local hl = highlight._get_hl()
+      assert.equals("#101010", hl)
+    end)
+
+    it("_get_hl returns nil when no background color", function()
+      _G.vim.api.nvim_get_hl = function(_, _)
+        return {}
+      end
+      highlight = require("gnattest.highlight")
+      local hl = highlight._get_hl()
+      assert.is_nil(hl)
+    end)
+
+    it("_get_hl returns nil when nvim_get_hl returns nil", function()
+      _G.vim.api.nvim_get_hl = function(_, _)
+        return nil
+      end
+      highlight = require("gnattest.highlight")
+      local hl = highlight._get_hl()
+      assert.is_nil(hl)
+    end)
   end)
 end)

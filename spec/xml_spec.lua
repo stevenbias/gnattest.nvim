@@ -1,5 +1,11 @@
 local xml = require("gnattest.xml")
 
+-- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
+local function test_private_functions(description, test_fn)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe(description, test_fn)
+  end
+end
 -- Stubs for Neovim API used in xml.lua
 local stub_vim_api = function()
   _G.vim = _G.vim or {}
@@ -289,6 +295,54 @@ describe("gnattest.xml", function()
 
     it("module has tests table", function()
       assert.is_table(xml.tests)
+    end)
+  end)
+
+  test_private_functions("private functions", function()
+    it("_create_xml_buf creates buffer and returns buffer id", function()
+      local buf_id = xml._create_xml_buf()
+      assert.equals(1, buf_id)
+    end)
+
+    it("_get_pkg_tests returns tests for given package", function()
+      xml.tests = {
+        ["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { name = "test1", line = 10 },
+            { name = "test2", line = 20 },
+          },
+        },
+      }
+
+      local tests, filename = xml._get_pkg_tests("Package.SubPkg")
+      assert.is_not_nil(tests)
+      assert.equals("file1.xml", filename)
+      assert.equals(2, #tests)
+      assert.equals("test1", tests[1].name)
+      assert.equals("test2", tests[2].name)
+    end)
+
+    it("_get_pkg_tests returns nil for non-existent package", function()
+      xml.tests = {
+        ["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { name = "test1", line = 10 },
+          },
+        },
+      }
+
+      local tests = xml._get_pkg_tests("NonExistent.Package")
+      assert.is_nil(tests)
+    end)
+
+    it("_get_pkg_tests calls get_tests if tests table is empty", function()
+      xml.tests = {}
+      _G.vim.fs.find = function()
+        return {}
+      end
+
+      local tests = xml._get_pkg_tests("Any.Package")
+      assert.is_nil(tests)
     end)
   end)
 end)

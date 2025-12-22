@@ -1,5 +1,11 @@
 local stub = require("luassert.stub")
 
+-- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
+local function test_private_functions(description, test_fn)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe(description, test_fn)
+  end
+end
 describe("gnattest.read_only", function()
   local ro
   local autocmd_callbacks = {}
@@ -628,6 +634,39 @@ describe("gnattest.read_only", function()
 
       -- In diff mode, vim.schedule should not be called
       assert.is_false(schedule_called)
+    end)
+  end)
+
+  test_private_functions("private functions", function()
+    it("_parse_comment detects start region marker", function()
+      local opt = {
+        region_text = { start = "begin read only", ending = "end read only" },
+      }
+      local comment = { text = "--begin read only", line = 5 }
+      local result = ro._parse_comment(comment, opt)
+      assert.is_not_nil(result)
+      assert.equals("start", result.type)
+      assert.equals(5, result.line)
+    end)
+
+    it("_parse_comment detects end region marker", function()
+      local opt = {
+        region_text = { start = "begin read only", ending = "end read only" },
+      }
+      local comment = { text = "--end read only", line = 10 }
+      local result = ro._parse_comment(comment, opt)
+      assert.is_not_nil(result)
+      assert.equals("end", result.type)
+      assert.equals(10, result.line)
+    end)
+
+    it("_parse_comment returns nil for non-marker comments", function()
+      local opt = {
+        region_text = { start = "begin read only", ending = "end read only" },
+      }
+      local comment = { text = "-- This is just a comment", line = 7 }
+      local result = ro._parse_comment(comment, opt)
+      assert.is_nil(result)
     end)
   end)
 end)
