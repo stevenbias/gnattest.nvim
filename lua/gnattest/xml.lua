@@ -46,7 +46,7 @@ end
 
 local function create_xml_buf()
   local xml_file = vim.fs.find(function(name)
-    return name:match(".*%gnattest.xml$")
+    return name == "gnattest.xml"
   end)[1]
   xml_file = vim.fn.readfile(xml_file)
 

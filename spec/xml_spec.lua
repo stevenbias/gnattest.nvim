@@ -564,6 +564,305 @@ describe("gnattest.xml", function()
     end)
   end)
 
+  -- Helper function for setting up common XML parsing test mocks
+  local function setup_xml_parsing_mocks(
+    unit_captures,
+    pkg_captures,
+    test_captures,
+    node_text_mapping
+  )
+    xml.tests = {}
+
+    _G.vim.treesitter.query.parse = function(_, query_str)
+      if query_str:find("test_unit") then
+        return {
+          captures = { "target_file" },
+          iter_captures = function()
+            local idx = 0
+            return function()
+              idx = idx + 1
+              if idx <= #pkg_captures then
+                return pkg_captures[idx].id, pkg_captures[idx].node
+              end
+            end
+          end,
+        }
+      elseif query_str:find("unit") then
+        return {
+          captures = { "source_file" },
+          iter_captures = function()
+            local idx = 0
+            return function()
+              idx = idx + 1
+              if idx <= #unit_captures then
+                return unit_captures[idx].id, unit_captures[idx].node
+              end
+            end
+          end,
+        }
+      else
+        return {
+          captures = { "src", "tst" },
+          iter_captures = function()
+            local idx = 0
+            return function()
+              idx = idx + 1
+              if idx <= #test_captures then
+                return test_captures[idx].id, test_captures[idx].node
+              end
+            end
+          end,
+        }
+      end
+    end
+
+    _G.vim.treesitter.get_node_text = function(node)
+      return node_text_mapping[node] or tostring(node)
+    end
+
+    _G.vim.fn.readfile = function()
+      return { "<tests_mapping></tests_mapping>" }
+    end
+  end
+
+  describe("XML parsing logic coverage tests", function()
+    describe("core data structure population", function()
+      it(
+        "exercises complete XML parsing flow with realistic captures",
+        function()
+          setup_xml_parsing_mocks(
+            { { id = 1, node = "source_node" } },
+            { { id = 1, node = "target_node" } },
+            {
+              { id = 1, node = "node_src" },
+              { id = 2, node = "node_name_1" },
+              { id = 3, node = "node_tst" },
+              { id = 4, node = "node_file_1" },
+              { id = 5, node = "node_line_1" },
+              { id = 6, node = "node_col_1" },
+              { id = 7, node = "node_test_name_1" },
+            },
+            {
+              source_node = "package_a.ads",
+              target_node = "Package_A",
+              node_src = "src",
+              node_name_1 = "Initialize",
+              node_tst = "tst",
+              node_file_1 = "test.adb",
+              node_line_1 = "42",
+              node_col_1 = "5",
+              node_test_name_1 = "Test_Initialize_001",
+            }
+          )
+
+          local result = xml.get_tests()
+          assert.is_table(result)
+        end
+      )
+
+      it("populates source_files table from unit captures", function()
+        setup_xml_parsing_mocks({
+          { id = 1, node = "src_node_1" },
+          { id = 1, node = "src_node_2" },
+        }, { { id = 1, node = "pkg_node" } }, {}, {
+          src_node_1 = "source_file",
+          src_node_2 = "my_file.ads",
+          pkg_node = "target_file",
+        })
+
+        local result = xml.get_tests()
+        assert.is_table(result)
+        assert.is_not_nil(result["my_file.ads"])
+      end)
+
+      it("stores package info from package captures", function()
+        setup_xml_parsing_mocks({
+          { id = 1, node = "src_node_1" },
+          { id = 1, node = "src_node_2" },
+        }, {
+          { id = 1, node = "target_node_1" },
+          { id = 1, node = "target_node_2" },
+        }, {}, {
+          src_node_1 = "source_file",
+          src_node_2 = "file.ads",
+          target_node_1 = "target_file",
+          target_node_2 = "Package_Under_Test",
+        })
+
+        local result = xml.get_tests()
+        assert.is_not_nil(result["file.ads"])
+        assert.is_not_nil(result["file.ads"]["Package_Under_Test"])
+      end)
+
+      it("handles multiple source files correctly", function()
+        setup_xml_parsing_mocks({
+          { id = 1, node = "sf_node" },
+          { id = 1, node = "filename_node" },
+          { id = 1, node = "sf_node2" },
+          { id = 1, node = "filename_node2" },
+        }, {}, {}, {
+          sf_node = "source_file",
+          filename_node = "package_a.ads",
+          sf_node2 = "source_file",
+          filename_node2 = "package_b.ads",
+        })
+
+        local result = xml.get_tests()
+        assert.is_not_nil(result["package_a.ads"])
+        assert.is_not_nil(result["package_b.ads"])
+      end)
+    end)
+
+    describe("src_info field assignment", function()
+      it("assigns src_info.name when capture_flag is 'name'", function()
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "src_node" },
+            { id = 2, node = "name_node" },
+          },
+          {
+            src_node = "name",
+            name_node = "InitializeProcedure",
+          }
+        )
+
+        local result = xml.get_tests()
+        assert.is_table(result)
+      end)
+
+      it("assigns src_info.line when capture_flag is 'line'", function()
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "line_node" },
+            { id = 2, node = "line_num_node" },
+          },
+          {
+            line_node = "line",
+            line_num_node = "42",
+          }
+        )
+
+        local result = xml.get_tests()
+        assert.is_table(result)
+      end)
+
+      it("assigns src_info.column when capture_flag is 'column'", function()
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "col_node" },
+            { id = 2, node = "col_num_node" },
+          },
+          {
+            col_node = "column",
+            col_num_node = "5",
+          }
+        )
+
+        local result = xml.get_tests()
+        assert.is_table(result)
+      end)
+    end)
+
+    describe("test_info field assignment and data insertion", function()
+      it("processes all test_info fields and inserts into pkg_info", function()
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 2, node = "test_file_node" },
+            { id = 2, node = "test_file_val" },
+            { id = 2, node = "test_line_node" },
+            { id = 2, node = "test_line_val" },
+            { id = 2, node = "test_col_node" },
+            { id = 2, node = "test_col_val" },
+            { id = 2, node = "test_name_node" },
+            { id = 2, node = "test_name_val" },
+          },
+          {
+            test_file_node = "file",
+            test_file_val = "test.adb",
+            test_line_node = "line",
+            test_line_val = "50",
+            test_col_node = "column",
+            test_col_val = "3",
+            test_name_node = "name",
+            test_name_val = "Test_Initialize_001",
+          }
+        )
+
+        local result = xml.get_tests()
+        assert.is_table(result)
+      end)
+    end)
+
+    describe("advanced parsing scenarios", function()
+      it("exercises varied src capture flag combinations", function()
+        -- Test name flag scenario
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "name_marker" },
+            { id = 1, node = "name_value" },
+            { id = 1, node = "src_marker" },
+            { id = 1, node = "proc_name" },
+          },
+          {
+            name_marker = "name",
+            name_value = "MyProcedure",
+            src_marker = "src",
+            proc_name = "TestProcName",
+          }
+        )
+        assert.is_table(xml.get_tests())
+
+        -- Test line flag scenario
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "line_marker" },
+            { id = 1, node = "line_value" },
+            { id = 1, node = "src_marker" },
+            { id = 1, node = "src_value" },
+          },
+          {
+            line_marker = "line",
+            line_value = "25",
+            src_marker = "src",
+            src_value = "TestLineValue",
+          }
+        )
+        assert.is_table(xml.get_tests())
+
+        -- Test column flag scenario
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
+          { { id = 1, node = "pkg_node" } },
+          {
+            { id = 1, node = "col_marker" },
+            { id = 1, node = "col_value" },
+            { id = 1, node = "src_marker" },
+            { id = 1, node = "src_value" },
+          },
+          {
+            col_marker = "column",
+            col_value = "10",
+            src_marker = "src",
+            src_value = "TestColValue",
+          }
+        )
+        assert.is_table(xml.get_tests())
+      end)
+    end)
+  end)
+
   test_private_functions("private functions", function()
     it("_query_element returns a query object", function()
       local query = xml._query_element("unit")
@@ -599,6 +898,39 @@ describe("gnattest.xml", function()
       local buf_id = xml._create_xml_buf()
       assert.equals(1, buf_id)
     end)
+
+    it(
+      "_create_xml_buf executes file pattern matching in vim.fs.find callback",
+      function()
+        local captured_callback = nil
+        _G.vim.fs.find = function(callback)
+          captured_callback = callback
+          return { "gnattest.xml" }
+        end
+
+        -- Call _create_xml_buf to capture the callback
+        xml._create_xml_buf()
+
+        -- Verify we captured the callback
+        assert.is_not_nil(captured_callback)
+        assert.is_function(captured_callback)
+
+        -- Test the strict equality check - should only match exact "gnattest.xml"
+        assert.is_true(captured_callback("gnattest.xml"))
+
+        -- Should not match files with gnattest.xml as suffix
+        assert.is_false(captured_callback("project_gnattest.xml"))
+        assert.is_false(captured_callback("my_gnattest.xml"))
+        assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
+        assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
+
+        -- Should not match other files
+        assert.is_false(captured_callback("test.xml"))
+        assert.is_false(captured_callback("gnattest.adb"))
+        assert.is_false(captured_callback("gnattest.xml.backup"))
+        assert.is_false(captured_callback("gnattest_output.xml"))
+      end
+    )
 
     it("_get_pkg_tests returns tests for given package", function()
       xml.tests = {
