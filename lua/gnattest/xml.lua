@@ -2,7 +2,7 @@ local M = {
   tests = {},
 }
 
-function M.query_element(match)
+local function query_element(match)
   if match == nil then
     match = ""
   end
@@ -19,7 +19,7 @@ function M.query_element(match)
   return vim.treesitter.query.parse("xml", query_string)
 end
 
-function M.query_test_info()
+local function query_test_info()
   local query_string = '\
                     (element\
                         (STag (Name) @tag\
@@ -40,72 +40,6 @@ function M.query_test_info()
                             )\
                         )\
                     )'
-
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
-function M.query_att_value(match)
-  if match == nil then
-    match = ""
-  end
-
-  local query_string = '\
-                    (STag (Name) @tag\
-                          (#eq? @tag "' .. match .. '")\
-                          (Attribute (Name) @string\
-                                     (AttValue) @value)\
-                     )'
-
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
-function M.query_subpr_by_pkg(pkg)
-  if pkg == nil then
-    pkg = ""
-  end
-
-  local query_string = '\
-                    (element\
-                      (STag (Name)\
-                            (Attribute (Name)\
-                                       (AttValue) @pkg)\
-                            (#eq? @pkg "\\"' .. pkg .. '\\"")\
-                      )\
-                      (content\
-                        (element\
-                          (STag (Name)\
-                                (Attribute (Name) @string\
-                                           (AttValue) @val)\
-                          )\
-                        )\
-                      )\
-                    )'
-
-  return vim.treesitter.query.parse("xml", query_string)
-end
-
-function M.query_test_info_by_subpr(subpr)
-  if subpr == nil then
-    subpr = ""
-  end
-
-  local query_string = '\
-                      (element\
-                        (STag (Attribute (AttValue) @subpr))\
-                        (#eq? @subpr "\\"' .. subpr .. '\\"")\
-                        (content\
-                          (element\
-                            (content\
-                              (element\
-                                (EmptyElemTag (Name)\
-                                  (Attribute (Name) @string\
-                                             (AttValue) @test)\
-                                )\
-                              )\
-                            )\
-                          )\
-                        )\
-                      )'
 
   return vim.treesitter.query.parse("xml", query_string)
 end
@@ -138,7 +72,7 @@ function M.get_tests()
   local filename
   local unit_capture_flag = ""
   local unit_match = "unit"
-  local query = M.query_element(unit_match)
+  local query = query_element(unit_match)
   ------------------
   -- **PACKAGE** --
   ------------------
@@ -146,14 +80,14 @@ function M.get_tests()
   local pkg_info = {}
   local pkg_capture_flag = ""
   local pkg_match = "test_unit"
-  local pkg_query = M.query_element(pkg_match)
+  local pkg_query = query_element(pkg_match)
   -----------------
   -- **SOURCES** --
   -----------------
   local test_capture_flag = ""
   local src_info = {}
   local test_info = {}
-  local test_query = M.query_test_info()
+  local test_query = query_test_info()
 
   for _, unit_node in query:iter_captures(root, buf_id) do
     local unit_text =
@@ -260,6 +194,8 @@ end
 
 -- Test-specific exports - only exposed in test mode
 if os.getenv("GNATTEST_TEST_MODE") then
+  M._query_element = query_element
+  M._query_test_info = query_test_info
   M._create_xml_buf = create_xml_buf
   M._get_pkg_tests = get_pkg_tests
 end

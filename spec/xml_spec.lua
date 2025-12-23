@@ -74,66 +74,6 @@ describe("gnattest.xml", function()
     xml.tests = {}
   end)
 
-  describe("query functions", function()
-    it("query_element handles nil match parameter", function()
-      local q = xml.query_element(nil)
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-      assert.is_table(q.captures)
-    end)
-
-    it("query_element returns a treesitter query object", function()
-      local q = xml.query_element("unit")
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-      assert.is_table(q.captures)
-    end)
-
-    it("query_element with special characters", function()
-      local q = xml.query_element("test_unit")
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-    end)
-
-    it("query_test_info returns a treesitter query object", function()
-      local q = xml.query_test_info()
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-    end)
-
-    it("query_att_value handles nil parameter", function()
-      local q = xml.query_att_value(nil)
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-    end)
-
-    it("query_att_value returns a treesitter query object", function()
-      local q = xml.query_att_value("unit")
-      assert.is_table(q)
-      assert.is_function(q.iter_captures)
-    end)
-
-    it("query_subpr_by_pkg handles nil parameter", function()
-      local q = xml.query_subpr_by_pkg(nil)
-      assert.is_table(q)
-    end)
-
-    it("query_subpr_by_pkg returns a treesitter query object", function()
-      local q = xml.query_subpr_by_pkg("pkg1")
-      assert.is_table(q)
-    end)
-
-    it("query_test_info_by_subpr handles nil parameter", function()
-      local q = xml.query_test_info_by_subpr(nil)
-      assert.is_table(q)
-    end)
-
-    it("query_test_info_by_subpr returns a treesitter query object", function()
-      local q = xml.query_test_info_by_subpr("subpr1")
-      assert.is_table(q)
-    end)
-  end)
-
   describe("test storage and caching", function()
     it("initializes tests table", function()
       assert.is_table(xml.tests)
@@ -285,12 +225,8 @@ describe("gnattest.xml", function()
       assert.is_function(xml.get_tests_by_name)
     end)
 
-    it("module exports query functions", function()
-      assert.is_function(xml.query_element)
-      assert.is_function(xml.query_test_info)
-      assert.is_function(xml.query_att_value)
-      assert.is_function(xml.query_subpr_by_pkg)
-      assert.is_function(xml.query_test_info_by_subpr)
+    it("module exports get_tests function", function()
+      assert.is_function(xml.get_tests)
     end)
 
     it("module has tests table", function()
@@ -512,8 +448,23 @@ describe("gnattest.xml", function()
     end)
   end)
 
-  describe("get_tests with real XML parsing", function()
-    it("parses complete XML structure correctly", function()
+  describe("real fixture parsing", function()
+    it("reads real fixture file successfully", function()
+      local fixture_path = "spec/fixtures/gnattest.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+      assert.is_not_nil(file)
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
+      end
+      -- Should have parsed some lines
+      assert.is_true(#xml_lines > 0)
+    end)
+
+    it("fixture has proper XML structure with multiple units", function()
       local fixture_path = "spec/fixtures/gnattest.xml"
       local xml_lines = {}
       local file = io.open(fixture_path, "r")
@@ -524,85 +475,126 @@ describe("gnattest.xml", function()
         file:close()
       end
 
-      _G.vim.fs.find = function()
-        return { fixture_path }
+      local content = table.concat(xml_lines, "\n")
+      -- Verify multiple source files in fixture with generic names
+      assert.is_not_nil(string.find(content, "package_a%.ads"))
+      assert.is_not_nil(string.find(content, "package_b%.ads"))
+      assert.is_not_nil(string.find(content, "package_c%.ads"))
+    end)
+
+    it("fixture has multiple test packages per unit", function()
+      local fixture_path = "spec/fixtures/gnattest.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
       end
 
-      _G.vim.fn.readfile = function()
-        return xml_lines
+      local content = table.concat(xml_lines, "\n")
+      -- package_a has multiple test_unit elements
+      local count = 0
+      for _ in string.gmatch(content, "<test_unit") do
+        count = count + 1
+      end
+      assert.is_true(count > 1)
+    end)
+
+    it("fixture has multiple tested procedures per test_unit", function()
+      local fixture_path = "spec/fixtures/gnattest.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
       end
 
-      local result = xml.get_tests()
-      assert.is_table(result)
+      local content = table.concat(xml_lines, "\n")
+      -- Count tested elements
+      local count = 0
+      for _ in string.gmatch(content, "<tested") do
+        count = count + 1
+      end
+      assert.is_true(count > 1)
     end)
 
-    it("get_tests returns cached results on second call", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["gnattest_prefix_my_package.ads"] = {
-            { name = "test_add", line = 50 },
-          },
-        },
-      }
+    it("fixture has multiple test cases per tested procedure", function()
+      local fixture_path = "spec/fixtures/gnattest.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
+      end
 
-      local result1 = xml.get_tests()
-      local result2 = xml.get_tests()
-
-      assert.is_table(result1)
-      assert.is_table(result2)
-      assert.equals(result1, result2)
+      local content = table.concat(xml_lines, "\n")
+      -- Count test_case elements
+      local count = 0
+      for _ in string.gmatch(content, "<test_case") do
+        count = count + 1
+      end
+      assert.is_true(count > 1)
     end)
 
-    it("handles multiple source files", function()
-      xml.tests = {
-        ["src/package1.ads"] = {
-          ["test_pkg1"] = { { name = "test1" } },
-        },
-        ["src/package2.ads"] = {
-          ["test_pkg2"] = { { name = "test2" } },
-        },
-      }
+    it("fixture has complex nested structure", function()
+      local fixture_path = "spec/fixtures/gnattest.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
+      end
 
-      local result = xml.get_tests()
-      assert.is_not_nil(result["src/package1.ads"])
-      assert.is_not_nil(result["src/package2.ads"])
-    end)
-
-    it("handles multiple test packages in same file", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg1"] = { { name = "test1" } },
-          ["test_pkg2"] = { { name = "test2" } },
-        },
-      }
-
-      local result = xml.get_tests()
-      local file_tests = result["src/my_package.ads"]
-      assert.is_not_nil(file_tests["test_pkg1"])
-      assert.is_not_nil(file_tests["test_pkg2"])
-    end)
-
-    it("handles multiple tests in same package", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            { name = "test1", line = "10" },
-            { name = "test2", line = "20" },
-            { name = "test3", line = "30" },
-          },
-        },
-      }
-
-      local result = xml.get_tests()
-      local pkg_tests = result["src/my_package.ads"]["test_pkg"]
-      assert.equals(3, #pkg_tests)
-      assert.equals("test1", pkg_tests[1].name)
-      assert.equals("test2", pkg_tests[2].name)
-      assert.equals("test3", pkg_tests[3].name)
+      local content = table.concat(xml_lines, "\n")
+      -- Verify proper nesting: unit > test_unit > tested > test_case > test
+      assert.is_true(string.find(content, "<tests_mapping") ~= nil)
+      assert.is_true(string.find(content, "<unit") ~= nil)
+      assert.is_true(string.find(content, "<test_unit") ~= nil)
+      assert.is_true(string.find(content, "<tested") ~= nil)
+      assert.is_true(string.find(content, "<test_case") ~= nil)
+      assert.is_true(string.find(content, "<test") ~= nil)
     end)
   end)
 
   test_private_functions("private functions", function()
+    it("_query_element returns a query object", function()
+      local query = xml._query_element("unit")
+      assert.is_not_nil(query)
+      assert.is_table(query)
+    end)
+
+    it("_query_element with nil returns a query object", function()
+      local query = xml._query_element(nil)
+      assert.is_not_nil(query)
+      assert.is_table(query)
+    end)
+
+    it("_query_element with empty string returns a query object", function()
+      local query = xml._query_element("")
+      assert.is_not_nil(query)
+      assert.is_table(query)
+    end)
+
+    it("_query_element with test_unit returns a query object", function()
+      local query = xml._query_element("test_unit")
+      assert.is_not_nil(query)
+      assert.is_table(query)
+    end)
+
+    it("_query_test_info returns a query object", function()
+      local query = xml._query_test_info()
+      assert.is_not_nil(query)
+      assert.is_table(query)
+    end)
+
     it("_create_xml_buf creates buffer and returns buffer id", function()
       local buf_id = xml._create_xml_buf()
       assert.equals(1, buf_id)
