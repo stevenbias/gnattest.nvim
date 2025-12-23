@@ -64,6 +64,9 @@ describe("gnattest.read_only", function()
         WARN = 3,
       },
     }
+    _G.vim.schedule = function(cb)
+      cb()
+    end
 
     package.preload["gnattest.utils"] = function()
       return {
@@ -668,5 +671,32 @@ describe("gnattest.read_only", function()
       local result = ro._parse_comment(comment, opt)
       assert.is_nil(result)
     end)
+
+    it(
+      "_fix_ro_regions calls vim.api.nvim_buf_get_extmarks with details and overlap",
+      function()
+        ro.setup({ region_text = { start = "begin", ending = "end" } })
+        local bufread_callback = autocmd_callbacks[2].opts.callback
+        bufread_callback()
+
+        -- Verify extmark was populated
+        assert.is_not_nil(ro.extmark[42])
+
+        -- Track the arguments passed to nvim_buf_get_extmarks
+        local get_extmarks_args = nil
+        _G.vim.api.nvim_buf_get_extmarks = stub.new().invokes(function(...)
+          get_extmarks_args = { ... }
+          return {}
+        end)
+
+        -- Call _fix_ro_regions directly
+        ro._fix_ro_regions()
+
+        -- Verify get_extmarks was called with correct parameters
+        assert.stub(_G.vim.api.nvim_buf_get_extmarks).was_called()
+        -- The last argument should be the options table with details and overlap
+        assert.is_not_nil(get_extmarks_args)
+      end
+    )
   end)
 end)

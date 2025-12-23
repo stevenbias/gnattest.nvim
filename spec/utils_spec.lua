@@ -114,6 +114,18 @@ describe("gnattest.utils", function()
     assert.spy(s).was.called(1)
   end)
 
+  it("is_loaded returns true for existing modules", function()
+    -- luassert is a test dependency that should be loaded
+    local result = utils.is_loaded("luassert")
+    assert.is_true(result)
+  end)
+
+  it("is_loaded returns false for non-existent modules", function()
+    -- This module should not exist
+    local result = utils.is_loaded("nonexistent_module_that_does_not_exist")
+    assert.is_false(result)
+  end)
+
   it("returns current buffer id", function()
     assert.equals(0, utils.get_bufid())
   end)
