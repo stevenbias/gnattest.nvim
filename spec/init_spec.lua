@@ -1,4 +1,5 @@
 local stub_new = require("luassert.stub").new
+local vim_mock = require("spec.helpers.vim_mock")
 
 describe("gnattest.init", function()
   local gnattest_init
@@ -6,11 +7,9 @@ describe("gnattest.init", function()
   before_each(function()
     gnattest_init = require("gnattest.init")
 
-    _G.vim = {
-      api = {
-        nvim_create_autocmd = stub_new(),
-      },
-    }
+    _G.vim = vim_mock.create_basic_vim_mock()
+    _G.vim.api.nvim_create_autocmd = stub_new()
+
     package.preload["gnattest.utils"] = function()
       return { gnattest_pattern = "**/gnattest/" }
     end

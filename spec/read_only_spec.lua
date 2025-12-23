@@ -1,11 +1,6 @@
 local stub = require("luassert.stub")
+local common = require("spec.helpers.common")
 
--- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
-local function test_private_functions(description, test_fn)
-  if os.getenv("GNATTEST_TEST_MODE") then
-    describe(description, test_fn)
-  end
-end
 describe("gnattest.read_only", function()
   local ro
   local autocmd_callbacks = {}
@@ -68,27 +63,22 @@ describe("gnattest.read_only", function()
       cb()
     end
 
-    package.preload["gnattest.utils"] = function()
-      return {
-        get_bufid = function()
-          return 1
-        end,
-        get_lines = function(start_row, end_row)
-          if start_row == 1 and end_row == 2 then
-            return { "lineA", "lineB" }
-          end
+    -- Mock utils with read_only-specific methods
+    common.mock_utils({
+      get_lines = function(start_row, end_row)
+        if start_row == 1 and end_row == 2 then
           return { "lineA", "lineB" }
-        end,
-        get_all_comments = function()
-          return {
-            { text = "--begin read only", line = 1 },
-            { text = "--end read only", line = 2 },
-          }
-        end,
-        notify = stub.new(),
-        gnattest_pattern = "**/gnattest/",
-      }
-    end
+        end
+        return { "lineA", "lineB" }
+      end,
+      get_all_comments = function()
+        return {
+          { text = "--begin read only", line = 1 },
+          { text = "--end read only", line = 2 },
+        }
+      end,
+    })
+
     package.preload["gnattest.highlight"] = function()
       return { set_highlight = stub.new() }
     end
@@ -96,7 +86,7 @@ describe("gnattest.read_only", function()
   end)
 
   after_each(function()
-    package.preload["gnattest.utils"] = nil
+    common.cleanup_packages()
     package.preload["gnattest.highlight"] = nil
   end)
 
@@ -640,63 +630,65 @@ describe("gnattest.read_only", function()
     end)
   end)
 
-  test_private_functions("private functions", function()
-    it("_parse_comment detects start region marker", function()
-      local opt = {
-        region_text = { start = "begin read only", ending = "end read only" },
-      }
-      local comment = { text = "--begin read only", line = 5 }
-      local result = ro._parse_comment(comment, opt)
-      assert.is_not_nil(result)
-      assert.equals("start", result.type)
-      assert.equals(5, result.line)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe("private functions", function()
+      it("_parse_comment detects start region marker", function()
+        local opt = {
+          region_text = { start = "begin read only", ending = "end read only" },
+        }
+        local comment = { text = "--begin read only", line = 5 }
+        local result = ro._parse_comment(comment, opt)
+        assert.is_not_nil(result)
+        assert.equals("start", result.type)
+        assert.equals(5, result.line)
+      end)
+
+      it("_parse_comment detects end region marker", function()
+        local opt = {
+          region_text = { start = "begin read only", ending = "end read only" },
+        }
+        local comment = { text = "--end read only", line = 10 }
+        local result = ro._parse_comment(comment, opt)
+        assert.is_not_nil(result)
+        assert.equals("end", result.type)
+        assert.equals(10, result.line)
+      end)
+
+      it("_parse_comment returns nil for non-marker comments", function()
+        local opt = {
+          region_text = { start = "begin read only", ending = "end read only" },
+        }
+        local comment = { text = "-- This is just a comment", line = 7 }
+        local result = ro._parse_comment(comment, opt)
+        assert.is_nil(result)
+      end)
+
+      it(
+        "_fix_ro_regions calls vim.api.nvim_buf_get_extmarks with details and overlap",
+        function()
+          ro.setup({ region_text = { start = "begin", ending = "end" } })
+          local bufread_callback = autocmd_callbacks[2].opts.callback
+          bufread_callback()
+
+          -- Verify extmark was populated
+          assert.is_not_nil(ro.extmark[42])
+
+          -- Track the arguments passed to nvim_buf_get_extmarks
+          local get_extmarks_args = nil
+          _G.vim.api.nvim_buf_get_extmarks = stub.new().invokes(function(...)
+            get_extmarks_args = { ... }
+            return {}
+          end)
+
+          -- Call _fix_ro_regions directly
+          ro._fix_ro_regions()
+
+          -- Verify get_extmarks was called with correct parameters
+          assert.stub(_G.vim.api.nvim_buf_get_extmarks).was_called()
+          -- The last argument should be the options table with details and overlap
+          assert.is_not_nil(get_extmarks_args)
+        end
+      )
     end)
-
-    it("_parse_comment detects end region marker", function()
-      local opt = {
-        region_text = { start = "begin read only", ending = "end read only" },
-      }
-      local comment = { text = "--end read only", line = 10 }
-      local result = ro._parse_comment(comment, opt)
-      assert.is_not_nil(result)
-      assert.equals("end", result.type)
-      assert.equals(10, result.line)
-    end)
-
-    it("_parse_comment returns nil for non-marker comments", function()
-      local opt = {
-        region_text = { start = "begin read only", ending = "end read only" },
-      }
-      local comment = { text = "-- This is just a comment", line = 7 }
-      local result = ro._parse_comment(comment, opt)
-      assert.is_nil(result)
-    end)
-
-    it(
-      "_fix_ro_regions calls vim.api.nvim_buf_get_extmarks with details and overlap",
-      function()
-        ro.setup({ region_text = { start = "begin", ending = "end" } })
-        local bufread_callback = autocmd_callbacks[2].opts.callback
-        bufread_callback()
-
-        -- Verify extmark was populated
-        assert.is_not_nil(ro.extmark[42])
-
-        -- Track the arguments passed to nvim_buf_get_extmarks
-        local get_extmarks_args = nil
-        _G.vim.api.nvim_buf_get_extmarks = stub.new().invokes(function(...)
-          get_extmarks_args = { ... }
-          return {}
-        end)
-
-        -- Call _fix_ro_regions directly
-        ro._fix_ro_regions()
-
-        -- Verify get_extmarks was called with correct parameters
-        assert.stub(_G.vim.api.nvim_buf_get_extmarks).was_called()
-        -- The last argument should be the options table with details and overlap
-        assert.is_not_nil(get_extmarks_args)
-      end
-    )
-  end)
+  end
 end)

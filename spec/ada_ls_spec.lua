@@ -1,4 +1,5 @@
 local stub = require("luassert.stub")
+local common = require("spec.helpers.common")
 
 describe("gnattest.ada_ls", function()
   local ada_ls
@@ -26,16 +27,11 @@ describe("gnattest.ada_ls", function()
       }
 
     -- Mock utils module
-    package.preload["gnattest.utils"] = function()
-      local utils_mock = {
-        notify = stub.new(),
-        gnattest_pattern = "**/gnattest/",
-      }
-      utils_mock.get_bufdir = function()
+    common.mock_utils({
+      get_bufdir = function()
         return "/home/user/project/gnattest/harness"
-      end
-      return utils_mock
-    end
+      end,
+    })
 
     -- Reload ada_ls to get fresh instance with mocked deps
     package.loaded["gnattest.ada_ls"] = nil
@@ -43,7 +39,7 @@ describe("gnattest.ada_ls", function()
   end)
 
   after_each(function()
-    package.preload["gnattest.utils"] = nil
+    common.cleanup_packages()
     package.loaded["gnattest.ada_ls"] = nil
   end)
 

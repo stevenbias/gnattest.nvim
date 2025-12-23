@@ -1,11 +1,5 @@
 local xml = require("gnattest.xml")
 
--- Helper to conditionally define tests only when GNATTEST_TEST_MODE is set
-local function test_private_functions(description, test_fn)
-  if os.getenv("GNATTEST_TEST_MODE") then
-    describe(description, test_fn)
-  end
-end
 -- Stubs for Neovim API used in xml.lua
 local stub_vim_api = function()
   _G.vim = _G.vim or {}
@@ -863,114 +857,116 @@ describe("gnattest.xml", function()
     end)
   end)
 
-  test_private_functions("private functions", function()
-    it("_query_element returns a query object", function()
-      local query = xml._query_element("unit")
-      assert.is_not_nil(query)
-      assert.is_table(query)
-    end)
+  if os.getenv("GNATTEST_TEST_MODE") then
+    describe("private functions", function()
+      it("_query_element returns a query object", function()
+        local query = xml._query_element("unit")
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-    it("_query_element with nil returns a query object", function()
-      local query = xml._query_element(nil)
-      assert.is_not_nil(query)
-      assert.is_table(query)
-    end)
+      it("_query_element with nil returns a query object", function()
+        local query = xml._query_element(nil)
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-    it("_query_element with empty string returns a query object", function()
-      local query = xml._query_element("")
-      assert.is_not_nil(query)
-      assert.is_table(query)
-    end)
+      it("_query_element with empty string returns a query object", function()
+        local query = xml._query_element("")
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-    it("_query_element with test_unit returns a query object", function()
-      local query = xml._query_element("test_unit")
-      assert.is_not_nil(query)
-      assert.is_table(query)
-    end)
+      it("_query_element with test_unit returns a query object", function()
+        local query = xml._query_element("test_unit")
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-    it("_query_test_info returns a query object", function()
-      local query = xml._query_test_info()
-      assert.is_not_nil(query)
-      assert.is_table(query)
-    end)
+      it("_query_test_info returns a query object", function()
+        local query = xml._query_test_info()
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-    it("_create_xml_buf creates buffer and returns buffer id", function()
-      local buf_id = xml._create_xml_buf()
-      assert.equals(1, buf_id)
-    end)
+      it("_create_xml_buf creates buffer and returns buffer id", function()
+        local buf_id = xml._create_xml_buf()
+        assert.equals(1, buf_id)
+      end)
 
-    it(
-      "_create_xml_buf executes file pattern matching in vim.fs.find callback",
-      function()
-        local captured_callback = nil
-        _G.vim.fs.find = function(callback)
-          captured_callback = callback
-          return { "gnattest.xml" }
+      it(
+        "_create_xml_buf executes file pattern matching in vim.fs.find callback",
+        function()
+          local captured_callback = nil
+          _G.vim.fs.find = function(callback)
+            captured_callback = callback
+            return { "gnattest.xml" }
+          end
+
+          -- Call _create_xml_buf to capture the callback
+          xml._create_xml_buf()
+
+          -- Verify we captured the callback
+          assert.is_not_nil(captured_callback)
+          assert.is_function(captured_callback)
+
+          -- Test the strict equality check - should only match exact "gnattest.xml"
+          assert.is_true(captured_callback("gnattest.xml"))
+
+          -- Should not match files with gnattest.xml as suffix
+          assert.is_false(captured_callback("project_gnattest.xml"))
+          assert.is_false(captured_callback("my_gnattest.xml"))
+          assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
+          assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
+
+          -- Should not match other files
+          assert.is_false(captured_callback("test.xml"))
+          assert.is_false(captured_callback("gnattest.adb"))
+          assert.is_false(captured_callback("gnattest.xml.backup"))
+          assert.is_false(captured_callback("gnattest_output.xml"))
+        end
+      )
+
+      it("_get_pkg_tests returns tests for given package", function()
+        xml.tests = {
+          ["file1.xml"] = {
+            ["Package.SubPkg"] = {
+              { name = "test1", line = 10 },
+              { name = "test2", line = 20 },
+            },
+          },
+        }
+
+        local tests, filename = xml._get_pkg_tests("Package.SubPkg")
+        assert.is_not_nil(tests)
+        assert.equals("file1.xml", filename)
+        assert.equals(2, #tests)
+        assert.equals("test1", tests[1].name)
+        assert.equals("test2", tests[2].name)
+      end)
+
+      it("_get_pkg_tests returns nil for non-existent package", function()
+        xml.tests = {
+          ["file1.xml"] = {
+            ["Package.SubPkg"] = {
+              { name = "test1", line = 10 },
+            },
+          },
+        }
+
+        local tests = xml._get_pkg_tests("NonExistent.Package")
+        assert.is_nil(tests)
+      end)
+
+      it("_get_pkg_tests calls get_tests if tests table is empty", function()
+        xml.tests = {}
+        _G.vim.fs.find = function()
+          return {}
         end
 
-        -- Call _create_xml_buf to capture the callback
-        xml._create_xml_buf()
-
-        -- Verify we captured the callback
-        assert.is_not_nil(captured_callback)
-        assert.is_function(captured_callback)
-
-        -- Test the strict equality check - should only match exact "gnattest.xml"
-        assert.is_true(captured_callback("gnattest.xml"))
-
-        -- Should not match files with gnattest.xml as suffix
-        assert.is_false(captured_callback("project_gnattest.xml"))
-        assert.is_false(captured_callback("my_gnattest.xml"))
-        assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
-        assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
-
-        -- Should not match other files
-        assert.is_false(captured_callback("test.xml"))
-        assert.is_false(captured_callback("gnattest.adb"))
-        assert.is_false(captured_callback("gnattest.xml.backup"))
-        assert.is_false(captured_callback("gnattest_output.xml"))
-      end
-    )
-
-    it("_get_pkg_tests returns tests for given package", function()
-      xml.tests = {
-        ["file1.xml"] = {
-          ["Package.SubPkg"] = {
-            { name = "test1", line = 10 },
-            { name = "test2", line = 20 },
-          },
-        },
-      }
-
-      local tests, filename = xml._get_pkg_tests("Package.SubPkg")
-      assert.is_not_nil(tests)
-      assert.equals("file1.xml", filename)
-      assert.equals(2, #tests)
-      assert.equals("test1", tests[1].name)
-      assert.equals("test2", tests[2].name)
+        local tests = xml._get_pkg_tests("Any.Package")
+        assert.is_nil(tests)
+      end)
     end)
-
-    it("_get_pkg_tests returns nil for non-existent package", function()
-      xml.tests = {
-        ["file1.xml"] = {
-          ["Package.SubPkg"] = {
-            { name = "test1", line = 10 },
-          },
-        },
-      }
-
-      local tests = xml._get_pkg_tests("NonExistent.Package")
-      assert.is_nil(tests)
-    end)
-
-    it("_get_pkg_tests calls get_tests if tests table is empty", function()
-      xml.tests = {}
-      _G.vim.fs.find = function()
-        return {}
-      end
-
-      local tests = xml._get_pkg_tests("Any.Package")
-      assert.is_nil(tests)
-    end)
-  end)
+  end
 end)
