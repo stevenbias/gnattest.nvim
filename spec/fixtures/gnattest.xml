@@ -1,0 +1,13 @@
+<tests_mapping mode="monolith">
+   <unit source_file="my_package.ads">
+      <test_unit target_file="Board.Game">
+         <setup file="my_package-game_t_test_data.adb" name="Set_Up" line="9"  column="4"/>
+         <teardown file="my_package-game_t_test_data.adb" name="Tear_Down" line="14"  column="4"/>
+         <tested name="Foo" line="32" column="14">
+            <test_case name="test case" line="32" column="4">
+               <test file="my_package-game_t_test_data-game_t_tests.adb" line="39" column="1" name="Test_Foo_06f1d3" timestamp="2025-12-22 13:35:22"/>
+            </test_case>
+         </tested>
+      </test_unit>
+   </unit>
+</tests_mapping>
