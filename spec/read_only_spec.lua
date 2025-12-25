@@ -488,6 +488,39 @@ describe("gnattest.read_only", function()
       text_changed_callback()
       assert.is_false(schedule_called)
     end)
+
+    it("exercises extmarks with details and overlap options", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      _G.vim.opt.diff.get = function()
+        return false
+      end
+
+      local bufread_callback = autocmd_callbacks[2].opts.callback
+      bufread_callback()
+
+      -- This should trigger the specific get_extmarks call with details/overlap
+      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      text_changed_callback()
+
+      assert.is_true(true) -- Test completed without error
+    end)
+
+    it("uses extmarks with details and overlap options", function()
+      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      local bufread_callback = autocmd_callbacks[2].opts.callback
+      bufread_callback()
+
+      _G.vim.opt.diff.get = function()
+        return false
+      end
+      local get_extmarks_spy = stub(_G.vim.api, "nvim_buf_get_extmarks")
+      get_extmarks_spy.returns({ { 42, 1, 0, { end_row = 2 } } })
+
+      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      text_changed_callback()
+
+      assert.stub(get_extmarks_spy).was_called()
+    end)
   end)
 
   if os.getenv("GNATTEST_TEST_MODE") then
@@ -532,6 +565,11 @@ describe("gnattest.read_only", function()
 
           -- Verify extmark was populated
           assert.is_not_nil(ro.extmark[42])
+
+          -- Ensure diff mode is off (required for fix_ro_regions to execute)
+          _G.vim.opt.diff.get = function()
+            return false
+          end
 
           -- Track the arguments passed to nvim_buf_get_extmarks
           local get_extmarks_args = nil

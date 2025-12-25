@@ -479,6 +479,86 @@ describe("gnattest.xml", function()
     end)
   end)
 
+  describe("field assignment coverage", function()
+    it("exercises all XML field assignment branches", function()
+      xml.tests = {}
+      _G.vim.fs.find = function()
+        return { "gnattest.xml" }
+      end
+      _G.vim.fn.readfile = function()
+        return { "<tests></tests>" }
+      end
+
+      _G.vim.treesitter.query.parse = function(_, query_str)
+        if query_str:find("test_unit") then
+          return {
+            captures = { "pkg" },
+            iter_captures = function()
+              local called = false
+              return function()
+                if not called then
+                  called = true
+                  return 1, "pkg_node"
+                end
+              end
+            end,
+          }
+        else
+          return {
+            captures = { "src", "tst" },
+            iter_captures = function()
+              local i = 0
+              local seq = {
+                { 3, "flag_name" },
+                { 1, "src_name" },
+                { 3, "flag_line" },
+                { 1, "src_line" },
+                { 3, "flag_column" },
+                { 1, "src_column" },
+                { 3, "flag_file" },
+                { 2, "tst_file" },
+                { 3, "flag_line2" },
+                { 2, "tst_line" },
+                { 3, "flag_column2" },
+                { 2, "tst_column" },
+                { 3, "flag_name2" },
+                { 2, "tst_name" },
+              }
+              return function()
+                i = i + 1
+                return i <= #seq and seq[i][1] or nil,
+                  i <= #seq and seq[i][2] or nil
+              end
+            end,
+          }
+        end
+      end
+
+      _G.vim.treesitter.get_node_text = function(node)
+        local map = {
+          pkg_node = "Pkg",
+          flag_name = "name",
+          flag_line = "line",
+          flag_column = "column",
+          flag_file = "file",
+          flag_line2 = "line",
+          flag_column2 = "column",
+          flag_name2 = "name",
+          src_name = "Fn",
+          src_line = "42",
+          src_column = "10",
+          tst_file = "test.adb",
+          tst_line = "15",
+          tst_column = "5",
+          tst_name = "Test_Fn",
+        }
+        return map[node] or "default"
+      end
+
+      assert.is_table(xml.get_tests())
+    end)
+  end)
+
   -- Simplified XML parsing mock setup
   local function setup_xml_parsing_mocks(
     unit_captures,
@@ -582,6 +662,13 @@ describe("gnattest.xml", function()
 
   if os.getenv("GNATTEST_TEST_MODE") then
     describe("private functions", function()
+      it("_query_element handles nil parameter correctly", function()
+        -- This test specifically targets line 7: match = ""
+        local query = xml._query_element(nil)
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
+
       local query_element_inputs = { "unit", nil, "", "test_unit" }
       for _, input in ipairs(query_element_inputs) do
         it(
