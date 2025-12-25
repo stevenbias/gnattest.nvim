@@ -1,4 +1,5 @@
 local stub = require("luassert.stub")
+local helpers = require("spec.helpers.common")
 
 describe("gnattest.highlight", function()
   local highlight
@@ -80,49 +81,43 @@ describe("gnattest.highlight", function()
       .was_called_with(123, "MyHighlight", { bg = "#080808", force = true })
   end)
 
-  if os.getenv("GNATTEST_TEST_MODE") then
+  if helpers.should_test_private_functions() then
     describe("private functions", function()
       it("_hex_to_rgb converts hex color to RGB table", function()
         local rgb = highlight._hex_to_rgb("#ff0000")
         assert.same({ r = 255, g = 0, b = 0 }, rgb)
       end)
 
-      it("_hex_to_rgb handles various colors correctly", function()
-        assert.same({ r = 0, g = 0, b = 0 }, highlight._hex_to_rgb("#000000"))
-        assert.same(
-          { r = 255, g = 255, b = 255 },
-          highlight._hex_to_rgb("#ffffff")
-        )
-        assert.same(
-          { r = 48, g = 48, b = 48 },
-          highlight._hex_to_rgb("#303030")
-        )
-        assert.same(
-          { r = 171, g = 205, b = 239 },
-          highlight._hex_to_rgb("#abcdef")
-        )
-      end)
+      local hex_to_rgb_cases = {
+        { hex = "#000000", expected = { r = 0, g = 0, b = 0 } },
+        { hex = "#ffffff", expected = { r = 255, g = 255, b = 255 } },
+        { hex = "#303030", expected = { r = 48, g = 48, b = 48 } },
+        { hex = "#abcdef", expected = { r = 171, g = 205, b = 239 } },
+      }
+
+      for _, case in ipairs(hex_to_rgb_cases) do
+        it("_hex_to_rgb handles " .. case.hex .. " correctly", function()
+          assert.same(case.expected, highlight._hex_to_rgb(case.hex))
+        end)
+      end
 
       it("_rgb_to_hex converts RGB table to hex string", function()
         local hex = highlight._rgb_to_hex({ r = 255, g = 0, b = 0 })
         assert.equals("#ff0000", hex)
       end)
 
-      it("_rgb_to_hex handles various RGB values", function()
-        assert.equals("#000000", highlight._rgb_to_hex({ r = 0, g = 0, b = 0 }))
-        assert.equals(
-          "#ffffff",
-          highlight._rgb_to_hex({ r = 255, g = 255, b = 255 })
-        )
-        assert.equals(
-          "#303030",
-          highlight._rgb_to_hex({ r = 48, g = 48, b = 48 })
-        )
-        assert.equals(
-          "#abcdef",
-          highlight._rgb_to_hex({ r = 171, g = 205, b = 239 })
-        )
-      end)
+      local rgb_to_hex_cases = {
+        { rgb = { r = 0, g = 0, b = 0 }, expected = "#000000" },
+        { rgb = { r = 255, g = 255, b = 255 }, expected = "#ffffff" },
+        { rgb = { r = 48, g = 48, b = 48 }, expected = "#303030" },
+        { rgb = { r = 171, g = 205, b = 239 }, expected = "#abcdef" },
+      }
+
+      for _, case in ipairs(rgb_to_hex_cases) do
+        it("_rgb_to_hex handles " .. case.expected .. " correctly", function()
+          assert.equals(case.expected, highlight._rgb_to_hex(case.rgb))
+        end)
+      end
 
       it("_rgb_to_hex returns #000000 for nil input", function()
         assert.equals("#000000", highlight._rgb_to_hex(nil))

@@ -200,44 +200,36 @@ describe("gnattest.ada_ls", function()
         )
       end)
 
-      it("should notify when client is nil", function()
-        ada_ls.setup()
-        local callback = autocmd_callbacks[1].opts.callback
-        local utils = require("gnattest.utils")
+      local error_notification_cases = {
+        {
+          name = "should notify when client is nil",
+          client_return = nil,
+        },
+        {
+          name = "should notify when client is not Ada",
+          client_return = { name = "rust_analyzer" },
+        },
+      }
 
-        _G.vim.lsp.get_client_by_id = stub.new().returns(nil)
+      for _, case in ipairs(error_notification_cases) do
+        it(case.name, function()
+          ada_ls.setup()
+          local callback = autocmd_callbacks[1].opts.callback
+          local utils = require("gnattest.utils")
 
-        local event = {
-          data = { client_id = 123 },
-        }
+          _G.vim.lsp.get_client_by_id = stub.new().returns(case.client_return)
 
-        callback(event)
+          local event = {
+            data = { client_id = 123 },
+          }
 
-        assert
-          .stub(utils.notify)
-          .was_called_with("Ada LSP client not found", _G.vim.log.levels.WARN)
-      end)
+          callback(event)
 
-      it("should notify when client is not Ada", function()
-        ada_ls.setup()
-        local callback = autocmd_callbacks[1].opts.callback
-        local utils = require("gnattest.utils")
-
-        local mock_client = {
-          name = "rust_analyzer",
-        }
-        _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
-
-        local event = {
-          data = { client_id = 123 },
-        }
-
-        callback(event)
-
-        assert
-          .stub(utils.notify)
-          .was_called_with("Ada LSP client not found", _G.vim.log.levels.WARN)
-      end)
+          assert
+            .stub(utils.notify)
+            .was_called_with("Ada LSP client not found", _G.vim.log.levels.WARN)
+        end)
+      end
 
       it("should get client by event data client_id", function()
         ada_ls.setup()

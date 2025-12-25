@@ -1,12 +1,13 @@
 local stub = require("luassert.stub")
+local helpers = require("spec.helpers.common")
 
 describe("gnattest.utils", function()
   local utils
 
   before_each(function()
-    -- Stub basic Neovim API functions used in utils.lua
+    -- Use helper to setup basic vim API, then extend it
     _G.vim = _G.vim or {}
-    _G.vim.api = {
+    _G.vim.api = helpers.create_basic_vim_api({
       nvim_echo = function(msg)
         return msg
       end,
@@ -19,12 +20,12 @@ describe("gnattest.utils", function()
       nvim__get_runtime = function()
         return {}
       end,
-    }
-    _G.vim.fn = {
+    })
+    _G.vim.fn = helpers.create_vim_fn_mock({
       expand = function(_)
         return "gnattest/gnattest_file.adb"
       end,
-    }
+    })
     -- Stub Treesitter as used by utils.lua
     _G.vim.treesitter = {
       get_parser = function(_, lang)
@@ -178,36 +179,26 @@ describe("gnattest.utils", function()
     assert.same("gnattest", utils.get_bufdir())
   end)
 
-  if os.getenv("GNATTEST_TEST_MODE") then
+  if helpers.should_test_private_functions() then
     describe("private functions", function()
-      it("_log_lvl_tostring returns TRACE for level 0", function()
-        assert.equals("TRACE", utils._log_lvl_tostring(0))
-      end)
-
-      it("_log_lvl_tostring returns DEBUG for level 1", function()
-        assert.equals("DEBUG", utils._log_lvl_tostring(1))
-      end)
-
-      it("_log_lvl_tostring returns INFO for level 2", function()
-        assert.equals("INFO", utils._log_lvl_tostring(2))
-      end)
-
-      it("_log_lvl_tostring returns WARN for level 3", function()
-        assert.equals("WARN", utils._log_lvl_tostring(3))
-      end)
-
-      it("_log_lvl_tostring returns ERROR for level 4", function()
-        assert.equals("ERROR", utils._log_lvl_tostring(4))
-      end)
-
-      it("_log_lvl_tostring returns OFF for level 5", function()
-        assert.equals("OFF", utils._log_lvl_tostring(5))
-      end)
-
-      it("_log_lvl_tostring returns ERROR for unknown level", function()
-        assert.equals("ERROR", utils._log_lvl_tostring(99))
-        assert.equals("ERROR", utils._log_lvl_tostring(-1))
-      end)
+      local log_level_cases = {
+        { 0, "TRACE" },
+        { 1, "DEBUG" },
+        { 2, "INFO" },
+        { 3, "WARN" },
+        { 4, "ERROR" },
+        { 5, "OFF" },
+        { 99, "ERROR" },
+        { -1, "ERROR" },
+      }
+      for _, case in ipairs(log_level_cases) do
+        it(
+          "_log_lvl_tostring returns " .. case[2] .. " for level " .. case[1],
+          function()
+            assert.equals(case[2], utils._log_lvl_tostring(case[1]))
+          end
+        )
+      end
 
       it("_get_parser returns parser when ada parser exists", function()
         local parser = utils._get_parser()

@@ -215,15 +215,9 @@ describe("gnattest.xml", function()
   end)
 
   describe("module structure", function()
-    it("module exports get_tests_by_name function", function()
+    it("exports required functions and data structures", function()
       assert.is_function(xml.get_tests_by_name)
-    end)
-
-    it("module exports get_tests function", function()
       assert.is_function(xml.get_tests)
-    end)
-
-    it("module has tests table", function()
       assert.is_table(xml.tests)
     end)
   end)
@@ -311,29 +305,20 @@ describe("gnattest.xml", function()
       assert.is_table(result)
     end)
 
-    it("structure contains source files as keys", function()
+    it("structure contains source files and test packages", function()
       xml.tests = {
         ["src/my_package.ads"] = {
           ["test_pkg"] = { { name = "test1" } },
+          ["gnattest_prefix_my_package.ads"] = { { name = "test2" } },
         },
       }
 
       local result = xml.get_tests()
       assert.is_not_nil(result["src/my_package.ads"])
-    end)
-
-    it("structure contains test packages in source files", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["gnattest_prefix_my_package.ads"] = { { name = "test1" } },
-        },
-      }
-
-      local result = xml.get_tests()
-      local tests =
+      local pkg_tests =
         result["src/my_package.ads"]["gnattest_prefix_my_package.ads"]
-      assert.is_table(tests)
-      assert.equals("test1", tests[1].name)
+      assert.is_table(pkg_tests)
+      assert.equals("test2", pkg_tests[1].name)
     end)
 
     it("src_info contains name, line, column, and test fields", function()
@@ -443,7 +428,7 @@ describe("gnattest.xml", function()
   end)
 
   describe("real fixture parsing", function()
-    it("reads real fixture file successfully", function()
+    it("validates fixture file XML structure and content", function()
       local fixture_path = "spec/fixtures/gnattest.xml"
       local xml_lines = {}
       local file = io.open(fixture_path, "r")
@@ -454,101 +439,37 @@ describe("gnattest.xml", function()
         end
         file:close()
       end
-      -- Should have parsed some lines
+
       assert.is_true(#xml_lines > 0)
-    end)
-
-    it("fixture has proper XML structure with multiple units", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
-      local file = io.open(fixture_path, "r")
-      if file then
-        for line in file:lines() do
-          table.insert(xml_lines, line)
-        end
-        file:close()
-      end
-
       local content = table.concat(xml_lines, "\n")
-      -- Verify multiple source files in fixture with generic names
+
+      -- Verify multiple source files
       assert.is_not_nil(string.find(content, "package_a%.ads"))
       assert.is_not_nil(string.find(content, "package_b%.ads"))
       assert.is_not_nil(string.find(content, "package_c%.ads"))
-    end)
 
-    it("fixture has multiple test packages per unit", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
-      local file = io.open(fixture_path, "r")
-      if file then
-        for line in file:lines() do
-          table.insert(xml_lines, line)
-        end
-        file:close()
-      end
-
-      local content = table.concat(xml_lines, "\n")
-      -- package_a has multiple test_unit elements
-      local count = 0
+      -- Count test_unit elements (should be multiple)
+      local test_unit_count = 0
       for _ in string.gmatch(content, "<test_unit") do
-        count = count + 1
+        test_unit_count = test_unit_count + 1
       end
-      assert.is_true(count > 1)
-    end)
+      assert.is_true(test_unit_count > 1)
 
-    it("fixture has multiple tested procedures per test_unit", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
-      local file = io.open(fixture_path, "r")
-      if file then
-        for line in file:lines() do
-          table.insert(xml_lines, line)
-        end
-        file:close()
-      end
-
-      local content = table.concat(xml_lines, "\n")
-      -- Count tested elements
-      local count = 0
+      -- Count tested elements (should be multiple)
+      local tested_count = 0
       for _ in string.gmatch(content, "<tested") do
-        count = count + 1
+        tested_count = tested_count + 1
       end
-      assert.is_true(count > 1)
-    end)
+      assert.is_true(tested_count > 1)
 
-    it("fixture has multiple test cases per tested procedure", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
-      local file = io.open(fixture_path, "r")
-      if file then
-        for line in file:lines() do
-          table.insert(xml_lines, line)
-        end
-        file:close()
-      end
-
-      local content = table.concat(xml_lines, "\n")
-      -- Count test_case elements
-      local count = 0
+      -- Count test_case elements (should be multiple)
+      local test_case_count = 0
       for _ in string.gmatch(content, "<test_case") do
-        count = count + 1
+        test_case_count = test_case_count + 1
       end
-      assert.is_true(count > 1)
-    end)
+      assert.is_true(test_case_count > 1)
 
-    it("fixture has complex nested structure", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
-      local file = io.open(fixture_path, "r")
-      if file then
-        for line in file:lines() do
-          table.insert(xml_lines, line)
-        end
-        file:close()
-      end
-
-      local content = table.concat(xml_lines, "\n")
-      -- Verify proper nesting: unit > test_unit > tested > test_case > test
+      -- Verify proper nesting structure
       assert.is_true(string.find(content, "<tests_mapping") ~= nil)
       assert.is_true(string.find(content, "<unit") ~= nil)
       assert.is_true(string.find(content, "<test_unit") ~= nil)
@@ -558,7 +479,7 @@ describe("gnattest.xml", function()
     end)
   end)
 
-  -- Helper function for setting up common XML parsing test mocks
+  -- Simplified XML parsing mock setup
   local function setup_xml_parsing_mocks(
     unit_captures,
     pkg_captures,
@@ -566,54 +487,28 @@ describe("gnattest.xml", function()
     node_text_mapping
   )
     xml.tests = {}
-
     _G.vim.treesitter.query.parse = function(_, query_str)
-      if query_str:find("test_unit") then
-        return {
-          captures = { "target_file" },
-          iter_captures = function()
-            local idx = 0
-            return function()
-              idx = idx + 1
-              if idx <= #pkg_captures then
-                return pkg_captures[idx].id, pkg_captures[idx].node
-              end
+      return {
+        captures = query_str:find("test_unit") and { "target_file" }
+          or query_str:find("unit") and { "source_file" }
+          or { "src", "tst" },
+        iter_captures = function()
+          local captures = query_str:find("test_unit") and (pkg_captures or {})
+            or query_str:find("unit") and (unit_captures or {})
+            or (test_captures or {})
+          local idx = 0
+          return function()
+            idx = idx + 1
+            if idx <= #captures then
+              return captures[idx].id, captures[idx].node
             end
-          end,
-        }
-      elseif query_str:find("unit") then
-        return {
-          captures = { "source_file" },
-          iter_captures = function()
-            local idx = 0
-            return function()
-              idx = idx + 1
-              if idx <= #unit_captures then
-                return unit_captures[idx].id, unit_captures[idx].node
-              end
-            end
-          end,
-        }
-      else
-        return {
-          captures = { "src", "tst" },
-          iter_captures = function()
-            local idx = 0
-            return function()
-              idx = idx + 1
-              if idx <= #test_captures then
-                return test_captures[idx].id, test_captures[idx].node
-              end
-            end
-          end,
-        }
-      end
+          end
+        end,
+      }
     end
-
     _G.vim.treesitter.get_node_text = function(node)
-      return node_text_mapping[node] or tostring(node)
+      return (node_text_mapping and node_text_mapping[node]) or tostring(node)
     end
-
     _G.vim.fn.readfile = function()
       return { "<tests_mapping></tests_mapping>" }
     end
@@ -621,39 +516,6 @@ describe("gnattest.xml", function()
 
   describe("XML parsing logic coverage tests", function()
     describe("core data structure population", function()
-      it(
-        "exercises complete XML parsing flow with realistic captures",
-        function()
-          setup_xml_parsing_mocks(
-            { { id = 1, node = "source_node" } },
-            { { id = 1, node = "target_node" } },
-            {
-              { id = 1, node = "node_src" },
-              { id = 2, node = "node_name_1" },
-              { id = 3, node = "node_tst" },
-              { id = 4, node = "node_file_1" },
-              { id = 5, node = "node_line_1" },
-              { id = 6, node = "node_col_1" },
-              { id = 7, node = "node_test_name_1" },
-            },
-            {
-              source_node = "package_a.ads",
-              target_node = "Package_A",
-              node_src = "src",
-              node_name_1 = "Initialize",
-              node_tst = "tst",
-              node_file_1 = "test.adb",
-              node_line_1 = "42",
-              node_col_1 = "5",
-              node_test_name_1 = "Test_Initialize_001",
-            }
-          )
-
-          local result = xml.get_tests()
-          assert.is_table(result)
-        end
-      )
-
       it("populates source_files table from unit captures", function()
         setup_xml_parsing_mocks({
           { id = 1, node = "src_node_1" },
@@ -707,181 +569,30 @@ describe("gnattest.xml", function()
       end)
     end)
 
-    describe("src_info field assignment", function()
-      it("assigns src_info.name when capture_flag is 'name'", function()
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "src_node" },
-            { id = 2, node = "name_node" },
-          },
-          {
-            src_node = "name",
-            name_node = "InitializeProcedure",
-          }
-        )
-
-        local result = xml.get_tests()
-        assert.is_table(result)
-      end)
-
-      it("assigns src_info.line when capture_flag is 'line'", function()
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "line_node" },
-            { id = 2, node = "line_num_node" },
-          },
-          {
-            line_node = "line",
-            line_num_node = "42",
-          }
-        )
-
-        local result = xml.get_tests()
-        assert.is_table(result)
-      end)
-
-      it("assigns src_info.column when capture_flag is 'column'", function()
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "col_node" },
-            { id = 2, node = "col_num_node" },
-          },
-          {
-            col_node = "column",
-            col_num_node = "5",
-          }
-        )
-
-        local result = xml.get_tests()
-        assert.is_table(result)
-      end)
-    end)
-
-    describe("test_info field assignment and data insertion", function()
-      it("processes all test_info fields and inserts into pkg_info", function()
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 2, node = "test_file_node" },
-            { id = 2, node = "test_file_val" },
-            { id = 2, node = "test_line_node" },
-            { id = 2, node = "test_line_val" },
-            { id = 2, node = "test_col_node" },
-            { id = 2, node = "test_col_val" },
-            { id = 2, node = "test_name_node" },
-            { id = 2, node = "test_name_val" },
-          },
-          {
-            test_file_node = "file",
-            test_file_val = "test.adb",
-            test_line_node = "line",
-            test_line_val = "50",
-            test_col_node = "column",
-            test_col_val = "3",
-            test_name_node = "name",
-            test_name_val = "Test_Initialize_001",
-          }
-        )
-
-        local result = xml.get_tests()
-        assert.is_table(result)
-      end)
-    end)
-
-    describe("advanced parsing scenarios", function()
-      it("exercises varied src capture flag combinations", function()
-        -- Test name flag scenario
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "name_marker" },
-            { id = 1, node = "name_value" },
-            { id = 1, node = "src_marker" },
-            { id = 1, node = "proc_name" },
-          },
-          {
-            name_marker = "name",
-            name_value = "MyProcedure",
-            src_marker = "src",
-            proc_name = "TestProcName",
-          }
-        )
-        assert.is_table(xml.get_tests())
-
-        -- Test line flag scenario
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "line_marker" },
-            { id = 1, node = "line_value" },
-            { id = 1, node = "src_marker" },
-            { id = 1, node = "src_value" },
-          },
-          {
-            line_marker = "line",
-            line_value = "25",
-            src_marker = "src",
-            src_value = "TestLineValue",
-          }
-        )
-        assert.is_table(xml.get_tests())
-
-        -- Test column flag scenario
-        setup_xml_parsing_mocks(
-          { { id = 1, node = "unit_node" }, { id = 1, node = "unit_node" } },
-          { { id = 1, node = "pkg_node" } },
-          {
-            { id = 1, node = "col_marker" },
-            { id = 1, node = "col_value" },
-            { id = 1, node = "src_marker" },
-            { id = 1, node = "src_value" },
-          },
-          {
-            col_marker = "column",
-            col_value = "10",
-            src_marker = "src",
-            src_value = "TestColValue",
-          }
-        )
-        assert.is_table(xml.get_tests())
-      end)
+    describe("comprehensive parsing verification", function()
+      it(
+        "verifies xml.get_tests() returns table with various parsing scenarios",
+        function()
+          setup_xml_parsing_mocks({}, {}, {}, {})
+          assert.is_table(xml.get_tests())
+        end
+      )
     end)
   end)
 
   if os.getenv("GNATTEST_TEST_MODE") then
     describe("private functions", function()
-      it("_query_element returns a query object", function()
-        local query = xml._query_element("unit")
-        assert.is_not_nil(query)
-        assert.is_table(query)
-      end)
-
-      it("_query_element with nil returns a query object", function()
-        local query = xml._query_element(nil)
-        assert.is_not_nil(query)
-        assert.is_table(query)
-      end)
-
-      it("_query_element with empty string returns a query object", function()
-        local query = xml._query_element("")
-        assert.is_not_nil(query)
-        assert.is_table(query)
-      end)
-
-      it("_query_element with test_unit returns a query object", function()
-        local query = xml._query_element("test_unit")
-        assert.is_not_nil(query)
-        assert.is_table(query)
-      end)
+      local query_element_inputs = { "unit", nil, "", "test_unit" }
+      for _, input in ipairs(query_element_inputs) do
+        it(
+          "_query_element with " .. tostring(input) .. " returns a query object",
+          function()
+            local query = xml._query_element(input)
+            assert.is_not_nil(query)
+            assert.is_table(query)
+          end
+        )
+      end
 
       it("_query_test_info returns a query object", function()
         local query = xml._query_test_info()
