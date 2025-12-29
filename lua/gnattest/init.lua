@@ -11,10 +11,9 @@ local M = {
 }
 
 function M.setup(opts)
-  local utils = require("gnattest.utils")
   vim.api.nvim_create_autocmd("BufReadPre", {
     pattern = {
-      utils.gnattest_pattern .. "*.ad[bs]",
+      "*.ad[bs]",
     },
     callback = function()
       if opts ~= nil and next(opts) ~= nil then
