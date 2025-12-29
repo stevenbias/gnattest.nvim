@@ -154,6 +154,31 @@ function M.get_tests_dir()
   end
 end
 
+local function switch_prj(prj)
+  if not utils.is_gnattest_file() then
+    return
+  end
+
+  local client = M.get_ada_ls()
+  if not client then
+    return nil, "Ada LSP client not found"
+  end
+  local config = {
+    ada = {
+      projectFile = prj,
+    },
+  }
+  client:notify("workspace/didChangeConfiguration", { settings = config })
+end
+
+function M.switch_to_source()
+  switch_prj(M.get_prj_file())
+end
+
+function M.switch_to_tests()
+  switch_prj(M.get_harness_dir() .. "/test_driver.gpr")
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
