@@ -191,12 +191,13 @@ end
 function M.setup()
   vim.api.nvim_create_autocmd("LspAttach", {
     pattern = {
-      utils.gnattest_pattern .. "*.ad[bs]",
+      "*.ad[bs]",
     },
     callback = function(ev)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
       if client ~= nil and client.name == "ada" then
         init_module()
+        utils.set_gnattest_pattern()
         if utils.is_gnattest_file() then
           M.switch_to_tests()
         end
