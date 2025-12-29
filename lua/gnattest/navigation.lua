@@ -114,10 +114,12 @@ function M.switch_subprogram()
       file = utils.find_file(filename, als.get_src_dirs())
       line = tonumber(file_info.source.line)
       column = tonumber(file_info.source.column)
+      als.switch_to_source()
     else
-      file = als.get_root_dir() .. "/obj/gnattest/tests/" .. file_info.test.file
+      file = als.get_tests_dir() .. "/" .. file_info.test.file
       line = tonumber(file_info.test.line)
       column = tonumber(file_info.test.column)
+      als.switch_to_tests()
     end
     vim.cmd("edit " .. file)
     local pos = { line, column }
