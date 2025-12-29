@@ -1,6 +1,13 @@
 local utils = require("gnattest.utils")
 
-local M = {}
+local M = {
+  root_dir = "",
+  prj_file = "",
+  src_dirs = {},
+  obj_dir = "",
+  harness_dir = "",
+  tests_dir = "",
+}
 
 function M.get_ada_ls()
   local clients = vim.lsp.get_clients({ name = "ada" })
@@ -16,7 +23,12 @@ function M.get_ada_ls()
 end
 
 function M.get_root_dir()
-  return require("gnattest.ada_ls").get_ada_ls().root_dir
+  if M.root_dir ~= "" then
+    return M.root_dir
+  end
+
+  M.root_dir = M.get_ada_ls().root_dir
+  return M.root_dir
 end
 
 local function lsp_request(req)
@@ -63,7 +75,23 @@ function M.get_declarations()
   return lsp_request("textDocument/declaration")
 end
 
+function M.get_prj_file()
+  if utils.is_gnattest_file() or M.prj_file ~= "" then
+    return M.prj_file
+  end
+
+  local cmd = lsp_command("als-project-file")
+  if cmd ~= nil and next(cmd) ~= nil then
+    M.prj_file = vim.uri_to_fname(cmd[1])
+  end
+  return M.prj_file
+end
+
 function M.get_src_dirs()
+  if next(M.src_dirs) ~= nil then
+    return M.src_dirs
+  end
+
   local src_dirs = lsp_command("als-source-dirs")
   if src_dirs == nil then
     return nil
@@ -73,36 +101,56 @@ function M.get_src_dirs()
   for _, dir in pairs(src_dirs) do
     table.insert(dirs, vim.uri_to_fname(dir.uri))
   end
+  M.src_dirs = dirs
   return dirs
 end
 
 function M.get_obj_dir()
-  return lsp_command("als-object-dir")[1]
+  if M.obj_dir ~= "" then
+    return M.obj_dir
+  end
+
+  local cmd = lsp_command("als-object-dir")
+  if cmd ~= nil and next(cmd) ~= nil then
+    M.obj_dir = cmd[1]
+  end
+  return M.obj_dir
 end
 
-function M.get_harness_dirs()
+function M.get_harness_dir()
+  if M.harness_dir ~= "" then
+    return M.harness_dir
+  end
+
   local harness_dir = lsp_command(
     "als-get-project-attribute-value",
     { { attribute = "Harness_Dir", pkg = "Gnattest", index = "" } }
   )
 
   if harness_dir == nil then
-    return "gnattest/harness"
+    return M.get_obj_dir() .. "/gnattest/harness"
   else
-    return harness_dir[1]
+    M.harness_dir = M.get_obj_dir() .. "/" .. harness_dir[1]
+    return M.harness_dir
   end
 end
 
+-- TODO: 'Tests_Root' attribute is not supported!
 function M.get_tests_dir()
-  local harness_dir = lsp_command(
+  if M.tests_dir ~= "" then
+    return M.tests_dir
+  end
+
+  local tests_dir = lsp_command(
     "als-get-project-attribute-value",
     { { attribute = "Tests_Dir", pkg = "Gnattest", index = "" } }
   )
 
-  if harness_dir == nil then
-    return "gnattest/tests"
+  if tests_dir ~= nil then
+    M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir[1]
+    return M.tests_dir
   else
-    return harness_dir[1]
+    return M.get_obj_dir() .. "/" .. "gnattest/tests"
   end
 end
 
