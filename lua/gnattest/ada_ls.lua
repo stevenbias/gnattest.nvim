@@ -9,6 +9,15 @@ local M = {
   tests_dir = "",
 }
 
+local function init_module()
+  M.root_dir = M.get_root_dir()
+  M.prj_file = M.get_prj_file()
+  M.src_dirs = M.get_src_dirs()
+  M.obj_dir = M.get_obj_dir()
+  M.harness_dir = M.get_harness_dir()
+  M.tests_dir = M.get_tests_dir()
+end
+
 function M.get_ada_ls()
   local clients = vim.lsp.get_clients({ name = "ada" })
   if not clients or #clients == 0 then
@@ -185,17 +194,12 @@ function M.setup()
       utils.gnattest_pattern .. "*.ad[bs]",
     },
     callback = function(ev)
-      local path = utils.get_bufdir()
-      local _, j = string.find(path, "gnattest")
-      local gnattest_dir = string.sub(path, 1, j)
       local client = vim.lsp.get_client_by_id(ev.data.client_id)
       if client ~= nil and client.name == "ada" then
-        local config = {
-          ada = {
-            projectFile = gnattest_dir .. "/harness/test_driver.gpr",
-          },
-        }
-        client:notify("workspace/didChangeConfiguration", { settings = config })
+        init_module()
+        if utils.is_gnattest_file() then
+          M.switch_to_tests()
+        end
       else
         require("gnattest.utils").notify(
           "Ada LSP client not found",
