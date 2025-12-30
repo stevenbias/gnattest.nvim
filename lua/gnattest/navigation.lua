@@ -12,7 +12,7 @@ function M.get_subprogram_name()
       local range = child.range or child.selectionRange
       if range.start.line + 1 == lnum then
         return child.name
-      elseif range.start.line + 1 <= lnum and lnum <= range["end"].line + 1 then
+      elseif range.start.line + 1 < lnum and lnum <= range["end"].line + 1 then
         range = child.selectionRange
         return child.name,
           {
@@ -54,7 +54,7 @@ function M.get_gnattest_info_on_cursor()
   local xml_info = require("gnattest.xml").get_xml_info()
 
   if next(xml_info) == nil then
-    M.get_xml_info()
+    return nil
   end
 
   local filename = utils.get_filename()

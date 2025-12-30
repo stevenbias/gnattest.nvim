@@ -55,9 +55,6 @@ end
 
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
-  if als == nil then
-    return string.find(M.get_bufdir(), "gnattest") ~= nil
-  end
 
   return string.find(M.get_bufdir(), "gnattest") ~= nil
     or string.find(M.get_bufdir(), als.get_harness_dir()) ~= nil
@@ -66,7 +63,7 @@ end
 
 function M.set_gnattest_pattern()
   local als = require("gnattest.ada_ls")
-  if als == nil or #M.gnattest_pattern > 1 then
+  if #M.gnattest_pattern > 1 then
     return M.gnattest_pattern
   end
 
