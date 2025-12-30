@@ -56,6 +56,9 @@ local stub_vim_api = function()
       return 1
     end,
     nvim_buf_set_lines = function() end,
+    nvim__get_runtime = function()
+      return {}
+    end,
   }
   _G.vim.inspect = function(obj)
     return tostring(obj)
@@ -65,166 +68,19 @@ end
 describe("gnattest.xml", function()
   before_each(function()
     stub_vim_api()
-    xml.tests = {}
-  end)
-
-  describe("test storage and caching", function()
-    it("initializes tests table", function()
-      assert.is_table(xml.tests)
-    end)
-
-    it("clears tests between test runs", function()
-      xml.tests = { file1 = { pkg1 = { { name = "test" } } } }
-      assert.is_table(xml.tests)
-      xml.tests = {}
-      assert.equals(0, #(next(xml.tests) or {}))
-    end)
-
-    it("maintains tests table reference", function()
-      xml.tests = { file1 = { pkg1 = { { name = "test" } } } }
-      assert.is_table(xml.tests)
-    end)
-  end)
-
-  describe("get_tests_by_name", function()
-    it("returns test by name if present", function()
-      xml.tests = { file1 = { pkg1 = { { name = "testA" } } } }
-      local test = xml.get_tests_by_name("pkg1", "testA")
-      assert.is_table(test)
-      assert.equals("testA", test.name)
-      assert.equals("file1", test.filename)
-      assert.equals("pkg1", test.pkg)
-    end)
-
-    it("returns nil if test name not present", function()
-      xml.tests = { file1 = { pkg1 = { { name = "testA" } } } }
-      local test = xml.get_tests_by_name("pkg1", "missing")
-      assert.is_nil(test)
-    end)
-
-    it("returns nil if package not present", function()
-      xml.tests = { file1 = { pkg1 = { { name = "testA" } } } }
-      local test = xml.get_tests_by_name("missing_pkg", "testA")
-      assert.is_nil(test)
-    end)
-
-    it("handles multiple tests in same package", function()
-      xml.tests = {
-        file1 = { pkg1 = { { name = "testA" }, { name = "testB" } } },
-      }
-      local testA = xml.get_tests_by_name("pkg1", "testA")
-      local testB = xml.get_tests_by_name("pkg1", "testB")
-      assert.equals("testA", testA.name)
-      assert.equals("testB", testB.name)
-    end)
-
-    it("handles multiple packages", function()
-      xml.tests = {
-        file1 = {
-          pkg1 = { { name = "testA" } },
-          pkg2 = { { name = "testB" } },
-        },
-      }
-      local testB = xml.get_tests_by_name("pkg2", "testB")
-      assert.equals("testB", testB.name)
-      assert.equals("pkg2", testB.pkg)
-    end)
-
-    it("preserves test attributes", function()
-      xml.tests = {
-        file1 = {
-          pkg1 = { { name = "test1", line = 42, column = 5 } },
-        },
-      }
-      local test = xml.get_tests_by_name("pkg1", "test1")
-      assert.equals(42, test.line)
-      assert.equals(5, test.column)
-    end)
-
-    it("retrieves test with all metadata fields", function()
-      xml.tests = {
-        file1 = {
-          pkg1 = {
-            {
-              name = "test1",
-              file = "test.ads",
-              line = 10,
-              column = 2,
-            },
-          },
-        },
-      }
-      local test = xml.get_tests_by_name("pkg1", "test1")
-      assert.equals("test1", test.name)
-      assert.equals("test.ads", test.file)
-      assert.equals(10, test.line)
-      assert.equals(2, test.column)
-      assert.equals("file1", test.filename)
-      assert.equals("pkg1", test.pkg)
-    end)
-
-    it("returns first match when duplicates exist", function()
-      xml.tests = {
-        file1 = {
-          pkg1 = { { name = "test1" }, { name = "test1" } },
-        },
-      }
-      local test = xml.get_tests_by_name("pkg1", "test1")
-      assert.is_not_nil(test)
-      assert.equals("test1", test.name)
-    end)
-  end)
-
-  describe("edge cases", function()
-    it("handles empty tests table", function()
-      xml.tests = {}
-      local test = xml.get_tests_by_name("pkg", "test")
-      assert.is_nil(test)
-    end)
-
-    it("handles special characters in names", function()
-      xml.tests = { file1 = { ["pkg.sub"] = { { name = "test_1" } } } }
-      local test = xml.get_tests_by_name("pkg.sub", "test_1")
-      assert.equals("test_1", test.name)
-    end)
-
-    it("handles nested package names with underscores", function()
-      xml.tests = {
-        file1 = { ["my_pkg_v1"] = { { name = "my_test" } } },
-      }
-      local test = xml.get_tests_by_name("my_pkg_v1", "my_test")
-      assert.equals("my_test", test.name)
-    end)
-
-    it("search is case sensitive", function()
-      xml.tests = { file1 = { pkg1 = { { name = "TestCase" } } } }
-      local test1 = xml.get_tests_by_name("pkg1", "TestCase")
-      local test2 = xml.get_tests_by_name("pkg1", "testcase")
-      assert.is_not_nil(test1)
-      assert.is_nil(test2)
-    end)
-
-    it("handles numeric line and column values", function()
-      xml.tests = {
-        file1 = { pkg1 = { { name = "test", line = 100, column = 20 } } },
-      }
-      local test = xml.get_tests_by_name("pkg1", "test")
-      assert.is_true(test.line == 100)
-      assert.is_true(test.column == 20)
-    end)
+    package.loaded["gnattest.xml"] = nil
+    xml = require("gnattest.xml")
   end)
 
   describe("module structure", function()
-    it("exports required functions and data structures", function()
+    it("exports required functions", function()
       assert.is_function(xml.get_tests_by_name)
-      assert.is_function(xml.get_tests)
-      assert.is_table(xml.tests)
+      assert.is_function(xml.get_xml_info)
     end)
   end)
 
   describe("get_tests with real XML parsing", function()
     it("parses complete XML structure correctly", function()
-      -- Read the actual fixture XML
       local fixture_path = "spec/fixtures/gnattest.xml"
       local xml_lines = {}
       local file = io.open(fixture_path, "r")
@@ -235,17 +91,14 @@ describe("gnattest.xml", function()
         file:close()
       end
 
-      -- Mock vim.fs.find to return fixture path
       _G.vim.fs.find = function()
         return { fixture_path }
       end
 
-      -- Mock vim.fn.readfile to return fixture content
       _G.vim.fn.readfile = function()
         return xml_lines
       end
 
-      -- Mock treesitter to actually parse the XML
       _G.vim.treesitter.get_parser = function()
         return {
           parse = function()
@@ -260,170 +113,22 @@ describe("gnattest.xml", function()
         }
       end
 
-      -- Call get_tests
-      local result = xml.get_tests()
-
-      -- Verify we got a table
+      local result = xml.get_xml_info()
       assert.is_table(result)
-
-      -- Verify structure exists (may be empty if treesitter mocking
-      -- doesn't fully parse, but at least verify it runs)
       assert.is_not_nil(result)
     end)
 
-    it("get_tests returns cached results on second call", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["gnattest_prefix_my_package.ads"] = {
-            { name = "test_add", line = 50 },
-          },
-        },
-      }
-
-      local result1 = xml.get_tests()
-      local result2 = xml.get_tests()
-
-      assert.is_table(result1)
-      assert.is_table(result2)
-      assert.equals(result1, result2)
-    end)
-
-    it("get_tests initializes tests table", function()
-      xml.tests = {}
-
-      -- Mock vim.fs.find
+    it("get_tests initializes empty xml_info table", function()
       _G.vim.fs.find = function()
         return { "spec/fixtures/gnattest.xml" }
       end
 
-      -- Mock vim.fn.readfile
       _G.vim.fn.readfile = function()
         return { "<gnattest></gnattest>" }
       end
 
-      local result = xml.get_tests()
+      local result = xml.get_xml_info()
       assert.is_table(result)
-    end)
-
-    it("structure contains source files and test packages", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg"] = { { name = "test1" } },
-          ["gnattest_prefix_my_package.ads"] = { { name = "test2" } },
-        },
-      }
-
-      local result = xml.get_tests()
-      assert.is_not_nil(result["src/my_package.ads"])
-      local pkg_tests =
-        result["src/my_package.ads"]["gnattest_prefix_my_package.ads"]
-      assert.is_table(pkg_tests)
-      assert.equals("test2", pkg_tests[1].name)
-    end)
-
-    it("src_info contains name, line, column, and test fields", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            {
-              name = "add_numbers",
-              line = "10",
-              column = "5",
-              test = {
-                name = "test_add_positive",
-                file = "test.ads",
-                line = "50",
-                column = "3",
-              },
-            },
-          },
-        },
-      }
-
-      local result = xml.get_tests()
-      local src = result["src/my_package.ads"]["test_pkg"][1]
-      assert.equals("add_numbers", src.name)
-      assert.equals("10", src.line)
-      assert.equals("5", src.column)
-      assert.is_table(src.test)
-    end)
-
-    it("test_info contains name, file, line, and column fields", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            {
-              name = "proc",
-              test = {
-                name = "test_proc",
-                file = "test.ads",
-                line = "100",
-                column = "3",
-              },
-            },
-          },
-        },
-      }
-
-      local result = xml.get_tests()
-      local test = result["src/my_package.ads"]["test_pkg"][1].test
-      assert.equals("test_proc", test.name)
-      assert.equals("test.ads", test.file)
-      assert.equals("100", test.line)
-      assert.equals("3", test.column)
-    end)
-
-    it("handles multiple source files", function()
-      xml.tests = {
-        ["src/package1.ads"] = {
-          ["test_pkg1"] = { { name = "test1" } },
-        },
-        ["src/package2.ads"] = {
-          ["test_pkg2"] = { { name = "test2" } },
-        },
-      }
-
-      local result = xml.get_tests()
-      assert.is_not_nil(result["src/package1.ads"])
-      assert.is_not_nil(result["src/package2.ads"])
-      local count = 0
-      for _ in pairs(result) do
-        count = count + 1
-      end
-      assert.equals(2, count)
-    end)
-
-    it("handles multiple test packages in same file", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg1"] = { { name = "test1" } },
-          ["test_pkg2"] = { { name = "test2" } },
-        },
-      }
-
-      local result = xml.get_tests()
-      local file_tests = result["src/my_package.ads"]
-      assert.is_not_nil(file_tests["test_pkg1"])
-      assert.is_not_nil(file_tests["test_pkg2"])
-    end)
-
-    it("handles multiple tests in same package", function()
-      xml.tests = {
-        ["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            { name = "test1", line = "10" },
-            { name = "test2", line = "20" },
-            { name = "test3", line = "30" },
-          },
-        },
-      }
-
-      local result = xml.get_tests()
-      local pkg_tests = result["src/my_package.ads"]["test_pkg"]
-      assert.equals(3, #pkg_tests)
-      assert.equals("test1", pkg_tests[1].name)
-      assert.equals("test2", pkg_tests[2].name)
-      assert.equals("test3", pkg_tests[3].name)
     end)
   end)
 
@@ -481,7 +186,6 @@ describe("gnattest.xml", function()
 
   describe("field assignment coverage", function()
     it("exercises all XML field assignment branches", function()
-      xml.tests = {}
       _G.vim.fs.find = function()
         return { "gnattest.xml" }
       end
@@ -555,7 +259,7 @@ describe("gnattest.xml", function()
         return map[node] or "default"
       end
 
-      assert.is_table(xml.get_tests())
+      assert.is_table(xml.get_xml_info())
     end)
   end)
 
@@ -566,7 +270,6 @@ describe("gnattest.xml", function()
     test_captures,
     node_text_mapping
   )
-    xml.tests = {}
     _G.vim.treesitter.query.parse = function(_, query_str)
       return {
         captures = query_str:find("test_unit") and { "target_file" }
@@ -606,7 +309,7 @@ describe("gnattest.xml", function()
           pkg_node = "target_file",
         })
 
-        local result = xml.get_tests()
+        local result = xml.get_xml_info()
         assert.is_table(result)
         assert.is_not_nil(result["my_file.ads"])
       end)
@@ -625,7 +328,7 @@ describe("gnattest.xml", function()
           target_node_2 = "Package_Under_Test",
         })
 
-        local result = xml.get_tests()
+        local result = xml.get_xml_info()
         assert.is_not_nil(result["file.ads"])
         assert.is_not_nil(result["file.ads"]["Package_Under_Test"])
       end)
@@ -643,7 +346,7 @@ describe("gnattest.xml", function()
           filename_node2 = "package_b.ads",
         })
 
-        local result = xml.get_tests()
+        local result = xml.get_xml_info()
         assert.is_not_nil(result["package_a.ads"])
         assert.is_not_nil(result["package_b.ads"])
       end)
@@ -651,16 +354,350 @@ describe("gnattest.xml", function()
 
     describe("comprehensive parsing verification", function()
       it(
-        "verifies xml.get_tests() returns table with various parsing scenarios",
+        "verifies xml.get_xml_info() returns table with various parsing scenarios",
         function()
           setup_xml_parsing_mocks({}, {}, {}, {})
-          assert.is_table(xml.get_tests())
+          assert.is_table(xml.get_xml_info())
         end
       )
     end)
   end)
 
   if os.getenv("GNATTEST_TEST_MODE") then
+    -- Helper to inject test data into xml module (requires GNATTEST_TEST_MODE=1)
+    -- This helper needs access to _xml_info which is only exported in test mode
+    local function inject_xml_data(data)
+      package.loaded["gnattest.xml"] = nil
+      local xml_mod = require("gnattest.xml")
+
+      -- Directly populate xml_info (only available when _xml_info is exported)
+      for k, v in pairs(data) do
+        xml_mod._xml_info[k] = v
+      end
+
+      return xml_mod
+    end
+
+    describe("get_tests_by_name", function()
+      it("returns test by name if present", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = { { source = { name = "testA" }, test = {} } },
+          },
+        })
+        local result, filename = xml.get_tests_by_name("pkg1", "testA")
+        assert.is_table(result)
+        assert.equals("testA", result.source.name)
+        assert.equals("file1", filename)
+      end)
+
+      it("returns nil if test name not present", function()
+        xml = inject_xml_data({
+          file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
+        })
+        local result = xml.get_tests_by_name("pkg1", "missing")
+        assert.is_nil(result)
+      end)
+
+      it("returns nil if package not present", function()
+        xml = inject_xml_data({
+          file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
+        })
+        local result = xml.get_tests_by_name("missing_pkg", "testA")
+        assert.is_nil(result)
+      end)
+
+      it("handles multiple tests in same package", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = {
+              { source = { name = "testA" }, test = {} },
+              { source = { name = "testB" }, test = {} },
+            },
+          },
+        })
+        local testA, _ = xml.get_tests_by_name("pkg1", "testA")
+        local testB, _ = xml.get_tests_by_name("pkg1", "testB")
+        assert.equals("testA", testA.source.name)
+        assert.equals("testB", testB.source.name)
+      end)
+
+      it("handles multiple packages", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = { { source = { name = "testA" }, test = {} } },
+            pkg2 = { { source = { name = "testB" }, test = {} } },
+          },
+        })
+        local testB, filename = xml.get_tests_by_name("pkg2", "testB")
+        assert.equals("testB", testB.source.name)
+        assert.equals("file1", filename)
+      end)
+
+      it("preserves test attributes", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = {
+              {
+                source = { name = "test1", line = "42", column = "5" },
+                test = {},
+              },
+            },
+          },
+        })
+        local result, _ = xml.get_tests_by_name("pkg1", "test1")
+        assert.equals("42", result.source.line)
+        assert.equals("5", result.source.column)
+      end)
+
+      it("retrieves test with all metadata fields", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = {
+              {
+                source = { name = "test1", line = "10", column = "2" },
+                test = { name = "test_test1", file = "test.ads" },
+              },
+            },
+          },
+        })
+        local result, filename = xml.get_tests_by_name("pkg1", "test1")
+        assert.equals("test1", result.source.name)
+        assert.equals("test.ads", result.test.file)
+        assert.equals("10", result.source.line)
+        assert.equals("2", result.source.column)
+        assert.equals("file1", filename)
+      end)
+
+      it("returns first match when duplicates exist", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = {
+              { source = { name = "test1" }, test = {} },
+              { source = { name = "test1" }, test = {} },
+            },
+          },
+        })
+        local result = xml.get_tests_by_name("pkg1", "test1")
+        assert.is_not_nil(result)
+        assert.equals("test1", result.source.name)
+      end)
+    end)
+
+    describe("edge cases", function()
+      it("handles empty tests table", function()
+        xml = inject_xml_data({})
+        local result = xml.get_tests_by_name("pkg", "test")
+        assert.is_nil(result)
+      end)
+
+      it("handles special characters in names", function()
+        xml = inject_xml_data({
+          file1 = {
+            ["pkg.sub"] = { { source = { name = "test_1" }, test = {} } },
+          },
+        })
+        local result, _ = xml.get_tests_by_name("pkg.sub", "test_1")
+        assert.equals("test_1", result.source.name)
+      end)
+
+      it("handles nested package names with underscores", function()
+        xml = inject_xml_data({
+          file1 = {
+            ["my_pkg_v1"] = { { source = { name = "my_test" }, test = {} } },
+          },
+        })
+        local result, _ = xml.get_tests_by_name("my_pkg_v1", "my_test")
+        assert.equals("my_test", result.source.name)
+      end)
+
+      it("search is case sensitive", function()
+        xml = inject_xml_data({
+          file1 = { pkg1 = { { source = { name = "TestCase" }, test = {} } } },
+        })
+        local result1, _ = xml.get_tests_by_name("pkg1", "TestCase")
+        local result2 = xml.get_tests_by_name("pkg1", "testcase")
+        assert.is_not_nil(result1)
+        assert.is_nil(result2)
+      end)
+
+      it("handles numeric line and column values", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = {
+              {
+                source = { name = "test", line = "100", column = "20" },
+                test = {},
+              },
+            },
+          },
+        })
+        local result, _ = xml.get_tests_by_name("pkg1", "test")
+        assert.equals("100", result.source.line)
+        assert.equals("20", result.source.column)
+      end)
+    end)
+
+    describe("xml_info internal state tests", function()
+      it("get_xml_info returns cached results on second call", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["gnattest_prefix_my_package.ads"] = {
+            { name = "test_add", line = 50 },
+          },
+        }
+
+        local result1 = xml.get_xml_info()
+        local result2 = xml.get_xml_info()
+
+        assert.is_table(result1)
+        assert.is_table(result2)
+        assert.equals(result1, result2)
+      end)
+
+      it("structure contains source files and test packages", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["test_pkg"] = { { source = { name = "test1" }, test = {} } },
+          ["gnattest_prefix_my_package.ads"] = {
+            { source = { name = "test2" }, test = {} },
+          },
+        }
+
+        local result = xml.get_xml_info()
+        assert.is_not_nil(result["src/my_package.ads"])
+        local pkg_tests =
+          result["src/my_package.ads"]["gnattest_prefix_my_package.ads"]
+        assert.is_table(pkg_tests)
+        assert.equals("test2", pkg_tests[1].source.name)
+      end)
+
+      it("handles multiple source files", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/package1.ads"] = {
+          ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
+        }
+        xml._xml_info["src/package2.ads"] = {
+          ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
+        }
+
+        local result = xml.get_xml_info()
+        assert.is_not_nil(result["src/package1.ads"])
+        assert.is_not_nil(result["src/package2.ads"])
+        local count = 0
+        for _ in pairs(result) do
+          count = count + 1
+        end
+        assert.equals(2, count)
+      end)
+    end)
+
+    describe("xml_info structure validation", function()
+      it("src_info contains name, line, column, and test fields", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["test_pkg"] = {
+            {
+              source = {
+                name = "add_numbers",
+                line = "10",
+                column = "5",
+              },
+              test = {
+                name = "test_add_positive",
+                file = "test.ads",
+                line = "50",
+                column = "3",
+              },
+            },
+          },
+        }
+
+        local result = xml.get_xml_info()
+        local src = result["src/my_package.ads"]["test_pkg"][1].source
+        assert.equals("add_numbers", src.name)
+        assert.equals("10", src.line)
+        assert.equals("5", src.column)
+        assert.is_table(result["src/my_package.ads"]["test_pkg"][1].test)
+      end)
+
+      it("test_info contains name, file, line, and column fields", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["test_pkg"] = {
+            {
+              source = { name = "proc" },
+              test = {
+                name = "test_proc",
+                file = "test.ads",
+                line = "100",
+                column = "3",
+              },
+            },
+          },
+        }
+
+        local result = xml.get_xml_info()
+        local test = result["src/my_package.ads"]["test_pkg"][1].test
+        assert.equals("test_proc", test.name)
+        assert.equals("test.ads", test.file)
+        assert.equals("100", test.line)
+        assert.equals("3", test.column)
+      end)
+
+      it("handles multiple test packages in same file", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
+          ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
+        }
+
+        local result = xml.get_xml_info()
+        local file_tests = result["src/my_package.ads"]
+        assert.is_not_nil(file_tests["test_pkg1"])
+        assert.is_not_nil(file_tests["test_pkg2"])
+      end)
+
+      it("handles multiple tests in same package", function()
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["src/my_package.ads"] = {
+          ["test_pkg"] = {
+            { source = { name = "test1", line = "10" }, test = {} },
+            { source = { name = "test2", line = "20" }, test = {} },
+            { source = { name = "test3", line = "30" }, test = {} },
+          },
+        }
+
+        local result = xml.get_xml_info()
+        local pkg_tests = result["src/my_package.ads"]["test_pkg"]
+        assert.equals(3, #pkg_tests)
+        assert.equals("test1", pkg_tests[1].source.name)
+        assert.equals("test2", pkg_tests[2].source.name)
+        assert.equals("test3", pkg_tests[3].source.name)
+      end)
+    end)
+
     describe("private functions", function()
       it("_query_element handles nil parameter correctly", function()
         -- This test specifically targets line 7: match = ""
@@ -726,12 +763,14 @@ describe("gnattest.xml", function()
       )
 
       it("_get_pkg_tests returns tests for given package", function()
-        xml.tests = {
-          ["file1.xml"] = {
-            ["Package.SubPkg"] = {
-              { name = "test1", line = 10 },
-              { name = "test2", line = 20 },
-            },
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { source = { name = "test1", line = 10 }, test = {} },
+            { source = { name = "test2", line = 20 }, test = {} },
           },
         }
 
@@ -739,16 +778,18 @@ describe("gnattest.xml", function()
         assert.is_not_nil(tests)
         assert.equals("file1.xml", filename)
         assert.equals(2, #tests)
-        assert.equals("test1", tests[1].name)
-        assert.equals("test2", tests[2].name)
+        assert.equals("test1", tests[1].source.name)
+        assert.equals("test2", tests[2].source.name)
       end)
 
       it("_get_pkg_tests returns nil for non-existent package", function()
-        xml.tests = {
-          ["file1.xml"] = {
-            ["Package.SubPkg"] = {
-              { name = "test1", line = 10 },
-            },
+        -- Populate xml_info through the exported reference
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { source = { name = "test1", line = 10 }, test = {} },
           },
         }
 
@@ -756,15 +797,21 @@ describe("gnattest.xml", function()
         assert.is_nil(tests)
       end)
 
-      it("_get_pkg_tests calls get_tests if tests table is empty", function()
-        xml.tests = {}
-        _G.vim.fs.find = function()
-          return {}
-        end
+      it(
+        "_get_pkg_tests calls get_xml_info if xml_info table is empty",
+        function()
+          for k in pairs(xml._xml_info) do
+            xml._xml_info[k] = nil
+          end
 
-        local tests = xml._get_pkg_tests("Any.Package")
-        assert.is_nil(tests)
-      end)
+          _G.vim.fs.find = function()
+            return {}
+          end
+
+          local tests = xml._get_pkg_tests("Any.Package")
+          assert.is_nil(tests)
+        end
+      )
     end)
   end
 end)

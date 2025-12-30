@@ -171,9 +171,7 @@ function M.setup(opt)
 
   vim.api.nvim_create_autocmd("BufReadPost", {
     group = M.ro_group,
-    pattern = {
-      gnattest_pattern .. "*.ad[bs]",
-    },
+    pattern = gnattest_pattern,
     callback = function()
       prepare_gnattest()
     end,
@@ -181,9 +179,7 @@ function M.setup(opt)
 
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = M.ro_group,
-    pattern = {
-      gnattest_pattern .. "*.ad[bs]",
-    },
+    pattern = gnattest_pattern,
     callback = function()
       if protect_flag then
         protect_flag = false

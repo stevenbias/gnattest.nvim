@@ -31,6 +31,9 @@ describe("gnattest.ada_ls", function()
       get_bufdir = function()
         return "/home/user/project/gnattest/harness"
       end,
+      is_gnattest_file = function()
+        return true
+      end,
     })
 
     -- Reload ada_ls to get fresh instance with mocked deps
@@ -115,7 +118,7 @@ describe("gnattest.ada_ls", function()
       local first_call = autocmd_callbacks[1]
       assert.is_table(first_call.opts.pattern)
       assert.is_equal(1, #first_call.opts.pattern)
-      assert.is_equal("**/gnattest/*.ad[bs]", first_call.opts.pattern[1])
+      assert.is_equal("*.ad[bs]", first_call.opts.pattern[1])
     end)
 
     it("should create callback function", function()
@@ -134,8 +137,11 @@ describe("gnattest.ada_ls", function()
         local mock_client = {
           name = "ada",
           notify = stub.new(),
+          root_dir = "/home/user/project",
+          request_sync = stub.new().returns(nil),
         }
         _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
+        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         local event = {
           data = { client_id = 123 },
@@ -153,8 +159,11 @@ describe("gnattest.ada_ls", function()
         local mock_client = {
           name = "ada",
           notify = stub.new(),
+          root_dir = "/home/user/project",
+          request_sync = stub.new().returns(nil),
         }
         _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
+        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         local event = {
           data = { client_id = 123 },
@@ -178,8 +187,11 @@ describe("gnattest.ada_ls", function()
         local mock_client = {
           name = "ada",
           notify = stub.new(),
+          root_dir = "/home/user/project",
+          request_sync = stub.new().returns(nil),
         }
         _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
+        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         local event = {
           data = { client_id = 123 },
@@ -265,8 +277,11 @@ describe("gnattest.ada_ls", function()
         local mock_client = {
           name = "ada",
           notify = stub.new(),
+          root_dir = "/home/user/my_project",
+          request_sync = stub.new().returns(nil),
         }
         _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
+        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         local event = {
           data = { client_id = 123 },

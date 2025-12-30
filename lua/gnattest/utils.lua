@@ -1,5 +1,7 @@
+local default_pattern = "**/gnattest/*"
+
 local M = {
-  gnattest_pattern = "**/gnattest/",
+  gnattest_pattern = { default_pattern },
 }
 
 M.plugin_name = "GNATtest"
@@ -43,16 +45,47 @@ function M.get_bufpath()
   return vim.fn.expand("%")
 end
 
+function M.get_filename()
+  return vim.fs.basename(M.get_bufpath())
+end
+
 function M.get_bufdir()
   return vim.fs.dirname(M.get_bufpath())
 end
 
 function M.is_gnattest_file()
+  local als = require("gnattest.ada_ls")
+
   return string.find(M.get_bufdir(), "gnattest") ~= nil
+    or string.find(M.get_bufdir(), als.get_harness_dir()) ~= nil
+    or string.find(M.get_bufdir(), als.get_tests_dir()) ~= nil
+end
+
+function M.set_gnattest_pattern()
+  local als = require("gnattest.ada_ls")
+  if #M.gnattest_pattern > 1 then
+    return M.gnattest_pattern
+  end
+
+  table.insert(M.gnattest_pattern, als.get_harness_dir() .. "/*")
+  table.insert(M.gnattest_pattern, als.get_tests_dir() .. "/*")
 end
 
 function M.get_lines(start_row, end_row)
   return vim.api.nvim_buf_get_lines(0, start_row, end_row + 1, true)
+end
+
+function M.find_file(filename, path)
+  if vim.islist(path) then
+    for _, p in pairs(path) do
+      local file = vim.fs.find({ filename }, { type = "file", path = p })
+      if next(file) ~= nil then
+        return file[1]
+      end
+    end
+  else
+    return vim.fs.find({ filename }, { type = "file", path = path })[1]
+  end
 end
 
 local function get_parser()

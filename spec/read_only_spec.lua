@@ -338,9 +338,7 @@ describe("gnattest.read_only", function()
       ro.setup({ region_text = { start = "begin", ending = "end" } })
       local utils = require("gnattest.utils")
 
-      assert.is_equal("**/gnattest/", utils.gnattest_pattern)
-      local expected = utils.gnattest_pattern .. "*.ad[bs]"
-      assert.is_equal("**/gnattest/*.ad[bs]", expected)
+      assert.is_table(utils.gnattest_pattern)
     end)
   end)
 

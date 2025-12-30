@@ -1,6 +1,6 @@
-local M = {
-  tests = {},
-}
+local M = {}
+
+local xml_info = {}
 
 local function query_element(match)
   if match == nil then
@@ -56,9 +56,9 @@ local function create_xml_buf()
   return buf_id
 end
 
-function M.get_tests()
-  if next(M.tests) ~= nil then
-    return M.tests
+function M.get_xml_info()
+  if next(xml_info) ~= nil then
+    return xml_info
   end
 
   local buf_id = create_xml_buf()
@@ -85,6 +85,7 @@ function M.get_tests()
   -- **SOURCES** --
   -----------------
   local test_capture_flag = ""
+  local gnattest_info = {}
   local src_info = {}
   local test_info = {}
   local test_query = query_test_info()
@@ -106,6 +107,8 @@ function M.get_tests()
             src_info.line = test_text
           elseif test_capture_flag == "column" then
             src_info.column = test_text
+            gnattest_info.source = src_info
+            src_info = {}
           end
         elseif capture_id == "tst" then
           if test_capture_flag == "file" then
@@ -116,9 +119,9 @@ function M.get_tests()
             test_info.column = test_text
           elseif test_capture_flag == "name" then
             test_info.name = test_text
-            src_info.test = test_info
-            table.insert(pkg_info, src_info)
-            src_info = {}
+            gnattest_info.test = test_info
+            table.insert(pkg_info, gnattest_info)
+            gnattest_info = {}
             test_info = {}
           end
         end
@@ -141,29 +144,29 @@ function M.get_tests()
 
     unit_capture_flag = unit_text
   end
-  M.tests = vim.deepcopy(source_files)
+  xml_info = vim.deepcopy(source_files)
 
   -- -- Check the correct number of tests are detected, just for debugging
   -- local count = 0
-  -- for _, files in pairs(M.tests) do
+  -- for _, files in pairs(xml_info) do
   --   for _, t in pairs(files) do
   --     count = count + #t
   --   end
   -- end
   -- print(vim.inspect(count))
 
-  return M.tests
+  return xml_info
 end
 
 local function get_pkg_tests(pkg)
-  if next(M.tests) == nil then
-    M.get_tests()
+  if next(xml_info) == nil then
+    M.get_xml_info()
   end
 
-  for filename, files in pairs(M.tests) do
-    for p, tst_pkg in pairs(files) do
+  for filename, files in pairs(xml_info) do
+    for p, pkg_info in pairs(files) do
       if p == pkg then
-        return tst_pkg, filename
+        return pkg_info, filename
       end
     end
   end
@@ -172,20 +175,18 @@ local function get_pkg_tests(pkg)
 end
 
 function M.get_tests_by_name(pkg, name)
-  if next(M.tests) == nil then
-    M.get_tests()
+  if next(xml_info) == nil then
+    M.get_xml_info()
   end
 
-  local tst_pkg, filename = get_pkg_tests(pkg)
-  if tst_pkg == nil then
+  local pkg_info, filename = get_pkg_tests(pkg)
+  if pkg_info == nil then
     return nil
   end
 
-  for _, test in pairs(tst_pkg) do
-    if test.name == name then
-      test.filename = filename
-      test.pkg = pkg
-      return test
+  for _, p in pairs(pkg_info) do
+    if p.source.name == name then
+      return p, filename
     end
   end
 
@@ -198,6 +199,7 @@ if os.getenv("GNATTEST_TEST_MODE") then
   M._query_test_info = query_test_info
   M._create_xml_buf = create_xml_buf
   M._get_pkg_tests = get_pkg_tests
+  M._xml_info = xml_info
 end
 
 return M
