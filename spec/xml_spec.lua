@@ -72,37 +72,15 @@ describe("gnattest.xml", function()
     xml = require("gnattest.xml")
   end)
 
-  -- Note: xml_info is a local variable in navigation branch, not exposed as M.tests
-  -- These tests are skipped as they test internal storage which is now private
-  --[[ describe("test storage and caching", function()
-    it("initializes tests table", function()
-      assert.is_table(xml.tests)
-    end)
-
-    it("clears tests between test runs", function()
-      xml.tests = { file1 = { pkg1 = { { name = "test" } } } }
-      assert.is_table(xml.tests)
-      xml.tests = {}
-      assert.equals(0, #(next(xml.tests) or {}))
-    end)
-
-    it("maintains tests table reference", function()
-      xml.tests = { file1 = { pkg1 = { { name = "test" } } } }
-      assert.is_table(xml.tests)
-    end)
-  end) ]]
-
   describe("module structure", function()
     it("exports required functions", function()
       assert.is_function(xml.get_tests_by_name)
       assert.is_function(xml.get_xml_info)
-      -- Note: xml_info is a local variable, not exposed on module
     end)
   end)
 
   describe("get_tests with real XML parsing", function()
     it("parses complete XML structure correctly", function()
-      -- Read the actual fixture XML
       local fixture_path = "spec/fixtures/gnattest.xml"
       local xml_lines = {}
       local file = io.open(fixture_path, "r")
@@ -113,17 +91,14 @@ describe("gnattest.xml", function()
         file:close()
       end
 
-      -- Mock vim.fs.find to return fixture path
       _G.vim.fs.find = function()
         return { fixture_path }
       end
 
-      -- Mock vim.fn.readfile to return fixture content
       _G.vim.fn.readfile = function()
         return xml_lines
       end
 
-      -- Mock treesitter to actually parse the XML
       _G.vim.treesitter.get_parser = function()
         return {
           parse = function()
@@ -138,24 +113,16 @@ describe("gnattest.xml", function()
         }
       end
 
-      -- Call get_tests
       local result = xml.get_xml_info()
-
-      -- Verify we got a table
       assert.is_table(result)
-
-      -- Verify structure exists (may be empty if treesitter mocking
-      -- doesn't fully parse, but at least verify it runs)
       assert.is_not_nil(result)
     end)
 
     it("get_tests initializes empty xml_info table", function()
-      -- Mock vim.fs.find
       _G.vim.fs.find = function()
         return { "spec/fixtures/gnattest.xml" }
       end
 
-      -- Mock vim.fn.readfile
       _G.vim.fn.readfile = function()
         return { "<gnattest></gnattest>" }
       end
@@ -833,7 +800,6 @@ describe("gnattest.xml", function()
       it(
         "_get_pkg_tests calls get_xml_info if xml_info table is empty",
         function()
-          -- Clear xml_info
           for k in pairs(xml._xml_info) do
             xml._xml_info[k] = nil
           end
