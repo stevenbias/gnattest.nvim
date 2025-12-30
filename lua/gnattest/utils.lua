@@ -143,4 +143,11 @@ function M.get_all_comments(language)
   return cmts
 end
 
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M._log_lvl_tostring = log_lvl_tostring
+  M._get_parser = get_parser
+  M._get_root = get_root
+end
+
 return M

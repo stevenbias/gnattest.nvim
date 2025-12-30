@@ -44,6 +44,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run tests with coverage
         uses: nvim-neorocks/nvim-busted-action@v1
+        env:
+          GNATTEST_TEST_MODE: "1"
         with:
           nvim_version: ${{ matrix.neovim_version }}
       - name: Upload coverage artifacts
@@ -68,14 +70,49 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage-stable
-      - name: Generate coverage report
+      - name: Generate coverage report and check threshold
         run: |
           # Generate coverage report
           luacov
 
           # Display coverage summary
           echo "=== Coverage Summary ==="
-          tail -n 1 luacov.report.out
+
+          COVERAGE_LINE=$(tail -n 1 luacov.report.out)
+          echo "Coverage line: $COVERAGE_LINE"
+
+          # Parse percentage from format like "Total:       123  456   78.90%"
+          # The percentage is the last field
+          COVERAGE_PERCENT=$(echo "$COVERAGE_LINE" | awk '{print $NF}')
+          echo "Coverage percentage: $COVERAGE_PERCENT"
+
+          # Validate that we got a percentage
+          if [[ ! "$COVERAGE_PERCENT" =~ %$ ]]; then
+            echo "❌ ERROR: Could not parse coverage percentage from: $COVERAGE_LINE"
+            exit 1
+          fi
+
+          # Convert to integer for comparison (remove decimal and % sign)
+          COVERAGE_INT=$(echo "$COVERAGE_PERCENT" | sed 's/%.*//' | sed 's/\..*//')
+          echo "Coverage as integer: $COVERAGE_INT"
+
+          # Validate that we got a valid integer
+          if ! [[ "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
+            echo "❌ ERROR: Invalid coverage integer: $COVERAGE_INT"
+            exit 1
+          fi
+
+          # Set minimum coverage threshold
+          MIN_COVERAGE=90
+
+          # Check if coverage meets threshold
+          if [ "$COVERAGE_INT" -lt "$MIN_COVERAGE" ]; then
+            echo "❌ Coverage $COVERAGE_PERCENT is below minimum threshold of $MIN_COVERAGE%"
+            echo "Please add more tests to improve coverage."
+            exit 1
+          else
+            echo "✅ Coverage $COVERAGE_PERCENT meets minimum threshold of $MIN_COVERAGE%"
+          fi
       - name: Upload final coverage report
         uses: actions/upload-artifact@v4
         with:

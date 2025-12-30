@@ -36,7 +36,9 @@ function M.get_root_dir()
     return M.root_dir
   end
 
-  M.root_dir = M.get_ada_ls().root_dir
+  if M.get_ada_ls() ~= nil then
+    M.root_dir = M.get_ada_ls().root_dir
+  end
   return M.root_dir
 end
 
