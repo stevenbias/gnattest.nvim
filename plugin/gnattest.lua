@@ -5,7 +5,7 @@ if vim.g.loaded_gnattest then
 end
 vim.g.loaded_gnattest = true
 
-local cmd_name = "GNATtest"
+local cmd_name = "Gnattest"
 
 local function clean_tests()
   vim.cmd("!gprclean -P " .. require("gnattest.utils").get_gnattest_project())
