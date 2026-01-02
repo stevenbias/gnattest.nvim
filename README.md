@@ -206,16 +206,25 @@ As this is a learning project, I'm particularly interested in:
 - Usability feedback
 - Feature suggestions
 
-## 📸 Screenshots
+## 📸 Demo
 
-*Screenshots and demos coming soon!*
+### Command Integration
 
-<!-- TODO: Add screenshots showing:
-- Read-only protection with 🔒 icon
-- Navigation between source and test
-- Command completion
-- Full workflow demo
--->
+![GNATtest Commands](media/gnattest_cmds.gif)
+
+*Demonstrates available GNATtest commands with tab completion.*
+
+### Navigation & Read-only Protection
+
+![Switch and Protection](media/gnattest_switch_and_protect.gif)
+
+*Shows `:Gnattest switch` to navigate between source and test files, plus read-only region protection in action.*
+
+### Build and Run Specific Test
+
+![Build and Run](media/gnattest_build_and_run.gif)
+
+*Example of building the test project and running a specific test using `:Gnattest run` with package:subprogram syntax.*
 
 ## 🔗 Related Projects
 
@@ -226,8 +235,3 @@ As this is a learning project, I'm particularly interested in:
 ## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-**Author:** Steven Bias  
-**Repository:** https://github.com/StevenBias/gnattest.nvim
