@@ -122,4 +122,35 @@ function M.should_test_private_functions()
   return os.getenv("GNATTEST_TEST_MODE") ~= nil
 end
 
+-- LSP client mocking (used 3+ times in ada_ls_spec)
+function M.create_lsp_client(overrides)
+  local base_client = {
+    name = "ada",
+    root_dir = "/project/root",
+    offset_encoding = "utf-8",
+    request_sync = stub.new().returns(nil),
+    notify = stub.new(),
+  }
+
+  if overrides then
+    for k, v in pairs(overrides) do
+      base_client[k] = v
+    end
+  end
+
+  return base_client
+end
+
+-- Setup LSP client with automatic vim.lsp.get_clients mock
+function M.setup_lsp_client(client)
+  _G.vim.lsp.get_clients = stub.new().returns({ client })
+  return client
+end
+
+-- Mock utils.is_gnattest_file (used 4+ times)
+function M.mock_gnattest_file(is_gnattest)
+  local utils = require("gnattest.utils")
+  utils.is_gnattest_file = stub.new().returns(is_gnattest)
+end
+
 return M

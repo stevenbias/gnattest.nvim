@@ -5,26 +5,77 @@ describe("gnattest.ada_ls", function()
   local ada_ls
   local autocmd_callbacks = {}
 
+  -- Test data builders for LSP responses
+  local function create_lsp_result(data)
+    return { result = data }
+  end
+
+  local function create_lsp_uri(path)
+    return "file://" .. path
+  end
+
+  local function create_source_dirs(paths)
+    local dirs = {}
+    for _, path in ipairs(paths) do
+      table.insert(dirs, { uri = create_lsp_uri(path) })
+    end
+    return create_lsp_result(dirs)
+  end
+
+  -- Setup helper for module state
+  local function setup_module_state(state)
+    for k, v in pairs(state) do
+      ada_ls[k] = v
+    end
+  end
+
+  -- Assertion helpers
+  local function assert_lsp_request(client, method)
+    assert
+      .stub(client.request_sync)
+      .was_called_with(client, method, match._, 1000)
+  end
+
+  local function assert_lsp_command(client)
+    assert
+      .stub(client.request_sync)
+      .was_called_with(client, "workspace/executeCommand", match.is_table(), 1000)
+  end
+
   before_each(function()
     autocmd_callbacks = {}
 
-    -- Extend existing vim with necessary mocks
-    _G.vim.lsp = {
-      get_clients = stub.new().returns({}),
-      get_client_by_id = stub.new().returns(nil),
-    }
-
-    _G.vim.api = _G.vim.api or {}
-    _G.vim.api.nvim_create_autocmd = stub.new().invokes(function(event, opts)
-      table.insert(autocmd_callbacks, { event = event, opts = opts })
-    end)
-
-    _G.vim.log = _G.vim.log
-      or {
-        levels = {
-          WARN = 3,
+    -- Setup vim globals with LSP and utility mocks
+    common.setup_vim_globals(
+      {
+        nvim_create_autocmd = stub.new().invokes(function(event, opts)
+          table.insert(autocmd_callbacks, { event = event, opts = opts })
+        end),
+        nvim__get_runtime = function()
+          return {}
+        end,
+      },
+      nil,
+      {
+        lsp = {
+          get_clients = stub.new().returns({}),
+          get_client_by_id = stub.new().returns(nil),
+          util = {
+            make_position_params = stub.new().returns({
+              textDocument = { uri = "file:///test.adb" },
+              position = { line = 0, character = 0 },
+            }),
+          },
         },
+        log = { levels = { WARN = 3 } },
+        uri_to_fname = function(uri)
+          return (uri:gsub("file://", ""))
+        end,
+        islist = function(t)
+          return type(t) == "table" and (t[1] ~= nil or next(t) == nil)
+        end,
       }
+    )
 
     -- Mock utils module
     common.mock_utils({
@@ -301,6 +352,261 @@ describe("gnattest.ada_ls", function()
         -- Restore
         utils_module.get_bufdir = original_get_bufdir
       end)
+    end)
+  end)
+
+  describe("get_root_dir()", function()
+    it("should return cached root_dir when already set", function()
+      local mock_client =
+        common.create_lsp_client({ root_dir = "/cached/root" })
+      common.setup_lsp_client(mock_client)
+
+      -- First call to set cache
+      ada_ls.get_root_dir()
+
+      -- Second call should return cached value
+      local call_count_before = #_G.vim.lsp.get_clients.calls
+      local result = ada_ls.get_root_dir()
+
+      assert.equals("/cached/root", result)
+      assert.equals(call_count_before, #_G.vim.lsp.get_clients.calls)
+    end)
+  end)
+
+  describe("get_symbols()", function()
+    it("should return symbols from LSP document symbol request", function()
+      local mock_symbols = {
+        { name = "Procedure_One", kind = 6 },
+        { name = "Function_Two", kind = 12 },
+      }
+      local client = common.create_lsp_client({
+        request_sync = stub.new().returns(create_lsp_result(mock_symbols)),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_symbols()
+
+      assert.is_not_nil(result)
+      assert.equals(2, #result)
+      assert_lsp_request(client, "textDocument/documentSymbol")
+    end)
+
+    it("should return nil when Ada LSP client not found", function()
+      _G.vim.lsp.get_clients = stub.new().returns({})
+
+      local result, err = ada_ls.get_symbols()
+
+      assert.is_nil(result)
+      assert.equals("Ada LSP client not found", err)
+    end)
+  end)
+
+  describe("get_declarations()", function()
+    it("should return declarations from LSP request", function()
+      local mock_declarations = {
+        { uri = "file:///source.ads", range = { start = { line = 10 } } },
+      }
+      local client = common.create_lsp_client({
+        request_sync = stub.new().returns(create_lsp_result(mock_declarations)),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_declarations()
+
+      assert.is_not_nil(result)
+      assert_lsp_request(client, "textDocument/declaration")
+    end)
+
+    it("should return nil on LSP error", function()
+      local client = common.create_lsp_client({
+        request_sync = stub.new().returns(nil, "Connection timeout"),
+      })
+      common.setup_lsp_client(client)
+
+      local result, err = ada_ls.get_declarations()
+
+      assert.is_nil(result)
+      assert.is_not_nil(err)
+    end)
+  end)
+
+  describe("get_prj_file()", function()
+    it(
+      "should fetch project file via LSP command when not in gnattest",
+      function()
+        common.mock_gnattest_file(false)
+
+        local client = common.create_lsp_client({
+          request_sync = stub.new().returns(
+            create_lsp_result({ create_lsp_uri("/project/main.gpr") })
+          ),
+        })
+        common.setup_lsp_client(client)
+
+        local result = ada_ls.get_prj_file()
+
+        assert.equals("/project/main.gpr", result)
+        assert_lsp_command(client)
+      end
+    )
+  end)
+
+  describe("get_src_dirs()", function()
+    it("should parse and cache source directories from LSP", function()
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_source_dirs({ "/project/src", "/project/lib" })),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_src_dirs()
+
+      assert.is_not_nil(result)
+      assert.equals(2, #result)
+      assert.equals("/project/src", result[1])
+      assert.equals("/project/lib", result[2])
+    end)
+
+    it("should return cached value on subsequent calls", function()
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_source_dirs({ "/project/src", "/project/lib" })),
+      })
+      common.setup_lsp_client(client)
+
+      ada_ls.get_src_dirs() -- First call fetches and caches
+
+      local call_count_before = #client.request_sync.calls
+      local result = ada_ls.get_src_dirs() -- Second call returns cached
+
+      assert.equals("/project/src", result[1])
+      assert.equals(call_count_before, #client.request_sync.calls)
+    end)
+  end)
+
+  describe("get_obj_dir()", function()
+    it("should return cached value and fetch from LSP when empty", function()
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_lsp_result({ "/project/obj" })),
+      })
+      common.setup_lsp_client(client)
+
+      -- First call fetches and caches
+      local result1 = ada_ls.get_obj_dir()
+      assert.equals("/project/obj", result1)
+
+      -- Second call returns cached
+      local call_count_before = #client.request_sync.calls
+      local result2 = ada_ls.get_obj_dir()
+      assert.equals("/project/obj", result2)
+      assert.equals(call_count_before, #client.request_sync.calls)
+    end)
+  end)
+
+  describe("get_harness_dir()", function()
+    it("should use custom harness_dir from LSP attribute", function()
+      setup_module_state({ obj_dir = "/project/obj" })
+
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_lsp_result({ "custom_harness" })),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_harness_dir()
+
+      assert.equals("/project/obj/custom_harness", result)
+    end)
+  end)
+
+  describe("get_tests_dir()", function()
+    it("should use custom tests_dir from LSP attribute", function()
+      setup_module_state({ obj_dir = "/project/obj" })
+
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_lsp_result({ "custom_tests" })),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_tests_dir()
+
+      assert.equals("/project/obj/custom_tests", result)
+    end)
+
+    it("should return cached value on subsequent calls", function()
+      setup_module_state({ obj_dir = "/project/obj" })
+
+      local client = common.create_lsp_client({
+        request_sync = stub
+          .new()
+          .returns(create_lsp_result({ "custom_tests" })),
+      })
+      common.setup_lsp_client(client)
+
+      ada_ls.get_tests_dir() -- First call fetches and caches
+
+      local call_count_before = #client.request_sync.calls
+      local result = ada_ls.get_tests_dir() -- Second call returns cached
+
+      assert.equals("/project/obj/custom_tests", result)
+      assert.equals(call_count_before, #client.request_sync.calls)
+    end)
+  end)
+
+  describe("switch_to_source()", function()
+    it("should switch to source project file", function()
+      common.mock_gnattest_file(true)
+      setup_module_state({ prj_file = "/project/source.gpr" })
+
+      local client = common.create_lsp_client()
+      common.setup_lsp_client(client)
+
+      ada_ls.switch_to_source()
+
+      assert.stub(client.notify).was_called()
+      local call_args = client.notify.calls[1]
+      assert.equals("workspace/didChangeConfiguration", call_args.vals[2])
+      assert.equals(
+        "/project/source.gpr",
+        call_args.vals[3].settings.ada.projectFile
+      )
+    end)
+
+    it("should not switch when not in gnattest file", function()
+      common.mock_gnattest_file(false)
+
+      local client = common.create_lsp_client()
+      common.setup_lsp_client(client)
+
+      ada_ls.switch_to_source()
+
+      -- Should not call notify when not in gnattest file
+      assert.stub(client.notify).was_not_called()
+    end)
+  end)
+
+  describe("lsp_command result handling", function()
+    it("should handle non-list result from LSP command", function()
+      -- This test covers line 79: vim.islist check in lsp_command
+      common.mock_gnattest_file(false)
+
+      -- Return a single object (not a list) to trigger vim.islist wrapping
+      local client = common.create_lsp_client({
+        request_sync = stub.new().returns({ result = "single_value_not_list" }),
+      })
+      common.setup_lsp_client(client)
+
+      local result = ada_ls.get_prj_file()
+
+      -- Should wrap single value in list
+      assert.is_not_nil(result)
     end)
   end)
 end)
