@@ -72,6 +72,11 @@ describe("gnattest.xml", function()
     xml = require("gnattest.xml")
   end)
 
+  after_each(function()
+    package.loaded["gnattest.xml"] = nil
+    package.preload["gnattest.xml"] = nil
+  end)
+
   describe("module structure", function()
     it("exports required functions", function()
       assert.is_function(xml.get_tests_by_name)
@@ -148,33 +153,28 @@ describe("gnattest.xml", function()
       assert.is_true(#xml_lines > 0)
       local content = table.concat(xml_lines, "\n")
 
-      -- Verify multiple source files
       assert.is_not_nil(string.find(content, "package_a%.ads"))
       assert.is_not_nil(string.find(content, "package_b%.ads"))
       assert.is_not_nil(string.find(content, "package_c%.ads"))
 
-      -- Count test_unit elements (should be multiple)
       local test_unit_count = 0
       for _ in string.gmatch(content, "<test_unit") do
         test_unit_count = test_unit_count + 1
       end
       assert.is_true(test_unit_count > 1)
 
-      -- Count tested elements (should be multiple)
       local tested_count = 0
       for _ in string.gmatch(content, "<tested") do
         tested_count = tested_count + 1
       end
       assert.is_true(tested_count > 1)
 
-      -- Count test_case elements (should be multiple)
       local test_case_count = 0
       for _ in string.gmatch(content, "<test_case") do
         test_case_count = test_case_count + 1
       end
       assert.is_true(test_case_count > 1)
 
-      -- Verify proper nesting structure
       assert.is_true(string.find(content, "<tests_mapping") ~= nil)
       assert.is_true(string.find(content, "<unit") ~= nil)
       assert.is_true(string.find(content, "<test_unit") ~= nil)
@@ -370,7 +370,6 @@ describe("gnattest.xml", function()
       package.loaded["gnattest.xml"] = nil
       local xml_mod = require("gnattest.xml")
 
-      -- Directly populate xml_info (only available when _xml_info is exported)
       for k, v in pairs(data) do
         xml_mod._xml_info[k] = v
       end
@@ -395,62 +394,36 @@ describe("gnattest.xml", function()
         xml = inject_xml_data({
           file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
         })
-        local result = xml.get_tests_by_name("pkg1", "missing")
-        assert.is_nil(result)
+        assert.is_nil(xml.get_tests_by_name("pkg1", "missing"))
       end)
 
       it("returns nil if package not present", function()
         xml = inject_xml_data({
           file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
         })
-        local result = xml.get_tests_by_name("missing_pkg", "testA")
-        assert.is_nil(result)
+        assert.is_nil(xml.get_tests_by_name("missing_pkg", "testA"))
       end)
 
-      it("handles multiple tests in same package", function()
+      it("handles multiple tests and packages", function()
         xml = inject_xml_data({
           file1 = {
             pkg1 = {
               { source = { name = "testA" }, test = {} },
               { source = { name = "testB" }, test = {} },
             },
+            pkg2 = { { source = { name = "testC" }, test = {} } },
           },
         })
-        local testA, _ = xml.get_tests_by_name("pkg1", "testA")
-        local testB, _ = xml.get_tests_by_name("pkg1", "testB")
+        local testA = xml.get_tests_by_name("pkg1", "testA")
+        local testB = xml.get_tests_by_name("pkg1", "testB")
+        local testC, filename = xml.get_tests_by_name("pkg2", "testC")
         assert.equals("testA", testA.source.name)
         assert.equals("testB", testB.source.name)
-      end)
-
-      it("handles multiple packages", function()
-        xml = inject_xml_data({
-          file1 = {
-            pkg1 = { { source = { name = "testA" }, test = {} } },
-            pkg2 = { { source = { name = "testB" }, test = {} } },
-          },
-        })
-        local testB, filename = xml.get_tests_by_name("pkg2", "testB")
-        assert.equals("testB", testB.source.name)
+        assert.equals("testC", testC.source.name)
         assert.equals("file1", filename)
       end)
 
-      it("preserves test attributes", function()
-        xml = inject_xml_data({
-          file1 = {
-            pkg1 = {
-              {
-                source = { name = "test1", line = "42", column = "5" },
-                test = {},
-              },
-            },
-          },
-        })
-        local result, _ = xml.get_tests_by_name("pkg1", "test1")
-        assert.equals("42", result.source.line)
-        assert.equals("5", result.source.column)
-      end)
-
-      it("retrieves test with all metadata fields", function()
+      it("retrieves test with complete metadata", function()
         xml = inject_xml_data({
           file1 = {
             pkg1 = {
@@ -485,10 +458,15 @@ describe("gnattest.xml", function()
     end)
 
     describe("edge cases", function()
-      it("handles empty tests table", function()
+      it("handles empty tests and enforces case sensitivity", function()
         xml = inject_xml_data({})
-        local result = xml.get_tests_by_name("pkg", "test")
-        assert.is_nil(result)
+        assert.is_nil(xml.get_tests_by_name("pkg", "test"))
+
+        xml = inject_xml_data({
+          file1 = { pkg1 = { { source = { name = "TestCase" }, test = {} } } },
+        })
+        assert.is_not_nil(xml.get_tests_by_name("pkg1", "TestCase"))
+        assert.is_nil(xml.get_tests_by_name("pkg1", "testcase"))
       end)
 
       it("handles special characters in names", function()
@@ -497,7 +475,7 @@ describe("gnattest.xml", function()
             ["pkg.sub"] = { { source = { name = "test_1" }, test = {} } },
           },
         })
-        local result, _ = xml.get_tests_by_name("pkg.sub", "test_1")
+        local result = xml.get_tests_by_name("pkg.sub", "test_1")
         assert.equals("test_1", result.source.name)
       end)
 
@@ -507,18 +485,8 @@ describe("gnattest.xml", function()
             ["my_pkg_v1"] = { { source = { name = "my_test" }, test = {} } },
           },
         })
-        local result, _ = xml.get_tests_by_name("my_pkg_v1", "my_test")
+        local result = xml.get_tests_by_name("my_pkg_v1", "my_test")
         assert.equals("my_test", result.source.name)
-      end)
-
-      it("search is case sensitive", function()
-        xml = inject_xml_data({
-          file1 = { pkg1 = { { source = { name = "TestCase" }, test = {} } } },
-        })
-        local result1, _ = xml.get_tests_by_name("pkg1", "TestCase")
-        local result2 = xml.get_tests_by_name("pkg1", "testcase")
-        assert.is_not_nil(result1)
-        assert.is_nil(result2)
       end)
 
       it("handles numeric line and column values", function()
@@ -532,64 +500,61 @@ describe("gnattest.xml", function()
             },
           },
         })
-        local result, _ = xml.get_tests_by_name("pkg1", "test")
+        local result = xml.get_tests_by_name("pkg1", "test")
         assert.equals("100", result.source.line)
         assert.equals("20", result.source.column)
       end)
     end)
 
     describe("xml_info internal state tests", function()
-      it("get_xml_info returns cached results on second call", function()
-        -- Populate xml_info through the exported reference
+      local function set_xml_info(data)
         for k in pairs(xml._xml_info) do
           xml._xml_info[k] = nil
         end
-        xml._xml_info["src/my_package.ads"] = {
-          ["gnattest_prefix_my_package.ads"] = {
-            { name = "test_add", line = 50 },
-          },
-        }
+        for k, v in pairs(data) do
+          xml._xml_info[k] = v
+        end
+      end
 
+      it("get_xml_info returns cached results on second call", function()
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["gnattest_prefix_my_package.ads"] = {
+              { name = "test_add", line = 50 },
+            },
+          },
+        })
         local result1 = xml.get_xml_info()
         local result2 = xml.get_xml_info()
-
-        assert.is_table(result1)
-        assert.is_table(result2)
         assert.equals(result1, result2)
       end)
 
       it("structure contains source files and test packages", function()
-        -- Populate xml_info through the exported reference
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["src/my_package.ads"] = {
-          ["test_pkg"] = { { source = { name = "test1" }, test = {} } },
-          ["gnattest_prefix_my_package.ads"] = {
-            { source = { name = "test2" }, test = {} },
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["test_pkg"] = { { source = { name = "test1" }, test = {} } },
+            ["gnattest_prefix_my_package.ads"] = {
+              { source = { name = "test2" }, test = {} },
+            },
           },
-        }
-
+        })
         local result = xml.get_xml_info()
         assert.is_not_nil(result["src/my_package.ads"])
-        local pkg_tests =
-          result["src/my_package.ads"]["gnattest_prefix_my_package.ads"]
-        assert.is_table(pkg_tests)
-        assert.equals("test2", pkg_tests[1].source.name)
+        assert.equals(
+          "test2",
+          result["src/my_package.ads"]["gnattest_prefix_my_package.ads"][1].source.name
+        )
       end)
 
       it("handles multiple source files", function()
-        -- Populate xml_info through the exported reference
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["src/package1.ads"] = {
-          ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
-        }
-        xml._xml_info["src/package2.ads"] = {
-          ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
-        }
-
+        set_xml_info({
+          ["src/package1.ads"] = {
+            ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
+          },
+          ["src/package2.ads"] = {
+            ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
+          },
+        })
         local result = xml.get_xml_info()
         assert.is_not_nil(result["src/package1.ads"])
         assert.is_not_nil(result["src/package2.ads"])
@@ -602,58 +567,60 @@ describe("gnattest.xml", function()
     end)
 
     describe("xml_info structure validation", function()
-      it("src_info contains name, line, column, and test fields", function()
-        -- Populate xml_info through the exported reference
+      local function set_xml_info(data)
         for k in pairs(xml._xml_info) do
           xml._xml_info[k] = nil
         end
-        xml._xml_info["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            {
-              source = {
-                name = "add_numbers",
-                line = "10",
-                column = "5",
-              },
-              test = {
-                name = "test_add_positive",
-                file = "test.ads",
-                line = "50",
-                column = "3",
+        for k, v in pairs(data) do
+          xml._xml_info[k] = v
+        end
+      end
+
+      it("src_info contains name, line, column, and test fields", function()
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["test_pkg"] = {
+              {
+                source = {
+                  name = "add_numbers",
+                  line = "10",
+                  column = "5",
+                },
+                test = {
+                  name = "test_add_positive",
+                  file = "test.ads",
+                  line = "50",
+                  column = "3",
+                },
               },
             },
           },
-        }
-
-        local result = xml.get_xml_info()
-        local src = result["src/my_package.ads"]["test_pkg"][1].source
+        })
+        local src =
+          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].source
         assert.equals("add_numbers", src.name)
         assert.equals("10", src.line)
         assert.equals("5", src.column)
-        assert.is_table(result["src/my_package.ads"]["test_pkg"][1].test)
       end)
 
       it("test_info contains name, file, line, and column fields", function()
-        -- Populate xml_info through the exported reference
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            {
-              source = { name = "proc" },
-              test = {
-                name = "test_proc",
-                file = "test.ads",
-                line = "100",
-                column = "3",
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["test_pkg"] = {
+              {
+                source = { name = "proc" },
+                test = {
+                  name = "test_proc",
+                  file = "test.ads",
+                  line = "100",
+                  column = "3",
+                },
               },
             },
           },
-        }
-
-        local result = xml.get_xml_info()
-        local test = result["src/my_package.ads"]["test_pkg"][1].test
+        })
+        local test =
+          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].test
         assert.equals("test_proc", test.name)
         assert.equals("test.ads", test.file)
         assert.equals("100", test.line)
@@ -661,36 +628,28 @@ describe("gnattest.xml", function()
       end)
 
       it("handles multiple test packages in same file", function()
-        -- Populate xml_info through the exported reference
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["src/my_package.ads"] = {
-          ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
-          ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
-        }
-
-        local result = xml.get_xml_info()
-        local file_tests = result["src/my_package.ads"]
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["test_pkg1"] = { { source = { name = "test1" }, test = {} } },
+            ["test_pkg2"] = { { source = { name = "test2" }, test = {} } },
+          },
+        })
+        local file_tests = xml.get_xml_info()["src/my_package.ads"]
         assert.is_not_nil(file_tests["test_pkg1"])
         assert.is_not_nil(file_tests["test_pkg2"])
       end)
 
       it("handles multiple tests in same package", function()
-        -- Populate xml_info through the exported reference
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["src/my_package.ads"] = {
-          ["test_pkg"] = {
-            { source = { name = "test1", line = "10" }, test = {} },
-            { source = { name = "test2", line = "20" }, test = {} },
-            { source = { name = "test3", line = "30" }, test = {} },
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["test_pkg"] = {
+              { source = { name = "test1", line = "10" }, test = {} },
+              { source = { name = "test2", line = "20" }, test = {} },
+              { source = { name = "test3", line = "30" }, test = {} },
+            },
           },
-        }
-
-        local result = xml.get_xml_info()
-        local pkg_tests = result["src/my_package.ads"]["test_pkg"]
+        })
+        local pkg_tests = xml.get_xml_info()["src/my_package.ads"]["test_pkg"]
         assert.equals(3, #pkg_tests)
         assert.equals("test1", pkg_tests[1].source.name)
         assert.equals("test2", pkg_tests[2].source.name)
@@ -699,25 +658,19 @@ describe("gnattest.xml", function()
     end)
 
     describe("private functions", function()
-      it("_query_element handles nil parameter correctly", function()
-        -- This test specifically targets line 7: match = ""
-        local query = xml._query_element(nil)
-        assert.is_not_nil(query)
-        assert.is_table(query)
+      it("_query_element returns query object for various inputs", function()
+        local inputs = {
+          { value = "unit" },
+          { value = nil },
+          { value = "" },
+          { value = "test_unit" },
+        }
+        for _, input in ipairs(inputs) do
+          local query = xml._query_element(input.value)
+          assert.is_not_nil(query)
+          assert.is_table(query)
+        end
       end)
-
-      local query_element_inputs = { "unit", nil, "", "test_unit" }
-      for _, input in ipairs(query_element_inputs) do
-        it(
-          "_query_element with " .. tostring(input) .. " returns a query object",
-          function()
-            local query = xml._query_element(input)
-            assert.is_not_nil(query)
-            assert.is_table(query)
-          end
-        )
-      end
-
       it("_query_test_info returns a query object", function()
         local query = xml._query_test_info()
         assert.is_not_nil(query)
@@ -738,23 +691,18 @@ describe("gnattest.xml", function()
             return { "gnattest.xml" }
           end
 
-          -- Call _create_xml_buf to capture the callback
           xml._create_xml_buf()
 
-          -- Verify we captured the callback
           assert.is_not_nil(captured_callback)
           assert.is_function(captured_callback)
 
-          -- Test the strict equality check - should only match exact "gnattest.xml"
           assert.is_true(captured_callback("gnattest.xml"))
 
-          -- Should not match files with gnattest.xml as suffix
           assert.is_false(captured_callback("project_gnattest.xml"))
           assert.is_false(captured_callback("my_gnattest.xml"))
           assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
           assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
 
-          -- Should not match other files
           assert.is_false(captured_callback("test.xml"))
           assert.is_false(captured_callback("gnattest.adb"))
           assert.is_false(captured_callback("gnattest.xml.backup"))
@@ -763,7 +711,6 @@ describe("gnattest.xml", function()
       )
 
       it("_get_pkg_tests returns tests for given package", function()
-        -- Populate xml_info through the exported reference
         for k in pairs(xml._xml_info) do
           xml._xml_info[k] = nil
         end
@@ -783,7 +730,6 @@ describe("gnattest.xml", function()
       end)
 
       it("_get_pkg_tests returns nil for non-existent package", function()
-        -- Populate xml_info through the exported reference
         for k in pairs(xml._xml_info) do
           xml._xml_info[k] = nil
         end
