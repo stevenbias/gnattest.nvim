@@ -1,125 +1,104 @@
 # AGENTS.md
 
 ## Build/Test Commands
-- **Lint**: `luacheck .` (runs on all .lua files, configured in .luacheckrc)
-- **Format check**: `stylua --check lua/` (2-space indentation, 80 char width, auto-prefer double quotes)
-- **Format fix**: `stylua lua/` (fixes formatting issues automatically)
-- **Test all**: `busted` or `busted -v` (uses .busted config with coverage enabled)
-- **Test all with test mode**: `GNATTEST_TEST_MODE=1 busted` (runs all tests including unit tests that require internal exports)
+- **Lint**: `luacheck .` (configured in .luacheckrc)
+- **Format check**: `stylua --check lua/` (2-space indent, 80 char width, double quotes)
+- **Format fix**: `stylua lua/` (auto-fixes formatting)
+- **Test all**: `busted` or `busted -v` (tests public API only - must pass)
+- **Test all with test mode**: `GNATTEST_TEST_MODE=1 busted` (adds private function unit tests - must also pass)
 - **Test single file**: `busted spec/<filename>_spec.lua` (e.g., `busted spec/utils_spec.lua`)
-- **Test with coverage**: `busted --coverage` (generates luacov reports)
-- **Coverage threshold**: Minimum 90% coverage required (enforced in CI)
-- **Pre-commit hooks**: Install with `pre-commit install`, runs stylua, luacheck, and commitizen
-- **Run all pre-commit**: `pre-commit run --all-files` (manual check before commit)
-- **Local install**: `luarocks make gnattest-scm-1.rockspec` (installs plugin locally)
-- **View coverage**: Open `luacov.report.out` after running tests with coverage
+- **Test single file with test mode**: `GNATTEST_TEST_MODE=1 busted spec/utils_spec.lua`
+- **Important**: Tests must pass BOTH with and without GNATTEST_TEST_MODE. CI runs with mode enabled.
+- **Coverage report**: `busted --coverage && cat luacov.report.out` (minimum 90% required)
+- **Pre-commit hooks**: `pre-commit install` (runs stylua, luacheck, commitizen)
+- **Run pre-commit**: `pre-commit run --all-files` (manual check)
+- **Local install**: `luarocks make gnattest-scm-1.rockspec`
 
 ## Code Style Guidelines
 
 ### Formatting & Structure
-- **Indentation**: 2 spaces (StyLua enforced, overrides .editorconfig)
-- **Line width**: 80 characters max (StyLua enforced)
-- **Quote style**: Auto-prefer double quotes (StyLua configured)
-- **File endings**: Unix style (LF)
-
-### Module & Import Patterns
-- **Module structure**: Use module table pattern `local M = {}` and `return M`
-- **Imports**: Use `local module = require("path")` format at file top
-- **Relative imports**: Use dot notation for relative requires within the project
-- **Plugin structure**: Main entry in `lua/gnattest/init.lua`, submodules in `lua/gnattest/`
+- **Indentation**: 2 spaces (StyLua enforced via .stylua.toml)
+- **Line width**: 80 characters max
+- **Quotes**: Auto-prefer double quotes
+- **File endings**: Unix (LF)
+- **Module pattern**: `local M = {}` ... `return M`
 
 ### Naming Conventions
-- **Variables/Functions**: snake_case (e.g., `get_bufpath`, `is_gnattest_file`)
-- **Modules**: PascalCase for module names (e.g., `gnattest.Utils`)
-- **Constants**: UPPER_SNAKE_CASE for configuration constants
-- **Private functions**: Use `local` prefix for internal functions
-- **Command names**: PascalCase with plugin prefix (e.g., `GNATtest`)
+- **Functions/Variables**: snake_case (`get_bufpath`, `is_gnattest_file`)
+- **Modules**: PascalCase (`gnattest.Utils`)
+- **Constants**: UPPER_SNAKE_CASE
+- **Private functions**: `local function name()` (no underscore prefix needed)
+- **Commands**: PascalCase with plugin prefix (`GNATtest`)
+
+### Module & Import Patterns
+- Place `require()` statements at file top: `local module = require("path")`
+- Use dot notation for relative imports within project
+- Main entry point: `lua/gnattest/init.lua`
+- Submodules: `lua/gnattest/<module>.lua`
 
 ### Error Handling
-- **Invalid options**: Use `error("message")` for programming errors
+- **Programming errors**: `error("message")` (e.g., invalid configuration)
 - **Recoverable failures**: Return `nil, error_message` pattern
-- **API calls**: Use `pcall` for operations that might fail (e.g., `pcall(require, plugin_name)`)
-- **User notifications**: Use `vim.notify()` or custom `M.notify()` with log levels
+- **Risky operations**: Wrap in `pcall()` (e.g., `pcall(require, plugin_name)`)
+- **User notifications**: `vim.notify(msg, vim.log.levels.WARN)` or `M.notify()`
 
-### Vim API Usage
-- **API functions**: Access via `vim.api.nvim_*` functions
-- **Commands**: Create with `vim.api.nvim_create_user_command()`
-- **Autocmds**: Use `vim.api.nvim_create_autocmd()` with proper patterns
-- **Treesitter**: Use `vim.treesitter.*` API with error handling for missing parsers
-- **File operations**: Prefer `vim.fs.*` functions over `vim.fn.*`
+### Vim API Patterns
+- Use `vim.api.nvim_*` for API calls
+- Create commands: `vim.api.nvim_create_user_command()`
+- Create autocmds: `vim.api.nvim_create_autocmd()`
+- Treesitter: Always wrap in `pcall()` with user-friendly error messages
+- File operations: Prefer `vim.fs.*` over `vim.fn.*`
+- Namespaces: `vim.api.nvim_create_namespace("plugin_name")`
+- Extmarks: `vim.api.nvim_buf_set_extmark()` for virtual text/highlights
 
-### Testing Guidelines
-- **Framework**: Use busted with `describe/it/before_each/after_each`
-- **Test structure**: Mirror source structure in `spec/` with `_spec.lua` suffix
-- **Mocking**: Use `luassert.stub` for mocking vim API functions
-- **Globals**: Mock `_G.vim` in tests with required API functions
-- **Package loading**: Use `package.preload` for module stubbing
-- **Assertions**: Use `assert.*` functions from luassert
-- **Data-driven tests**: Use tables to consolidate similar test cases
-- **Test consolidation**: Merge duplicate/similar tests when behavior is identical
-- **Variable usage**: Inline single-use variables instead of creating intermediates
-- **Nil in arrays**: Wrap nil values in tables when using `ipairs()` (e.g., `{{val=nil}}`)
-- **Comments**: Keep section headers and technical prerequisites; remove obvious descriptions
+### Testing Patterns
+- **Framework**: Busted with `describe/it/before_each/after_each`
+- **File naming**: `spec/<module>_spec.lua` mirrors `lua/gnattest/<module>.lua`
+- **Mock vim API**: Use `spec.helpers.common.create_basic_vim_api()`
+- **Mock modules**: Use `package.preload["module"] = function() return mock end`
+- **Cleanup**: Always clear `package.loaded`, `package.preload`, and `_G.vim` in `after_each`
+- **Assertions**: Use `assert.equals()`, `assert.is_true()`, etc. from luassert
+- **Data-driven tests**: Use tables to consolidate similar cases
+- **Nil in arrays**: Wrap in table: `{ {val=nil}, {val=""} }` (avoid array holes with ipairs)
+- **Comments**: Keep section headers; remove obvious descriptions
+- **Test mode & exports**: 
+  - Without GNATTEST_TEST_MODE: Tests run against public API only (must pass)
+  - With GNATTEST_TEST_MODE=1: Enables additional unit tests for private functions (CI uses this)
+  - Both modes must pass - test mode only adds coverage, cannot break public API
+  - Export private functions conditionally at module end:
+    ```lua
+    if os.getenv("GNATTEST_TEST_MODE") then
+      M._private_function = private_function
+    end
+    ```
+  - Wrap private function test suites in `if os.getenv("GNATTEST_TEST_MODE")` blocks
 
 ### Lua Best Practices
-- **Globals**: Only `vim` allowed as read global (luacheck enforced)
-- **Table operations**: Use `vim.tbl_*` utilities for table manipulation
-- **Iteration**: Use `vim.iter` for functional-style iteration when available
-- **String patterns**: Use Lua string patterns, avoid regex unless necessary
-- **Type checking**: Use `vim.islist()` for list type checking
+- **Globals**: Only `vim` allowed as read global (enforced by luacheck)
+- **Table operations**: Use `vim.tbl_*` utilities
+- **Iteration**: Use `vim.iter` for functional-style iteration
+- **String patterns**: Prefer Lua patterns over regex
+- **Type checking**: Use `vim.islist()` for list validation
 
 ### Project-Specific Patterns
-- **Ada integration**: Handle Ada language server and GNATtest tool integration
-- **File patterns**: Use `**/gnattest/` patterns for test file detection
-- **XML parsing**: Handle GNATtest XML output for test information
-- **Navigation**: Implement source/test file switching for Ada subprograms
-- **Read-only regions**: Support for protected code regions in test files
-
-### Configuration Files
-- **StyLua**: Configured in `.stylua.toml` (2 spaces, 80 width, double quotes)
-- **Luacheck**: Configured in `.luacheckrc` (allows `vim` global, no comment length limit)
-- **Busted**: Configured in `.busted` (coverage enabled, nlua runtime, verbose output)
-- **Pre-commit**: Hooks for stylua, luacheck, and commitizen
-- **Commitizen**: Uses conventional commit format with cz_conventional_commits, semver2 scheme
-- **EditorConfig**: Configured in `.editorconfig` (though StyLua overrides some settings)
-
-### Environment & Testing Patterns
-- **Test mode**: Use `GNATTEST_TEST_MODE` environment variable for test-specific exports
-- **Mocking pattern**: Use `package.preload` for stubbing modules in tests
-- **Vim API mocking**: Mock `_G.vim` with required API functions using helper utilities
-- **Cleanup**: Always clean up `_G.vim` and `package.preload` in `after_each`
-- **Test helpers**: Use `spec.helpers.common` for creating vim API mocks
+- **Ada integration**: Handle Ada language server and GNATtest tool
+- **File detection**: Use `**/gnattest/` patterns for test file detection
+- **XML parsing**: Parse GNATtest XML output for test information
+- **Navigation**: Implement source ↔ test file switching for Ada subprograms
+- **Read-only regions**: Protect code regions in test files from editing
+- **File discovery**: Use `vim.fs.find()` with patterns, not hardcoded paths
 
 ### Development Workflow
-- **Branch strategy**: Work on feature branches, merge to main via PR
-- **Quality gates**: All tests must pass, linting must be clean
+- **Branch strategy**: Feature branches → PR → main
+- **Quality gates**: All tests pass, linting clean, 90% coverage minimum
 - **Documentation**: Update README.md for user-facing changes
-- **Versioning**: Use semantic versioning via rockspec
-- **Dependencies**: Minimal external dependencies (lua >= 5.1, busted for testing)
+- **Versioning**: Semantic versioning via rockspec
+- **Dependencies**: Minimal (lua >= 5.1, busted/nlua for testing only)
+- **Commits**: Use conventional commit format (enforced by commitizen)
+- **AI commits**: Every commit made by AI must end with "Generated by AI" in the commit body
 
-### Additional Patterns
-- **Test exports**: Use conditional exports with `os.getenv("GNATTEST_TEST_MODE")` for test utilities
-- **Parser handling**: Always wrap `vim.treesitter` calls in `pcall` with user-friendly error messages
-- **File detection**: Use string patterns and `vim.fs.find` for locating project files
-- **Conditional features**: Check for optional plugins with `pcall(require, plugin_name)` before usage
-- **String manipulation**: Use `gsub` for trimming whitespace, prefer Lua string patterns over regex
-- **Table insertion**: Use `table.insert` for dynamic array building in configuration patterns
 
-### Environment & Testing Patterns
-- **Test mode**: Use `GNATTEST_TEST_MODE` environment variable for test-specific exports
-- **Mocking pattern**: Use `package.preload` for stubbing modules in tests
-- **Vim API mocking**: Mock `_G.vim` with required API functions using helper utilities
-- **Cleanup**: Always clean up `_G.vim` and `package.preload` in `after_each`
-- **Test helpers**: Use `spec.helpers.common` for creating vim API mocks
-
-### Development Workflow
-- **Branch strategy**: Work on feature branches, merge to main via PR
-- **Quality gates**: All tests must pass, linting must be clean
-- **Documentation**: Update README.md for user-facing changes
-- **Versioning**: Use semantic versioning via rockspec
-- **Dependencies**: Minimal external dependencies (lua >= 5.1, busted for testing)
-
-### Code Examples
+## Code Examples
 
 #### Module Structure
 ```lua
@@ -235,7 +214,7 @@ vim.api.nvim_buf_set_extmark(bufnr, ns, row, col, {
 })
 ```
 
-### Common Pitfalls to Avoid
+## Common Pitfalls to Avoid
 - **Don't**: Use `cd` in bash commands; use `workdir` parameter instead
 - **Don't**: Mix tabs and spaces; StyLua enforces 2-space indentation
 - **Don't**: Forget to clean up mocks in `after_each` blocks
