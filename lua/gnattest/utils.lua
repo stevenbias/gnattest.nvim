@@ -61,6 +61,11 @@ function M.is_gnattest_file()
     or string.find(M.get_bufdir(), als.get_tests_dir()) ~= nil
 end
 
+function M.get_gnattest_project()
+  local als = require("gnattest.ada_ls")
+  return als.get_harness_dir() .. "/test_driver.gpr"
+end
+
 function M.set_gnattest_pattern()
   local als = require("gnattest.ada_ls")
   if #M.gnattest_pattern > 1 then

@@ -1,11 +1,11 @@
 -- Define commands with subcommands, from: https://github.com/lumen-oss/nvim-best-practices?tab=readme-ov-file#speaking_head-user-commands
 
+local utils = require("gnattest.utils")
+
 local cmd_name = "GNATtest"
-local test_project = "obj/gnattest/harness/test_driver.gpr"
-local test_runner = "obj/gnattest/harness/test_runner"
 
 local function clean_tests()
-  vim.cmd("!gprclean -P " .. test_project)
+  vim.cmd("!gprclean -P " .. utils.get_gnattest_project())
 end
 
 local function generate_tests()
@@ -19,14 +19,23 @@ local function generate_tests()
 end
 
 local function build_tests()
-  vim.cmd("!gprbuild -P " .. test_project)
+  vim.cmd("!gprbuild -P " .. utils.get_gnattest_project())
 end
 
 local function run_tests(filename, lnum)
+  local als = require("gnattest.ada_ls")
   if filename == nil or lnum == nil then
-    vim.cmd("!./" .. test_runner)
+    vim.cmd("!" .. als.get_harness_dir() .. "/test_runner")
   else
-    vim.cmd("!./" .. test_runner .. " --routines=" .. filename .. ":" .. lnum)
+    vim.cmd(
+      "!"
+        .. als.get_harness_dir()
+        .. "/test_runner"
+        .. " --routines="
+        .. filename
+        .. ":"
+        .. lnum
+    )
   end
 end
 
