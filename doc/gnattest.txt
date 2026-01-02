@@ -98,34 +98,34 @@ The plugin will automatically activate for Ada files in GNATtest projects.
 ==============================================================================
 COMMANDS                                                  *gnattest-commands*
 
-All commands are subcommands of |:GNATtest|:
+All commands are subcommands of |:Gnattest|:
 
-                                                               *:GNATtest*
-:GNATtest {subcommand} [args]
+                                                               *:Gnattest*
+:Gnattest {subcommand} [args]
     Execute GNATtest operations. Available subcommands:
 
-    generate                                      *:GNATtest-generate*
+    generate                                      *:Gnattest-generate*
         Generate test harness from source files.
         Runs `gnattest` with your project configuration.
 
-    build                                            *:GNATtest-build*
+    build                                            *:Gnattest-build*
         Build the test project using gprbuild.
 
-    run [package:subprogram]                           *:GNATtest-run*
+    run [package:subprogram]                           *:Gnattest-run*
         Run specific test. If no argument provided, runs all tests.
         Supports tab completion for package:subprogram names.
         
         Examples: >
-            :GNATtest run Board:Init
-            :GNATtest run
+            :Gnattest run Board:Init
+            :Gnattest run
 <
-    run_all                                          *:GNATtest-run_all*
+    run_all                                          *:Gnattest-run_all*
         Run entire test suite.
 
-    clean                                              *:GNATtest-clean*
+    clean                                              *:Gnattest-clean*
         Clean test build artifacts using gprclean.
 
-    switch                                            *:GNATtest-switch*
+    switch                                            *:Gnattest-switch*
         Toggle between source and test file.
         - In source file: jumps to corresponding test
         - In test file: jumps back to source
@@ -189,7 +189,7 @@ before committing changes. Use version control to safeguard your work.
 
 NAVIGATION                                            *gnattest-navigation*
 
-Switch between source and test files with |:GNATtest-switch|:
+Switch between source and test files with |:Gnattest-switch|:
 - Uses LSP to find subprogram information
 - Cross-references with GNATtest XML metadata
 - Positions cursor at the corresponding location
@@ -207,10 +207,10 @@ COMMAND COMPLETION                                *gnattest-completion*
 
 Tab completion available for:
 - All subcommands: >
-    :GNATtest <Tab>
+    :Gnattest <Tab>
 <
 - Test names in run command: >
-    :GNATtest run <Tab>
+    :Gnattest run <Tab>
 <
 
 ==============================================================================
@@ -261,7 +261,7 @@ COMMAND COMPLETION NOT WORKING ~
 
 1. Ensure `gnattest.xml` is present and parseable
 2. Check that XML contains test metadata
-3. Try running `:GNATtest generate` first
+3. Try running `:Gnattest generate` first
 
 FOR MORE HELP ~
 

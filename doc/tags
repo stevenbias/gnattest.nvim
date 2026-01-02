@@ -1,10 +1,10 @@
-:GNATtest	gnattest.txt	/*:GNATtest*
-:GNATtest-build	gnattest.txt	/*:GNATtest-build*
-:GNATtest-clean	gnattest.txt	/*:GNATtest-clean*
-:GNATtest-generate	gnattest.txt	/*:GNATtest-generate*
-:GNATtest-run	gnattest.txt	/*:GNATtest-run*
-:GNATtest-run_all	gnattest.txt	/*:GNATtest-run_all*
-:GNATtest-switch	gnattest.txt	/*:GNATtest-switch*
+:Gnattest	gnattest.txt	/*:Gnattest*
+:Gnattest-build	gnattest.txt	/*:Gnattest-build*
+:Gnattest-clean	gnattest.txt	/*:Gnattest-clean*
+:Gnattest-generate	gnattest.txt	/*:Gnattest-generate*
+:Gnattest-run	gnattest.txt	/*:Gnattest-run*
+:Gnattest-run_all	gnattest.txt	/*:Gnattest-run_all*
+:Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
 gnattest-completion	gnattest.txt	/*gnattest-completion*
 gnattest-configuration	gnattest.txt	/*gnattest-configuration*

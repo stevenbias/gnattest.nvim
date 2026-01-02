@@ -79,34 +79,34 @@ That's it! The plugin will automatically activate for Ada files in GNATtest proj
 
 ### Commands
 
-All commands are subcommands of `:GNATtest`:
+All commands are subcommands of `:Gnattest`:
 
-- `:GNATtest generate` - Generate test harness from source files
-- `:GNATtest build` - Build the test project
-- `:GNATtest run [package:subprogram]` - Run specific test (with tab completion)
-- `:GNATtest run_all` - Run entire test suite
-- `:GNATtest clean` - Clean test build artifacts
-- `:GNATtest switch` - Toggle between source and test file
+- `:Gnattest generate` - Generate test harness from source files
+- `:Gnattest build` - Build the test project
+- `:Gnattest run [package:subprogram]` - Run specific test (with tab completion)
+- `:Gnattest run_all` - Run entire test suite
+- `:Gnattest clean` - Clean test build artifacts
+- `:Gnattest switch` - Toggle between source and test file
 
 ### Examples
 
 **Generate and run tests:**
 ```vim
-:GNATtest generate
-:GNATtest build
-:GNATtest run_all
+:Gnattest generate
+:Gnattest build
+:Gnattest run_all
 ```
 
 **Navigate to a specific test:**
 ```vim
 " Place cursor on a subprogram in your source file
-:GNATtest switch
+:Gnattest switch
 " You'll be taken to the corresponding test file
 ```
 
 **Run a specific test:**
 ```vim
-:GNATtest run Board:Init
+:Gnattest run Board:Init
 " Tab completion available for package:subprogram names
 ```
 
