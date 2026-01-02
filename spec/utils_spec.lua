@@ -87,7 +87,9 @@ describe("gnattest.utils", function()
 
   after_each(function()
     package.loaded["gnattest.utils"] = nil
+    package.loaded["gnattest.ada_ls"] = nil
     package.preload["notify"] = nil
+    package.preload["gnattest.ada_ls"] = nil
   end)
 
   it("does not use vim.notify when notify module is loaded", function()
@@ -233,4 +235,106 @@ describe("gnattest.utils", function()
       end)
     end)
   end
+
+  describe("get_filename()", function()
+    it("returns basename of buffer path", function()
+      _G.vim.fn.expand = function()
+        return "/path/to/my_file.adb"
+      end
+      _G.vim.fs.basename = function(path)
+        return path:match("([^/]+)$")
+      end
+      assert.equals("my_file.adb", utils.get_filename())
+    end)
+  end)
+
+  describe("is_gnattest_file() alternative detection", function()
+    it("detects file in harness_dir when gnattest not in path", function()
+      package.loaded["gnattest.utils"] = nil
+      _G.vim.fn.expand = function()
+        return "/project/obj/harness/test.adb"
+      end
+      _G.vim.fs.dirname = function()
+        return "/project/obj/harness"
+      end
+      package.preload["gnattest.ada_ls"] = function()
+        return {
+          get_harness_dir = function()
+            return "/project/obj/harness"
+          end,
+          get_tests_dir = function()
+            return "/project/obj/tests"
+          end,
+        }
+      end
+      local test_utils = require("gnattest.utils")
+      assert.is_true(test_utils.is_gnattest_file())
+    end)
+  end)
+
+  describe("set_gnattest_pattern()", function()
+    local function setup_ada_ls()
+      package.loaded["gnattest.utils"] = nil
+      package.preload["gnattest.ada_ls"] = function()
+        return {
+          get_harness_dir = function()
+            return "/project/harness"
+          end,
+          get_tests_dir = function()
+            return "/project/tests"
+          end,
+        }
+      end
+      return require("gnattest.utils")
+    end
+
+    it("populates pattern on first call", function()
+      local test_utils = setup_ada_ls()
+      test_utils.set_gnattest_pattern()
+      assert.equals(3, #test_utils.gnattest_pattern)
+      assert.is_true(
+        test_utils.gnattest_pattern[2]:find("/project/harness") ~= nil
+      )
+    end)
+
+    it("returns cached pattern on subsequent calls", function()
+      local test_utils = setup_ada_ls()
+      test_utils.set_gnattest_pattern()
+      local count_before = #test_utils.gnattest_pattern
+      local result = test_utils.set_gnattest_pattern()
+      assert.equals(count_before, #test_utils.gnattest_pattern)
+      assert.same(test_utils.gnattest_pattern, result)
+    end)
+  end)
+
+  describe("find_file()", function()
+    it("finds file in list of paths", function()
+      _G.vim.islist = function(t)
+        return type(t) == "table" and t[1] ~= nil
+      end
+      _G.vim.fs.find = stub.new().returns({ "/path1/file.ads" })
+      assert.equals(
+        "/path1/file.ads",
+        utils.find_file("file.ads", { "/path1", "/path2" })
+      )
+    end)
+
+    it("finds file with single path string", function()
+      package.loaded["gnattest.utils"] = nil
+      _G.vim.islist = function()
+        return false
+      end
+      _G.vim.fs.find = stub.new().returns({ "/path/file.ads" })
+      local test_utils = require("gnattest.utils")
+      assert.equals("/path/file.ads", test_utils.find_file("file.ads", "/path"))
+    end)
+
+    it("returns nil when file not found", function()
+      _G.vim.islist = function(t)
+        return type(t) == "table" and t[1] ~= nil
+      end
+      _G.vim.fs.find = stub.new().returns({})
+      assert.is_nil(utils.find_file("nonexistent.ads", { "/path1", "/path2" }))
+    end)
+  end)
 end)
