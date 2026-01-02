@@ -1,6 +1,8 @@
 # GitHub CI Configuration
 
-This directory contains a simple GitHub Actions CI configuration.
+> 📖 **For plugin usage documentation**, see the [main README](../README.md)
+
+This directory contains the CI/CD configuration for the GNATtest.nvim plugin.
 
 ## Structure Overview
 
