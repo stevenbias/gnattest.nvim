@@ -171,9 +171,7 @@ function M.setup(opt)
 
   vim.api.nvim_create_autocmd("BufReadPost", {
     group = M.ro_group,
-    pattern = {
-      gnattest_pattern .. "*.ad[bs]",
-    },
+    pattern = gnattest_pattern,
     callback = function()
       prepare_gnattest()
     end,
@@ -181,9 +179,7 @@ function M.setup(opt)
 
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = M.ro_group,
-    pattern = {
-      gnattest_pattern .. "*.ad[bs]",
-    },
+    pattern = gnattest_pattern,
     callback = function()
       if protect_flag then
         protect_flag = false
@@ -193,6 +189,14 @@ function M.setup(opt)
       fix_ro_regions()
     end,
   })
+end
+
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M._parse_comment = parse_comment
+  M._get_regions = get_regions
+  M._set_extmark = set_extmark
+  M._fix_ro_regions = fix_ro_regions
 end
 
 return M

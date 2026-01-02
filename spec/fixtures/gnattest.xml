@@ -1,0 +1,77 @@
+<tests_mapping mode="monolith">
+   <unit source_file="package_a.ads">
+      <test_unit target_file="Package_A">
+         <setup file="package_a-test_data.adb" name="Set_Up" line="8" column="4"/>
+         <teardown file="package_a-test_data.adb" name="Tear_Down" line="14" column="4"/>
+         <tested name="Initialize" line="10" column="13">
+            <test_case name="test case" line="10" column="4">
+               <test file="package_a-test_data-tests.adb" line="39" column="1" name="Test_Initialize_abc123" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <tested name="Process" line="15" column="13">
+            <test_case name="test case" line="15" column="4">
+               <test file="package_a-test_data-tests.adb" line="59" column="1" name="Test_Process_def456" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+            <test_case name="test edge case" line="20" column="4">
+               <test file="package_a-test_data-tests.adb" line="79" column="1" name="Test_Process_ghi789" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <tested name="Finalize" line="25" column="13">
+            <test_case name="test case" line="25" column="4">
+               <test file="package_a-test_data-tests.adb" line="99" column="1" name="Test_Finalize_jkl012" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <dangling>
+         </dangling>
+      </test_unit>
+      <test_unit target_file="Package_A.Utils">
+         <setup file="package_a-utils-test_data.adb" name="Set_Up" line="8" column="4"/>
+         <teardown file="package_a-utils-test_data.adb" name="Tear_Down" line="14" column="4"/>
+         <tested name="Helper_Function" line="5" column="13">
+            <test_case name="test case" line="5" column="4">
+               <test file="package_a-utils-test_data-tests.adb" line="39" column="1" name="Test_Helper_Function_mno345" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <dangling>
+         </dangling>
+      </test_unit>
+   </unit>
+   <unit source_file="package_b.ads">
+      <test_unit target_file="Package_B">
+         <setup file="package_b-test_data.adb" name="Set_Up" line="8" column="4"/>
+         <teardown file="package_b-test_data.adb" name="Tear_Down" line="14" column="4"/>
+         <tested name="Calculate" line="12" column="13">
+            <test_case name="test case" line="12" column="4">
+               <test file="package_b-test_data-tests.adb" line="39" column="1" name="Test_Calculate_pqr678" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+            <test_case name="test positive values" line="18" column="4">
+               <test file="package_b-test_data-tests.adb" line="59" column="1" name="Test_Calculate_stu901" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+            <test_case name="test negative values" line="24" column="4">
+               <test file="package_b-test_data-tests.adb" line="79" column="1" name="Test_Calculate_vwx234" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <tested name="Validate" line="30" column="13">
+            <test_case name="test case" line="30" column="4">
+               <test file="package_b-test_data-tests.adb" line="99" column="1" name="Test_Validate_yza567" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <dangling>
+         </dangling>
+      </test_unit>
+   </unit>
+   <unit source_file="package_c.ads">
+      <test_unit target_file="Package_C">
+         <setup file="package_c-test_data.adb" name="Set_Up" line="8" column="4"/>
+         <teardown file="package_c-test_data.adb" name="Tear_Down" line="14" column="4"/>
+         <tested name="Transform" line="8" column="13">
+            <test_case name="test case" line="8" column="4">
+               <test file="package_c-test_data-tests.adb" line="39" column="1" name="Test_Transform_bcd890" timestamp="2025-12-23 10:00:00"/>
+            </test_case>
+         </tested>
+         <dangling>
+         </dangling>
+      </test_unit>
+   </unit>
+   <additional_tests/>
+</tests_mapping>

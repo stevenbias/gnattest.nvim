@@ -30,6 +30,40 @@ local function run_tests(filename, lnum)
   end
 end
 
+local function switch_source_test()
+  require("gnattest.navigation").switch_subprogram()
+end
+
+local function impl_run(args)
+  local str_args = vim.split(args[1], ":")
+  local pkg = str_args[1]
+  local name = str_args[2]
+  local pkg_info, filename =
+    require("gnattest.xml").get_tests_by_name(pkg, name)
+  if pkg_info == nil then
+    return
+  end
+  run_tests(filename, pkg_info.source.line)
+end
+
+local function compl_run(subcmd_arg_lead)
+  local tests_info = require("gnattest.xml").get_xml_info()
+  local run_args = {}
+  for _, files in pairs(tests_info) do
+    for pkg, pkg_info in pairs(files) do
+      for _, info in pairs(pkg_info) do
+        table.insert(run_args, pkg .. ":" .. info.source.name)
+      end
+    end
+  end
+  return vim
+    .iter(run_args)
+    :filter(function(args)
+      return args:find(subcmd_arg_lead) ~= nil
+    end)
+    :totable()
+end
+
 ---@class MyCmdSubcommand
 ---@field impl fun(args:string[], opts: table) The command implementation
 ---@field complete? fun(subcmd_arg_lead: string): string[] (optional) Command completions callback, taking the lead of the subcommand's arguments
@@ -41,48 +75,32 @@ local subcommand_tbl = {
       clean_tests()
     end,
   },
-  generate = {
-    impl = function()
-      generate_tests()
-    end,
-  },
   build = {
     impl = function()
       build_tests()
     end,
   },
+  generate = {
+    impl = function()
+      generate_tests()
+    end,
+  },
   run = {
     impl = function(args, _)
-      local str_args = vim.split(args[1], ":")
-      local pkg = str_args[1]
-      local name = str_args[2]
-      local test = require("gnattest.xml").get_tests_by_name(pkg, name)
-      if test == nil then
-        return
-      end
-      run_tests(test.filename, test.line)
+      impl_run(args)
     end,
-    complete = function(subcmd_arg_lead)
-      local tests_info = require("gnattest.xml").get_tests()
-      local run_args = {}
-      for _, files in pairs(tests_info) do
-        for pkg, tst_pkg in pairs(files) do
-          for _, test in pairs(tst_pkg) do
-            table.insert(run_args, pkg .. ":" .. test.name)
-          end
-        end
-      end
-      return vim
-        .iter(run_args)
-        :filter(function(args)
-          return args:find(subcmd_arg_lead) ~= nil
-        end)
-        :totable()
+    complete = function(arg)
+      return compl_run(arg)
     end,
   },
   run_all = {
     impl = function()
       run_tests()
+    end,
+  },
+  switch = {
+    impl = function()
+      switch_source_test()
     end,
   },
 }
@@ -138,8 +156,15 @@ vim.api.nvim_create_user_command(cmd_name, subcmd, {
 
 -- vim.api.nvim_create_user_command("TSTest", function()
 --   vim.cmd(":Lazy reload gnattest.nvim")
---   local xml = require("gnattest.xml")
---   local res = xml.get_tests()
+--   local ada = require("gnattest.ada_ls")
+--   -- local xml = require("gnattest.xml")
+--   -- local nav = require("gnattest.navigation")
+--   local res = ada.get_src_dirs()
+--   -- local res = nav.switch_subprogram()
+--   -- local res = xml.get_subprogram_name()
+--   -- local res = xml.get_declaration()
+--   -- local res = xml.get_gnattest_info_on_cursor()
+--   -- local res = xml.get_xml_info()
 --   -- print(vim.inspect(xml.get_tests_by_name("Board", "Init")))
---   -- print(vim.inspect(res))
+--   print(vim.inspect(res))
 -- end, {})
