@@ -1,5 +1,10 @@
 -- Define commands with subcommands, from: https://github.com/lumen-oss/nvim-best-practices?tab=readme-ov-file#speaking_head-user-commands
 
+if vim.g.loaded_gnattest then
+  return
+end
+vim.g.loaded_gnattest = true
+
 local utils = require("gnattest.utils")
 
 local cmd_name = "GNATtest"
