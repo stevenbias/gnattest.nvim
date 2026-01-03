@@ -158,7 +158,11 @@ local function fix_ro_regions()
 end
 
 function M.setup()
-  M.opt = require("gnattest.config").get()
+  M.opt = require("gnattest.config").get().read_only
+
+  if M.opt.enabled == false then
+    return
+  end
 
   local gnattest_pattern = require("gnattest.utils").gnattest_pattern
 

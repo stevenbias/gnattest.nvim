@@ -1,5 +1,6 @@
 local default_opts = {
   read_only = {
+    enabled = true,
     region_text = {
       start = "begin read only",
       ending = "end read only",
