@@ -1,7 +1,6 @@
-local M = {}
-
 local DEFAULT_HIGHLIGHT_COLOR = "#303030"
-local HIGHLIGHT_PERCENT_ADJUST = 3
+
+local M = {}
 
 -- Helper function to convert a Hex string (#RRGGBB) to an RGB table {r, g, b}
 local function hex_to_rgb(hex)
@@ -51,7 +50,7 @@ function M.set_highlight(namespace, hl_group)
   local hl = get_hl()
   local new_bg = DEFAULT_HIGHLIGHT_COLOR
 
-  local percent = HIGHLIGHT_PERCENT_ADJUST
+  local percent = M.opts.percent
 
   if vim.o.background == "light" then
     percent = -percent
@@ -65,8 +64,8 @@ function M.set_highlight(namespace, hl_group)
   vim.api.nvim_set_hl_ns(namespace)
 end
 
-function M.setup(opt)
-  M.opt = opt
+function M.setup()
+  M.opts = require("gnattest.config").get().highlight
 end
 
 -- Test-specific exports - only exposed in test mode

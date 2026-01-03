@@ -1,4 +1,7 @@
 local default_opts = {
+  highlight = {
+    percent = 3,
+  },
   read_only = {
     enabled = true,
     region_text = {
