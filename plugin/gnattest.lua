@@ -5,12 +5,10 @@ if vim.g.loaded_gnattest then
 end
 vim.g.loaded_gnattest = true
 
-local utils = require("gnattest.utils")
-
 local cmd_name = "GNATtest"
 
 local function clean_tests()
-  vim.cmd("!gprclean -P " .. utils.get_gnattest_project())
+  vim.cmd("!gprclean -P " .. require("gnattest.utils").get_gnattest_project())
 end
 
 local function generate_tests()
@@ -24,7 +22,7 @@ local function generate_tests()
 end
 
 local function build_tests()
-  vim.cmd("!gprbuild -P " .. utils.get_gnattest_project())
+  vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
 end
 
 local function run_tests(filename, lnum)
