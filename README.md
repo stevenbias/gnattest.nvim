@@ -47,6 +47,7 @@ EOF
 
 - **Neovim** >= 0.10
 - **Ada Language Server** - Must be configured and running ([setup guide](https://github.com/AdaCore/ada_language_server))
+- **GNAT Project File** - Only Ada projects using `.gpr` files are supported (GNATtest must be configured in the `.gpr` file)
 - **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide))
 - **Treesitter parsers**: `ada`, `xml`
   ```vim
@@ -171,6 +172,8 @@ Feedback and contributions are welcome.
 - Ada Language Server must be configured before plugin activation
 - GNATtest tool must be installed separately
 - Treesitter parsers required: `ada`, `xml`
+
+**⚠️ Note:** This plugin only supports Ada projects that use GNAT project files (`.gpr`). GNATtest must be configured in the `.gpr` file. Projects without `.gpr` files are not supported.
 
 ### Features
 

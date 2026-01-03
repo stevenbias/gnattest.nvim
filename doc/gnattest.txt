@@ -37,6 +37,7 @@ REQUIREMENTS                                          *gnattest-requirements*
 
 - Neovim >= 0.10
 - Ada Language Server (configured and running)
+- GNAT project file (.gpr) - GNATtest must be configured in the .gpr file
 - GNATtest (separate testing framework for Ada)
 - Treesitter parsers: `ada`, `xml`
 
@@ -218,12 +219,14 @@ LIMITATIONS                                            *gnattest-limitations*
 
 REQUIREMENTS ~
 - Ada Language Server must be configured before plugin activation
+- GNAT project file (.gpr) with GNATtest configured
 - GNATtest tool must be installed separately
 - Treesitter parsers (ada, xml) required
 
 FEATURES ~
 - Limited configuration options (by design for simplicity)
 - GNATtest `Tests_Root` attribute not supported
+- GNATtest must be configured in .gpr file
 
 COMPATIBILITY ~
 - Tested on Linux (Ubuntu in CI)
