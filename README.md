@@ -20,12 +20,6 @@
 ### lazy.nvim
 
 ```lua
--- Prerequisites:
--- 1. Ada Language Server must be configured and running
---    (Use nvim-lspconfig or your preferred method)
---    See: https://github.com/AdaCore/ada_language_server
--- 2. Treesitter with ada and xml parsers: :TSInstall ada xml
-
 {
   "StevenBias/gnattest.nvim",
   dependencies = {
@@ -41,18 +35,10 @@
 ### vim-plug
 
 ```vim
-" Prerequisites:
-" 1. Ada Language Server configured and running
-"    See: https://github.com/AdaCore/ada_language_server
-" 2. nvim-treesitter with ada and xml parsers
-
 Plug 'nvim-treesitter/nvim-treesitter'
 Plug 'StevenBias/gnattest.nvim'
 
 lua << EOF
--- Install treesitter parsers if not already done:
--- :TSInstall ada xml
-
 require("gnattest").setup()
 EOF
 ```
