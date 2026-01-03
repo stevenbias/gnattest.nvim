@@ -1,5 +1,6 @@
 # AGENTS.md
 
+<<<<<<< HEAD
 ## 🚨 CRITICAL: Git Commit Protocol 🚨
 
 **BEFORE EVERY `git commit` COMMAND:**
@@ -40,6 +41,7 @@
 - After making a commit, STOP and report completion
 - Wait for new explicit permission before next commit
 
+This is a strict rule. Violating this will interrupt the user's workflow.
 ---
 ## Project Overview
 GNATtest.nvim is a Neovim plugin for Ada developers that integrates with GNATtest, a unit testing framework for Ada. It provides complete GNATtest workflow integration:
