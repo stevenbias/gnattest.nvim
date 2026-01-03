@@ -1,5 +1,47 @@
 # AGENTS.md
 
+## 🚨 CRITICAL: Git Commit Protocol 🚨
+
+**BEFORE EVERY `git commit` COMMAND:**
+
+### ✋ MANDATORY PRE-COMMIT CHECK
+```
+□ Did the user EXPLICITLY say "commit", "create a commit", or "you may commit"?
+□ If NO → STOP → ASK: "Should I create a commit?" → WAIT for response
+□ If YES → Proceed with commit process
+```
+
+### ⛔ NEVER Commit When User Says:
+- "continue"
+- "finish this" 
+- "next steps"
+- "implement it" (alone - this means do the work, NOT commit it)
+- ANY phrase without explicit "commit" permission
+
+### ✅ DO Commit When User Says:
+- "commit this"
+- "create a commit"
+- "you may commit"
+- "now commit"
+- "commit current changes before [next task]" (commit BEFORE starting next task, not after)
+
+### 📋 Required Steps When Given Permission:
+1. Run `git status` and `git diff` to see changes
+2. Run `git log --oneline -10` to check commit message style
+3. Draft commit message following conventional commits format
+4. Run `git add <files>` for relevant files
+5. Run `git commit -m "message"` with proper message
+6. Run `git status` after commit to verify
+7. **IMPORTANT**: After ONE commit, do NOT automatically commit again - wait for new permission
+
+### ⚠️ One Permission = One Commit
+- Each commit requires separate, explicit permission
+- Completing work does NOT mean permission to commit
+- After making a commit, STOP and report completion
+- Wait for new explicit permission before next commit
+
+---
+
 ## Build/Test Commands
 - **Lint**: `luacheck .` (configured in .luacheckrc)
 - **Format check**: `stylua --check lua/` (2-space indent, 80 char width, double quotes)
