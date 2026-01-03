@@ -4,6 +4,14 @@ local helpers = require("spec.helpers.common")
 describe("gnattest.highlight", function()
   local highlight
 
+  -- Helper function to reload highlight module with fresh config
+  -- Used when tests need to modify vim API behavior and reload the module
+  local function reload_highlight()
+    package.loaded["gnattest.highlight"] = nil
+    highlight = require("gnattest.highlight")
+    highlight.setup()
+  end
+
   before_each(function()
     -- Stub vim.o for background
     _G.vim.api = {
@@ -19,7 +27,19 @@ describe("gnattest.highlight", function()
     _G.vim.o = {
       background = "dark",
     }
-    highlight = require("gnattest.highlight")
+
+    -- Mock config module
+    package.preload["gnattest.config"] = function()
+      return {
+        get = function()
+          return {
+            highlight = { percent = 3 },
+          }
+        end,
+      }
+    end
+
+    reload_highlight()
   end)
 
   after_each(function()
@@ -34,16 +54,11 @@ describe("gnattest.highlight", function()
     assert.stub(_G.vim.api.nvim_set_hl_ns).was_called_with(123)
   end)
 
-  it("should store opts on setup", function()
-    highlight.setup({ foo = "bar" })
-    assert.same({ foo = "bar" }, highlight.opt)
-  end)
-
   it("should use default color when nvim_get_hl returns no bg", function()
     _G.vim.api.nvim_get_hl = function(_, _)
       return {}
     end
-    highlight = require("gnattest.highlight")
+    reload_highlight()
 
     highlight.set_highlight(123, "MyHighlight")
 
@@ -56,7 +71,7 @@ describe("gnattest.highlight", function()
     _G.vim.api.nvim_get_hl = function(_, _)
       return nil
     end
-    highlight = require("gnattest.highlight")
+    reload_highlight()
 
     highlight.set_highlight(123, "MyHighlight")
 
@@ -67,7 +82,7 @@ describe("gnattest.highlight", function()
 
   it("should lighten color for light background", function()
     _G.vim.o.background = "light"
-    highlight = require("gnattest.highlight")
+    reload_highlight()
 
     highlight.set_highlight(123, "MyHighlight")
 
@@ -166,7 +181,7 @@ describe("gnattest.highlight", function()
         _G.vim.api.nvim_get_hl = function(_, _)
           return {}
         end
-        highlight = require("gnattest.highlight")
+        reload_highlight()
         local hl = highlight._get_hl()
         assert.is_nil(hl)
       end)
@@ -175,7 +190,7 @@ describe("gnattest.highlight", function()
         _G.vim.api.nvim_get_hl = function(_, _)
           return nil
         end
-        highlight = require("gnattest.highlight")
+        reload_highlight()
         local hl = highlight._get_hl()
         assert.is_nil(hl)
       end)
