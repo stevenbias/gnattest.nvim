@@ -279,7 +279,8 @@ vim.api.nvim_buf_set_extmark(bufnr, ns, row, col, {
 - **Don't**: Add comments that restate obvious code; keep only section headers and technical notes
 
 ## Plugin-Specific Conventions
-- **GNATtest commands**: All commands should be subcommands of `GNATtest` (e.g., `:GNATtest generate`)
+- **Command structure**: All commands are subcommands of `:Gnattest` (e.g., `:Gnattest generate`, `:Gnattest build`, `:Gnattest run`)
+- **Command implementation**: Follow the pattern in `plugin/gnattest.lua` with subcommands table and completion callbacks
 - **Read-only regions**: Use the standard markers defined in `lua/gnattest/init.lua`
 - **Ada file patterns**: Use `*.ads` for specs and `*.adb` for bodies
 - **Test file detection**: Check for `gnattest`, harness dir, or tests dir in file path
