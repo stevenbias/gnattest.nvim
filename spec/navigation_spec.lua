@@ -413,6 +413,26 @@ describe("gnattest.navigation", function()
       assert.stub(_G.vim.api.nvim_win_set_cursor).was_called_with(0, { 15, 8 })
     end)
 
+    it("returns nil when src_dirs not available", function()
+      utils_mock.is_gnattest_file.returns(true)
+      xml_mock.get_xml_info.returns({
+        ["my_package.ads"] = {
+          ["Package1"] = {
+            create_xml_test_entry("My_Function", "Test_My_Function"),
+          },
+        },
+      })
+      ada_ls_mock.get_symbols.returns({
+        { children = { create_lsp_symbol("Test_My_Function", 4, 10, 0) } },
+      })
+      ada_ls_mock.get_src_dirs.returns(nil)
+
+      local result = navigation.switch_subprogram()
+
+      assert.is_nil(result)
+      assert.stub(ada_ls_mock.get_src_dirs).was_called()
+    end)
+
     it("switches to test file when in source file", function()
       utils_mock.is_gnattest_file.returns(false)
       utils_mock.get_filename.returns("my_package.ads")
