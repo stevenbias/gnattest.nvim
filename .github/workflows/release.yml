@@ -1,0 +1,62 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-api-docs:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install vimcats
+        run: cargo install vimcats --features=cli
+
+      - name: Generate API docs
+        run: |
+          vimcats lua/gnattest/init.lua \
+                   lua/gnattest/config.lua \
+                   plugin/gnattest.lua > api-docs.txt
+
+      - name: Integrate into main doc
+        run: |
+          # Create the replacement content with proper formatting
+          cat > replacement.txt << 'EOF'
+
+          ==============================================================================
+          API REFERENCE                                                *gnattest-api*
+
+          EOF
+
+          # Append the generated API docs
+          cat api-docs.txt >> replacement.txt
+
+          # Add closing marker
+          echo "" >> replacement.txt
+          echo "==============================================================================" >> replacement.txt
+
+          # Replace the API REFERENCE section in the main doc
+          sed '/API REFERENCE/,/^==============================================================================$/{
+            /API REFERENCE/r replacement.txt
+            /API REFERENCE/,/^==============================================================================$/d
+          }' doc/gnattest.txt > doc/gnattest-new.txt
+
+          mv doc/gnattest-new.txt doc/gnattest.txt
+
+      - name: Commit updated docs
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "docs: auto-update API reference for ${{ github.event.release.tag_name }} [skip ci]"
+          file_pattern: doc/gnattest.txt
+          skip_dirty_check: false
+          branch: main
