@@ -8,18 +8,25 @@ This directory contains the CI/CD configuration for the GNATtest.nvim plugin.
 
 ```
 .github/
-├── workflows/           # CI workflow files
-│   └── ci.yml          # Single unified CI pipeline
-└── README.md           # This documentation
+├── workflows/           # CI/CD workflow files
+│   ├── ci.yml          # Code quality pipeline
+│   └── release.yml     # Release automation pipeline
+└── WORKFLOWS.md        # This documentation
 ```
 
-## Workflow
+## Workflows
 
 ### CI Pipeline (`ci.yml`)
-- **Purpose**: Single unified pipeline with linear job flow
-- **Triggers**: Push to any branch, PRs
+- **Purpose**: Code quality assurance
+- **Triggers**: Push to any branch, Pull Requests
 - **Jobs**: Sequential execution with dependencies
 - **Linear Flow**: format-check → code-quality → test-matrix → coverage-report
+
+### Release Pipeline (`release.yml`)
+- **Purpose**: Release automation tasks
+- **Triggers**: GitHub Release published
+- **Jobs**: generate-api-docs
+- **Flow**: Generates and commits API documentation to main branch
 
 #### Job Details
 
@@ -42,19 +49,43 @@ This directory contains the CI/CD configuration for the GNATtest.nvim plugin.
 - **Dependency**: Requires code-quality job to pass
 
 **Coverage-Report Job**
-- **Purpose**: Generate coverage report from stable Neovim tests
+- **Purpose**: Generate coverage report from stable Neovim tests and check threshold
 - **Setup**: Installs luarocks and luacov for report generation
 - **Process**: Downloads stable coverage artifact, generates final report
+- **Threshold**: Requires minimum 90% code coverage to pass
 - **Artifacts**: Uploads final `luacov.stats.out` and `luacov.report.out`
 - **Dependency**: Requires test-matrix job to pass
+
+#### Release Pipeline Job Details
+
+**Generate-API-Docs Job**
+- **Purpose**: Auto-generate API documentation from luaCATS annotations
+- **Trigger**: Only runs when a GitHub Release is published
+- **Tool**: `vimcats` CLI tool (Rust-based)
+- **Process**:
+  1. Checks out the released tag
+  2. Installs Rust toolchain and vimcats
+  3. Generates API docs from Lua files with luaCATS annotations
+  4. Integrates generated docs into `doc/gnattest.txt`
+  5. Commits updated docs to main branch with `[skip ci]` tag
+- **Commit Target**: main branch
+- **Skip CI**: Prevents infinite workflow loops
 
 
 
 ## Usage
 
-### Running Workflows
+### Running CI Workflow
 - **Automatic**: On push/PR to any branch
 - **Dependencies**: Linear flow (format-check → code-quality → test-matrix → coverage-report)
+
+### Running Release Workflow
+- **Automatic**: When a GitHub Release is published
+- **Manual**: Create a release via GitHub UI or `gh` CLI
+- **Example**:
+  ```bash
+  gh release create v0.2.0 --title "Release v0.2.0" --notes "Release notes"
+  ```
 
 ### Local Development
 Use the same tools locally to match CI behavior:
@@ -106,8 +137,9 @@ The CI uses these configuration files in the repository root:
 
 ## Workflow Dependencies
 
+### CI Pipeline
 ```
-ci.yml (single pipeline)
+ci.yml (code quality)
 ├── format-check (StyLua formatting check)
 ├── code-quality (depends on format-check)
 │   └── luacheck --all-files
@@ -117,5 +149,17 @@ ci.yml (single pipeline)
 │   └── uploads coverage artifacts per version
 └── coverage-report (depends on test-matrix)
     ├── downloads stable coverage artifact
-    └── generates final coverage report
+    ├── generates final coverage report
+    └── validates 90% minimum coverage threshold
+```
+
+### Release Pipeline
+```
+release.yml (release automation)
+└── generate-api-docs (triggered on release published)
+    ├── checkout released tag
+    ├── install Rust + vimcats
+    ├── generate API docs from luaCATS annotations
+    ├── integrate into doc/gnattest.txt
+    └── commit to main branch [skip ci]
 ```
