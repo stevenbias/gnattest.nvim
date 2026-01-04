@@ -2,45 +2,17 @@
 
 ## 🚨 CRITICAL: Git Commit Protocol 🚨
 
-**BEFORE EVERY `git commit` COMMAND:**
+**MANDATORY PRE-COMMIT CHECK:**
+- ✅ User must EXPLICITLY say: "commit", "create a commit", or "you may commit"
+- ❌ NEVER commit for: "continue", "finish this", "next steps", "implement it"
 
-### ✋ MANDATORY PRE-COMMIT CHECK
-```
-□ Did the user EXPLICITLY say "commit", "create a commit", or "you may commit"?
-□ If NO → STOP → ASK: "Should I create a commit?" → WAIT for response
-□ If YES → Proceed with commit process
-```
-
-### ⛔ NEVER Commit When User Says:
-- "continue"
-- "finish this" 
-- "next steps"
-- "implement it" (alone - this means do the work, NOT commit it)
-- ANY phrase without explicit "commit" permission
-
-### ✅ DO Commit When User Says:
-- "commit this"
-- "create a commit"
-- "you may commit"
-- "now commit"
-- "commit current changes before [next task]" (commit BEFORE starting next task, not after)
-
-### 📋 Required Steps When Given Permission:
-1. Run `git status` and `git diff` to see changes
-2. Run `git log --oneline -10` to check commit message style
-3. Draft commit message following conventional commits format
-4. Run `git add <files>` for relevant files
-5. Run `git commit -m "message"` with proper message
-6. Run `git status` after commit to verify
-7. **IMPORTANT**: After ONE commit, do NOT automatically commit again - wait for new permission
-
-### ⚠️ One Permission = One Commit
-- Each commit requires separate, explicit permission
-- Completing work does NOT mean permission to commit
-- After making a commit, STOP and report completion
-- Wait for new explicit permission before next commit
-
-This is a strict rule. Violating this will interrupt the user's workflow.
+**When Given Permission:**
+1. Run `git status` + `git diff` to review changes
+2. Check `git log --oneline -10` for commit message style
+3. Draft conventional commit message (feat/fix/docs/refactor/test/style/chore/ci/build/perf)
+4. `git add <files>` + `git commit -m "message"`
+5. Verify with `git status`
+6. **ONE commit per permission** - Stop and wait for new permission
 ---
 ## Project Overview
 GNATtest.nvim is a Neovim plugin for Ada developers that integrates with GNATtest, a unit testing framework for Ada. It provides complete GNATtest workflow integration:
@@ -67,87 +39,48 @@ GNATtest.nvim is a Neovim plugin for Ada developers that integrates with GNATtes
 
 ## Code Style Guidelines
 
-### Formatting & Structure
-- **Indentation**: 2 spaces (StyLua enforced via .stylua.toml)
-- **Line width**: 80 characters max
-- **Quotes**: Auto-prefer double quotes
-- **File endings**: Unix (LF)
-- **Module pattern**: `local M = {}` ... `return M`
+### Formatting & Naming
+- **Formatting**: 2-space indent, 80 char width, double quotes (StyLua enforced)
+- **Naming**: snake_case functions/variables, PascalCase modules, UPPER_SNAKE_CASE constants
+- **Modules**: `local M = {}` pattern, requires at top, dot notation for relative imports
 
-### Naming Conventions
-- **Functions/Variables**: snake_case (`get_bufpath`, `is_gnattest_file`)
-- **Modules**: PascalCase (`gnattest.Utils`)
-- **Constants**: UPPER_SNAKE_CASE
-- **Private functions**: `local function name()` (no underscore prefix needed)
-- **Commands**: PascalCase with plugin prefix (`GNATtest`)
-
-### Module & Import Patterns
-- Place `require()` statements at file top: `local module = require("path")`
-- Use dot notation for relative imports within project
-- Main entry point: `lua/gnattest/init.lua`
-- Submodules: `lua/gnattest/<module>.lua`
-
-### Error Handling
-- **Programming errors**: `error("message")` (e.g., invalid configuration)
-- **Recoverable failures**: Return `nil, error_message` pattern
-- **Risky operations**: Wrap in `pcall()` (e.g., `pcall(require, plugin_name)`)
-- **User notifications**: `vim.notify(msg, vim.log.levels.WARN)` or `M.notify()`
-
-### Vim API Patterns
-- Use `vim.api.nvim_*` for API calls
-- Create commands: `vim.api.nvim_create_user_command()`
-- Create autocmds: `vim.api.nvim_create_autocmd()`
-- Treesitter: Always wrap in `pcall()` with user-friendly error messages
-- File operations: Prefer `vim.fs.*` over `vim.fn.*`
-- Namespaces: `vim.api.nvim_create_namespace("plugin_name")`
-- Extmarks: `vim.api.nvim_buf_set_extmark()` for virtual text/highlights
+### Error Handling & API Patterns
+- **Errors**: `error()` for programming errors, `nil, err_msg` for recoverable failures, `pcall()` for risky ops
+- **User notifications**: `vim.notify()` or `M.notify()` with log levels
+- **Vim API**: Use `vim.api.nvim_*` functions, wrap Treesitter in `pcall()`, prefer `vim.fs.*` over `vim.fn.*`
+- **Security**: Validate inputs/configs, use `vim.tbl_contains()` for validation, escape shell args
 
 ### Testing Patterns
-- **Framework**: Busted with `describe/it/before_each/after_each`
-- **File naming**: `spec/<module>_spec.lua` mirrors `lua/gnattest/<module>.lua`
-- **Mock vim API**: Use `spec.helpers.common.create_basic_vim_api()`
-- **Mock modules**: Use `package.preload["module"] = function() return mock end`
-- **Cleanup**: Always clear `package.loaded`, `package.preload`, and `_G.vim` in `after_each`
-- **Assertions**: Use `assert.equals()`, `assert.is_true()`, etc. from luassert
-- **Data-driven tests**: Use tables to consolidate similar cases
-- **Nil in arrays**: Wrap in table: `{ {val=nil}, {val=""} }` (avoid array holes with ipairs)
-- **Comments**: Keep section headers; remove obvious descriptions
-- **Test mode & exports**: 
-  - Without GNATTEST_TEST_MODE: Tests run against public API only (must pass)
-  - With GNATTEST_TEST_MODE=1: Enables additional unit tests for private functions (CI uses this)
-  - Both modes must pass - test mode only adds coverage, cannot break public API
-  - Export private functions conditionally at module end:
-    ```lua
-    if os.getenv("GNATTEST_TEST_MODE") then
-      M._private_function = private_function
-    end
-    ```
-  - Wrap private function test suites in `if os.getenv("GNATTEST_TEST_MODE")` blocks
+- **Structure**: `spec/<module>_spec.lua` mirrors `lua/gnattest/<module>.lua`
+- **Mocks**: Use `spec.helpers.common.create_basic_vim_api()` and `package.preload`
+- **Cleanup**: Clear `package.loaded`, `package.preload`, `_G.vim` in `after_each`
+- **GNATTEST_TEST_MODE**: Environment variable for dual-mode testing
+  - Without: Tests public API only
+  - With `=1`: Adds private function unit tests (CI uses this mode)
+- **Test exports**: Conditionally export private functions at module end:
+  ```lua
+  if os.getenv("GNATTEST_TEST_MODE") then M._private_function = private_function end
+  ```
 
-### Lua Best Practices
-- **Globals**: Only `vim` allowed as read global (enforced by luacheck)
-- **Table operations**: Use `vim.tbl_*` utilities
-- **Iteration**: Use `vim.iter` for functional-style iteration
-- **String patterns**: Prefer Lua patterns over regex
-- **Type checking**: Use `vim.islist()` for list validation
+### Lua Best Practices & Configuration
+- **Globals**: Only `vim` allowed (luacheck enforced)
+- **Utilities**: `vim.tbl_*`, `vim.iter`, `vim.islist()` for type checking
+- **Configuration**: `require("gnattest").setup(opts)` with `highlight.percent` and `read_only.enabled` options
 
 ### Project-Specific Patterns
-- **Ada integration**: Handle Ada language server and GNATtest tool
-- **File detection**: Use `**/gnattest/` patterns for test file detection
-- **XML parsing**: Parse GNATtest XML output for test information
-- **Navigation**: Implement source ↔ test file switching for Ada subprograms
-- **Read-only regions**: Protect code regions in test files from editing
-- **File discovery**: Use `vim.fs.find()` with patterns, not hardcoded paths
-- **GNATtest commands**: Follow the command structure in `plugin/gnattest.lua` with subcommands
+- **Ada integration**: Ada LS and GNATtest tool handling
+- **File patterns**: `**/gnattest/` detection, `*.ads/*.adb` files, XML parsing
+- **Navigation**: Source ↔ test switching for Ada subprograms
+- **Commands**: `:Gnattest` subcommands (`generate`, `build`, `run`) with completion
 
 ### Development Workflow
-- **Branch strategy**: Feature branches → PR → main
-- **Quality gates**: All tests pass, linting clean, 90% coverage minimum
-- **Documentation**: Update README.md for user-facing changes
-- **Versioning**: Semantic versioning via rockspec
-- **Dependencies**: Minimal (lua >= 5.1, busted/nlua for testing only)
-- **Commits**: Use conventional commit format (enforced by commitizen)
-- **AI commits**: Every commit made by AI must end with "Generated by AI" in the commit body
+- **Branching**: Feature branches → PR → main
+- **Quality**: Tests pass (both modes), linting clean, 90% coverage min, format check passes
+- **CI/CD**: Format check, linting, tests on stable/nightly Neovim with coverage threshold
+- **Docs**: Update README.md, maintain help docs in `doc/` with tags
+- **Versioning**: Semantic via rockspec, conventional commits (commitizen enforced)
+- **Valid commit types**: feat, fix, docs, refactor, test, style, chore, ci, build, perf
+- **AI commits**: Must end with "Generated by AI" in commit body
 
 ## Code Examples
 
