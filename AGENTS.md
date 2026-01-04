@@ -1,6 +1,5 @@
 # AGENTS.md
 
-<<<<<<< HEAD
 ## 🚨 CRITICAL: Git Commit Protocol 🚨
 
 **BEFORE EVERY `git commit` COMMAND:**
