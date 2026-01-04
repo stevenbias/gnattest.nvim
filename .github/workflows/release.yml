@@ -59,4 +59,4 @@ jobs:
           commit_message: "docs: auto-update API reference for ${{ github.event.release.tag_name }} [skip ci]"
           file_pattern: doc/gnattest.txt
           skip_dirty_check: false
-          branch: main
+          branch: dev
