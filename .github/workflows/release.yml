@@ -30,27 +30,25 @@ jobs:
 
       - name: Integrate into main doc
         run: |
-          # Create the replacement content with proper formatting
-          cat > replacement.txt << 'EOF'
-
-          ==============================================================================
-          API REFERENCE                                                *gnattest-api*
-
-          EOF
-
-          # Append the generated API docs
-          cat api-docs.txt >> replacement.txt
-
-          # Add closing marker
-          echo "" >> replacement.txt
-          echo "==============================================================================" >> replacement.txt
-
-          # Replace the API REFERENCE section in the main doc
-          sed '/API REFERENCE/,/^==============================================================================$/{
-            /API REFERENCE/r replacement.txt
-            /API REFERENCE/,/^==============================================================================$/d
-          }' doc/gnattest.txt > doc/gnattest-new.txt
-
+          # Verify CI/CD markers exist
+          grep -q "<!-- CI/CD: API DOCS BEGIN -->" doc/gnattest.txt || \
+            { echo "ERROR: CI/CD BEGIN marker not found"; exit 1; }
+          grep -q "<!-- CI/CD: API DOCS END -->" doc/gnattest.txt || \
+            { echo "ERROR: CI/CD END marker not found"; exit 1; }
+          
+          # Replace content between CI/CD markers
+          awk '
+            /<!-- CI\/CD: API DOCS BEGIN -->/ { 
+              print; print ""; system("cat api-docs.txt"); print ""; skip=1; next 
+            }
+            /<!-- CI\/CD: API DOCS END -->/ { skip=0; print; next }
+            !skip
+          ' doc/gnattest.txt > doc/gnattest-new.txt
+          
+          # Verify FEATURES section preserved
+          grep -q "FEATURES" doc/gnattest-new.txt || \
+            { echo "ERROR: FEATURES section lost"; exit 1; }
+          
           mv doc/gnattest-new.txt doc/gnattest.txt
 
       - name: Commit updated docs

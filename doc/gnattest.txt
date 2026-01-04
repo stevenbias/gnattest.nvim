@@ -162,6 +162,9 @@ gnattest.setup({opts})
  ==============================================================================
  API REFERENCE                                                *gnattest-api*
 
+<!-- CI/CD: API DOCS BEGIN -->
+<!-- CI/CD: API DOCS END -->
+
  ==============================================================================
  FEATURES                                                  *gnattest-features*
 
