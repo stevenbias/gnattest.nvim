@@ -5,6 +5,7 @@
 :Gnattest-run	gnattest.txt	/*:Gnattest-run*
 :Gnattest-run_all	gnattest.txt	/*:Gnattest-run_all*
 :Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
+gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
 gnattest-completion	gnattest.txt	/*gnattest-completion*
 gnattest-configuration	gnattest.txt	/*gnattest-configuration*
