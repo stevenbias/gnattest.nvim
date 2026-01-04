@@ -1,7 +1,7 @@
 -- gnattest-scm-1.rockspec
 rockspec_format = "3.0"
 package = "gnattest"
-version = "0.1.0"
+version = "v0.1.0-1"
 source = {
   url = "$NVIM_PLUGINS" .. package,
 }
