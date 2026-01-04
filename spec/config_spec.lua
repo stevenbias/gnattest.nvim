@@ -26,8 +26,6 @@ describe("gnattest.config", function()
       local opts = config.get()
       assert.is_not_nil(opts.read_only)
       assert.is_true(opts.read_only.enabled)
-      assert.equals("begin read only", opts.read_only.region_text.start)
-      assert.equals("end read only", opts.read_only.region_text.ending)
     end)
   end)
 
@@ -43,16 +41,6 @@ describe("gnattest.config", function()
       config.set({ read_only = { enabled = false } })
       local opts = config.get()
       assert.is_false(opts.read_only.enabled)
-      assert.equals("begin read only", opts.read_only.region_text.start) -- default preserved
-    end)
-
-    it("should handle nested region_text config", function()
-      config.set({
-        read_only = { region_text = { start = "LOCK", ending = "UNLOCK" } },
-      })
-      local opts = config.get()
-      assert.equals("LOCK", opts.read_only.region_text.start)
-      assert.equals("UNLOCK", opts.read_only.region_text.ending)
     end)
 
     it("should handle nil opts (use defaults)", function()
@@ -124,28 +112,6 @@ describe("gnattest.config", function()
   end)
 
   describe("validation - type checking", function()
-    it("should reject non-string region_text.start", function()
-      local utils = require("gnattest.utils")
-      config.set({
-        read_only = { region_text = { start = 123, ending = "end" } },
-      })
-
-      assert
-        .stub(utils.notify)
-        .was_called_with("region_text.start and ending must be strings", vim.log.levels.ERROR)
-    end)
-
-    it("should reject non-string region_text.ending", function()
-      local utils = require("gnattest.utils")
-      config.set({
-        read_only = { region_text = { start = "start", ending = true } },
-      })
-
-      assert
-        .stub(utils.notify)
-        .was_called_with("region_text.start and ending must be strings", vim.log.levels.ERROR)
-    end)
-
     it("should reject non-number highlight.percent", function()
       local utils = require("gnattest.utils")
       config.set({ highlight = { percent = "not a number" } })
@@ -159,11 +125,12 @@ describe("gnattest.config", function()
       local utils = require("gnattest.utils")
       config.set({
         highlight = { percent = 10 },
-        read_only = { region_text = { start = "START", ending = "END" } },
+        read_only = { enabled = false },
       })
 
       assert.stub(utils.notify).was_not_called()
       assert.equals(10, config.get().highlight.percent)
+      assert.is_false(config.get().read_only.enabled)
     end)
   end)
 

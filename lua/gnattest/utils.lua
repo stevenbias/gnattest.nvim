@@ -81,7 +81,7 @@ function M.get_lines(start_row, end_row)
 end
 
 function M.find_file(filename, path)
-  if vim.islist(path) then
+  if type(path) == "table" then
     for _, p in pairs(path) do
       local file = vim.fs.find({ filename }, { type = "file", path = p })
       if next(file) ~= nil then

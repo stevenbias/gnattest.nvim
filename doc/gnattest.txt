@@ -1,0 +1,311 @@
+*gnattest.txt*  GNATtest integration for Neovim
+
+Author:  Steven Bias
+License: MIT
+Repository: https://github.com/StevenBias/gnattest.nvim
+
+==============================================================================
+CONTENTS                                                  *gnattest-contents*
+
+1. Introduction.........................|gnattest-introduction|
+2. Requirements.........................|gnattest-requirements|
+3. Dependencies.........................|gnattest-dependencies|
+4. Installation.........................|gnattest-installation|
+5. Quick Start..........................|gnattest-quickstart|
+6. Commands.............................|gnattest-commands|
+7. Configuration........................|gnattest-configuration|
+8. Features.............................|gnattest-features|
+9. Limitations..........................|gnattest-limitations|
+10. Troubleshooting......................|gnattest-troubleshooting|
+11. Contributing........................|gnattest-contributing|
+12. License.............................|gnattest-license|
+
+==============================================================================
+INTRODUCTION                                          *gnattest-introduction*
+
+GNATtest.nvim is a Neovim plugin that provides integration with GNATtest, 
+a unit testing framework for Ada. It enhances the Ada development workflow 
+by providing read-only region protection, smart navigation between source 
+and test files, and command integration for the complete GNATtest workflow: 
+generate test harnesses, build tests, run tests, and clean artifacts.
+
+This plugin is designed for Ada developers using GNATtest who want a 
+seamless testing experience within Neovim.
+
+==============================================================================
+REQUIREMENTS                                          *gnattest-requirements*
+
+- Neovim >= 0.10
+- Ada Language Server (configured and running)
+- GNAT project file (.gpr) - GNATtest must be configured in the .gpr file
+- GNATtest (separate testing framework for Ada)
+- Treesitter parsers: `ada`, `xml`
+
+Install Treesitter parsers with: >
+    :TSInstall ada xml
+<
+
+==============================================================================
+DEPENDENCIES                                          *gnattest-dependencies*
+
+Before installing GNATtest.nvim, ensure you have:
+
+1. Ada Language Server
+   Repository: https://github.com/AdaCore/ada_language_server
+   Must be configured and running (use nvim-lspconfig or any method)
+
+2. nvim-treesitter with parsers
+   Install parsers: >
+       :TSInstall ada xml
+<
+   Repository: https://github.com/nvim-treesitter/nvim-treesitter
+
+==============================================================================
+INSTALLATION                                          *gnattest-installation*
+
+See |gnattest-dependencies| for required plugins.
+
+Using lazy.nvim: >lua
+    {
+      "StevenBias/gnattest.nvim",
+      dependencies = { "nvim-treesitter/nvim-treesitter" },
+      ft = { "ada" },
+    }
+<
+
+Using vim-plug: >vim
+    Plug 'nvim-treesitter/nvim-treesitter'
+    Plug 'StevenBias/gnattest.nvim'
+
+    lua << EOF
+    require("gnattest").setup()
+    EOF
+<
+
+==============================================================================
+QUICK START                                            *gnattest-quickstart*
+
+After installation, add to your configuration: >lua
+    require("gnattest").setup()
+<
+
+The plugin will automatically activate for Ada files in GNATtest projects.
+
+==============================================================================
+COMMANDS                                                  *gnattest-commands*
+
+All commands are subcommands of |:Gnattest|:
+
+                                                               *:Gnattest*
+:Gnattest {subcommand} [args]
+    Execute GNATtest operations. Available subcommands:
+
+    generate                                      *:Gnattest-generate*
+        Generate test harness from source files.
+        Runs `gnattest` with your project configuration.
+
+    build                                            *:Gnattest-build*
+        Build the test project using gprbuild.
+
+    run [package:subprogram]                           *:Gnattest-run*
+        Run specific test. If no argument provided, runs all tests.
+        Supports tab completion for package:subprogram names.
+        
+        Examples: >
+            :Gnattest run Board:Init
+            :Gnattest run
+<
+    run_all                                          *:Gnattest-run_all*
+        Run entire test suite.
+
+    clean                                              *:Gnattest-clean*
+        Clean test build artifacts using gprclean.
+
+    switch                                            *:Gnattest-switch*
+        Toggle between source and test file.
+        - In source file: jumps to corresponding test
+        - In test file: jumps back to source
+        Cursor is positioned at the relevant subprogram.
+
+==============================================================================
+CONFIGURATION                                      *gnattest-configuration*
+
+                                                        *gnattest.setup()*
+gnattest.setup({opts})
+    Configure the plugin. Uses sensible defaults if called without arguments.
+
+    Parameters: ~
+        {opts} (table|nil) Optional configuration table.
+
+    Options: ~
+        highlight.percent (number)
+            Brightness adjustment for protected region highlighting.
+            Default: 3
+
+        read_only.enabled (boolean)
+            Enable/disable read-only protection.
+            Default: true
+
+    Default configuration: >lua
+        require("gnattest").setup()
+<
+    
+    Disable read-only protection: >lua
+        require("gnattest").setup({
+          read_only = {
+            enabled = false,
+          },
+        })
+<
+
+==============================================================================
+FEATURES                                                  *gnattest-features*
+
+READ-ONLY PROTECTION                              *gnattest-read-only*
+
+GNATtest generates test files with protected regions marked by:
+>ada
+    --  begin read only
+       -- Auto-generated code
+    --  end read only
+<
+
+The plugin automatically:
+- Highlights these regions with a 🔒 icon
+- Prevents editing (changes are reverted automatically)
+- Shows notifications when modification is attempted
+- Disables protection in diff mode
+
+DISCLAIMER                                      *gnattest-read-only-disclaimer*
+
+The read-only protection feature is provided as-is. While it works in most
+common scenarios, there may be edge cases or unknown issues where protection
+could fail. Always verify that protected regions remain intact, especially
+before committing changes. Use version control to safeguard your work.
+
+NAVIGATION                                            *gnattest-navigation*
+
+Switch between source and test files with |:Gnattest-switch|:
+- Uses LSP to find subprogram information
+- Cross-references with GNATtest XML metadata
+- Positions cursor at the corresponding location
+- Works bidirectionally (source ↔ test)
+
+XML PARSING                                              *gnattest-xml*
+
+Automatically parses `gnattest.xml` to extract:
+- Test file locations
+- Line and column numbers
+- Package and subprogram names
+- Used for navigation and command completion
+
+COMMAND COMPLETION                                *gnattest-completion*
+
+Tab completion available for:
+- All subcommands: >
+    :Gnattest <Tab>
+<
+- Test names in run command: >
+    :Gnattest run <Tab>
+<
+
+==============================================================================
+LIMITATIONS                                            *gnattest-limitations*
+
+REQUIREMENTS ~
+- Ada Language Server must be configured before plugin activation
+- GNAT project file (.gpr) with GNATtest configured
+- GNATtest tool must be installed separately
+- Treesitter parsers (ada, xml) required
+
+FEATURES ~
+- Limited configuration options (by design for simplicity)
+- GNATtest `Tests_Root` attribute not supported
+- GNATtest must be configured in .gpr file
+
+COMPATIBILITY ~
+- Tested on Linux (Ubuntu in CI)
+- Requires Neovim >= 0.10
+- Uses vim.iter (available in Neovim 0.10+)
+
+==============================================================================
+TROUBLESHOOTING                                    *gnattest-troubleshooting*
+
+RUN HEALTH CHECK ~
+                                                     *gnattest-checkhealth*
+
+Verify your installation and configuration: >
+    :checkhealth gnattest
+<
+
+This will check:
+- Neovim version compatibility
+- Required external tools (gnattest, gprbuild, gprclean)
+- Ada Language Server status
+- Treesitter parsers (ada, xml)
+- Project structure and configuration
+- Plugin activation status
+
+PLUGIN NOT ACTIVATING ~
+
+1. Run health check first: >
+    :checkhealth gnattest
+<
+2. Check Ada Language Server is running: >
+    :LspInfo
+<
+3. Verify Treesitter parsers are installed: >
+    :TSInstallInfo
+<
+4. Ensure you're in a GNATtest project:
+   - Look for `gnattest/` directory in project
+   - Or check for `obj/gnattest/` structure
+
+READ-ONLY PROTECTION NOT WORKING ~
+
+1. Verify comment markers in file match configuration
+2. Check Treesitter parser is parsing correctly
+3. Look for error messages in |:messages|
+
+NAVIGATION NOT WORKING ~
+
+1. Ensure `gnattest.xml` exists in project
+2. Check XML Treesitter parser is installed
+3. Verify LSP is providing symbol information
+
+COMMAND COMPLETION NOT WORKING ~
+
+1. Ensure `gnattest.xml` is present and parseable
+2. Check that XML contains test metadata
+3. Try running `:Gnattest generate` first
+
+FOR MORE HELP ~
+
+- Open an issue: https://github.com/StevenBias/gnattest.nvim/issues
+- Read CONTRIBUTING.md for development setup
+- Check CI logs for similar problems
+
+==============================================================================
+CONTRIBUTING                                          *gnattest-contributing*
+
+Contributions are welcome! See CONTRIBUTING.md in the repository.
+
+Repository: https://github.com/StevenBias/gnattest.nvim
+
+Areas of interest:
+- Bug reports and fixes
+- Documentation improvements
+- Usability feedback
+- Feature suggestions
+
+==============================================================================
+LICENSE                                                    *gnattest-license*
+
+MIT License
+
+Copyright (c) 2025 Steven Bias
+
+See LICENSE file in the repository for full license text.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

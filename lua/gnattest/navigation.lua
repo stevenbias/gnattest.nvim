@@ -37,13 +37,15 @@ local function get_declaration_info()
     local uri = loc.uri or loc.targetUri
     local range = loc.range or loc.targetRange
 
-    table.insert(declarations, {
-      filepath = vim.uri_to_fname(uri),
-      line = range.start.line + 1,
-      column = range.start.character,
-      end_line = range["end"].line + 1,
-      end_column = range["end"].character,
-    })
+    if range and range.start and range["end"] then
+      table.insert(declarations, {
+        filepath = vim.uri_to_fname(uri),
+        line = range.start.line + 1,
+        column = range.start.character,
+        end_line = range["end"].line + 1,
+        end_column = range["end"].character,
+      })
+    end
   end
 
   return declarations
@@ -111,7 +113,11 @@ function M.switch_subprogram()
 
   for filename, file_info in pairs(info) do
     if utils.is_gnattest_file() then
-      file = utils.find_file(filename, als.get_src_dirs())
+      local src_dirs = als.get_src_dirs()
+      if not src_dirs then
+        return nil
+      end
+      file = utils.find_file(filename, src_dirs)
       line = tonumber(file_info.source.line)
       column = tonumber(file_info.source.column)
       als.switch_to_source()
