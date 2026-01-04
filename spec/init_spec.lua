@@ -1,66 +1,49 @@
 local stub_new = require("luassert.stub").new
-local helpers = require("spec.helpers.common")
 
 describe("gnattest.init", function()
   local gnattest_init
+  local config_mock
 
   before_each(function()
-    gnattest_init = require("gnattest.init")
-
-    _G.vim = {
-      api = helpers.create_basic_vim_api({
-        nvim_create_autocmd = stub_new(),
-      }),
+    -- Mock config module
+    config_mock = {
+      set = stub_new(),
     }
+    package.preload["gnattest.config"] = function()
+      return config_mock
+    end
 
-    package.preload["gnattest.utils"] = function()
-      return { gnattest_pattern = "**/gnattest/" }
-    end
-    package.preload["gnattest.read_only"] = function()
-      return { setup = stub_new() }
-    end
-    package.preload["gnattest.ada_ls"] = function()
-      return { setup = stub_new() }
-    end
+    package.loaded["gnattest.init"] = nil
+    gnattest_init = require("gnattest.init")
   end)
 
   after_each(function()
-    _G.vim = nil
-    package.preload["gnattest.utils"] = nil
-    package.preload["gnattest.read_only"] = nil
-    package.preload["gnattest.ada_ls"] = nil
+    package.preload["gnattest.config"] = nil
+    package.loaded["gnattest.config"] = nil
+    package.loaded["gnattest.init"] = nil
   end)
 
-  it("rejects unsupported options in setup", function()
-    local opts = { foo = "bar" }
-    assert.has_error(function()
-      _G.vim.api.nvim_create_autocmd = function(_, tbl)
-        -- simulate autocmd by calling callback
-        tbl.callback("BufReadPre")
-      end
+  describe("setup()", function()
+    it("should delegate to config.set() with nil", function()
+      gnattest_init.setup()
+      assert.stub(config_mock.set).was_called_with(nil)
+    end)
+
+    it("should delegate to config.set() with empty table", function()
+      gnattest_init.setup({})
+      assert.stub(config_mock.set).was_called_with({})
+    end)
+
+    it("should delegate to config.set() with options", function()
+      local opts = { highlight = { percent = 5 } }
       gnattest_init.setup(opts)
-      -- simulate autocmd callback directly, as nvim_create_autocmd only registers
-      -- we want to check error
-    end, "Options are not supported")
-  end)
+      assert.stub(config_mock.set).was_called_with(opts)
+    end)
 
-  it("calls read_only.setup and ada_ls.setup if no options", function()
-    local called_callback
-    _G.vim.api.nvim_create_autocmd = function(_, tbl)
-      tbl.callback("BufReadPre")
-      called_callback = true
-    end
-    gnattest_init.setup()
-    assert.is_true(called_callback)
-  end)
-
-  it("calls read_only.setup and ada_ls.setup if empty options", function()
-    local called_callback
-    _G.vim.api.nvim_create_autocmd = function(_, tbl)
-      tbl.callback("BufReadPre")
-      called_callback = true
-    end
-    gnattest_init.setup({})
-    assert.is_true(called_callback)
+    it("should pass through any options to config", function()
+      local opts = { read_only = { enabled = false } }
+      gnattest_init.setup(opts)
+      assert.stub(config_mock.set).was_called_with(opts)
+    end)
   end)
 end)

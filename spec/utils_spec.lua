@@ -248,6 +248,24 @@ describe("gnattest.utils", function()
     end)
   end)
 
+  describe("get_gnattest_project()", function()
+    it("returns path to test_driver.gpr in harness directory", function()
+      package.preload["gnattest.ada_ls"] = function()
+        return {
+          get_harness_dir = function()
+            return "/project/obj/gnattest/harness"
+          end,
+        }
+      end
+      package.loaded["gnattest.utils"] = nil
+      utils = require("gnattest.utils")
+      assert.equals(
+        "/project/obj/gnattest/harness/test_driver.gpr",
+        utils.get_gnattest_project()
+      )
+    end)
+  end)
+
   describe("is_gnattest_file() alternative detection", function()
     it("detects file in harness_dir when gnattest not in path", function()
       package.loaded["gnattest.utils"] = nil

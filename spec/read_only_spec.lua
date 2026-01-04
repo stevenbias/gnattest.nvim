@@ -5,6 +5,30 @@ describe("gnattest.read_only", function()
   local ro
   local autocmd_callbacks = {}
 
+  -- Helper function to mock the config module with custom read_only options
+  -- This reduces duplication and makes tests more maintainable
+  local function mock_config(read_only_opts)
+    package.loaded["gnattest.config"] = nil
+    package.preload["gnattest.config"] = function()
+      return {
+        get = function()
+          return { read_only = read_only_opts }
+        end,
+      }
+    end
+  end
+
+  -- Helper to setup default config (used by most tests)
+  local function setup_default_config()
+    mock_config({
+      enabled = true,
+      region_text = {
+        start = "begin read only",
+        ending = "end read only",
+      },
+    })
+  end
+
   before_each(function()
     autocmd_callbacks = {}
 
@@ -80,44 +104,69 @@ describe("gnattest.read_only", function()
     })
 
     package.preload["gnattest.highlight"] = function()
-      return { set_highlight = stub.new() }
+      return {
+        set_highlight = stub.new(),
+        setup = function() end,
+      }
     end
+
+    -- Setup default config for most tests
+    setup_default_config()
+
     ro = require("gnattest.read_only")
   end)
 
   after_each(function()
     common.cleanup_packages()
     package.preload["gnattest.highlight"] = nil
+    package.loaded["gnattest.config"] = nil
+    package.preload["gnattest.config"] = nil
   end)
 
-  it("should store opts on setup", function()
-    ro.setup({ foo = "bar" })
-    assert.same({ foo = "bar" }, ro.opt)
+  it("should retrieve config from centralized config module", function()
+    ro.setup()
+    assert.is_table(ro.opt)
+    assert.is_equal(true, ro.opt.enabled)
+    assert.is_equal("begin read only", ro.opt.region_text.start)
+    assert.is_equal("end read only", ro.opt.region_text.ending)
+  end)
+
+  it("should not create autocommands when read_only is disabled", function()
+    mock_config({
+      enabled = false,
+      region_text = {
+        start = "begin read only",
+        ending = "end read only",
+      },
+    })
+    autocmd_callbacks = {}
+    ro.setup()
+    assert.is_equal(0, #autocmd_callbacks)
   end)
 
   describe("setup autocommands", function()
     it("should create autocommands", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.stub(_G.vim.api.nvim_create_autocmd).was_called()
     end)
 
     it("should create three autocommand groups", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_equal(3, #autocmd_callbacks)
     end)
 
     it("should create ColorScheme autocommand", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_equal("ColorScheme", autocmd_callbacks[1].event)
     end)
 
     it("should create BufReadPost autocommand", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_equal("BufReadPost", autocmd_callbacks[2].event)
     end)
 
     it("should create TextChanged autocommand", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local text_changed = autocmd_callbacks[3]
       assert.is_table(text_changed.event)
       assert.is_equal("TextChanged", text_changed.event[1])
@@ -125,14 +174,14 @@ describe("gnattest.read_only", function()
     end)
 
     it("should set group for all autocommands", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       for _, callback in ipairs(autocmd_callbacks) do
         assert.is_equal("autest", callback.opts.group)
       end
     end)
 
     it("should set pattern for file-specific autocommands", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_table(autocmd_callbacks[2].opts.pattern)
       assert.is_string(autocmd_callbacks[2].opts.pattern[1])
     end)
@@ -143,11 +192,10 @@ describe("gnattest.read_only", function()
       assert.is_table(ro.extmark)
     end)
 
-    it("should store options after setup", function()
-      local opts = { region_text = { start = "begin", ending = "end" } }
-      ro.setup(opts)
-      assert.is_equal("begin", ro.opt.region_text.start)
-      assert.is_equal("end", ro.opt.region_text.ending)
+    it("should store options from config after setup", function()
+      ro.setup()
+      assert.is_equal("begin read only", ro.opt.region_text.start)
+      assert.is_equal("end read only", ro.opt.region_text.ending)
     end)
   end)
 
@@ -162,20 +210,25 @@ describe("gnattest.read_only", function()
   describe("error handling", function()
     it("should handle empty options", function()
       assert.has_no_error(function()
-        ro.setup({})
+        ro.setup()
       end)
     end)
 
-    it("should handle multiple setups", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
-      ro.setup({ region_text = { start = "start", ending = "finish" } })
+    it("should handle multiple setups with different configs", function()
+      ro.setup()
+      -- Update config to different values
+      mock_config({
+        enabled = true,
+        region_text = { start = "start", ending = "finish" },
+      })
+      ro.setup()
       assert.is_equal("start", ro.opt.region_text.start)
     end)
   end)
 
   describe("callback execution", function()
     it("should invoke ColorScheme callback", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local colorscheme_callback = autocmd_callbacks[1].opts.callback
       assert.is_not_nil(colorscheme_callback)
       assert.has_no_error(function()
@@ -184,7 +237,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("should invoke BufReadPost callback", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local bufread_callback = autocmd_callbacks[2].opts.callback
       assert.is_not_nil(bufread_callback)
       assert.has_no_error(function()
@@ -193,7 +246,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("should call highlight.set_highlight on ColorScheme event", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local hl = require("gnattest.highlight")
       local colorscheme_callback = autocmd_callbacks[1].opts.callback
       colorscheme_callback()
@@ -201,7 +254,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("should call notify when protected region is changed", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local utils = require("gnattest.utils")
       assert.is_not_nil(utils.notify)
     end)
@@ -209,26 +262,32 @@ describe("gnattest.read_only", function()
 
   describe("region marker recognition", function()
     it("should accept custom start marker", function()
-      ro.setup({ region_text = { start = "LOCK", ending = "UNLOCK" } })
+      mock_config({
+        enabled = true,
+        region_text = { start = "LOCK", ending = "UNLOCK" },
+      })
+      ro.setup()
       assert.is_equal("LOCK", ro.opt.region_text.start)
     end)
 
     it("should accept custom end marker", function()
-      ro.setup({ region_text = { start = "LOCK", ending = "UNLOCK" } })
+      mock_config({
+        enabled = true,
+        region_text = { start = "LOCK", ending = "UNLOCK" },
+      })
+      ro.setup()
       assert.is_equal("UNLOCK", ro.opt.region_text.ending)
     end)
 
     it("should handle default markers", function()
-      ro.setup({
-        region_text = { start = "begin read only", ending = "end read only" },
-      })
+      ro.setup()
       assert.is_equal("begin read only", ro.opt.region_text.start)
     end)
   end)
 
   describe("diff mode detection", function()
     it("should handle diff mode states correctly", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
 
       -- Default diff mode should be false
       assert.is_false(_G.vim.opt.diff:get())
@@ -249,12 +308,12 @@ describe("gnattest.read_only", function()
 
   describe("highlight integration", function()
     it("should set hl_group on highlight namespace", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_equal("hl_ro", ro.hl_group)
     end)
 
     it("should call set_highlight on ColorScheme event", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local hl = require("gnattest.highlight")
       local colorscheme_cb = autocmd_callbacks[1].opts.callback
       colorscheme_cb()
@@ -264,16 +323,14 @@ describe("gnattest.read_only", function()
 
   describe("extmark data structure", function()
     it("should store line data in extmark table", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_table(ro.extmark)
     end)
 
     it("should preserve extmark across operations", function()
-      local opts1 = { region_text = { start = "a", ending = "b" } }
-      ro.setup(opts1)
+      ro.setup()
 
-      local opts2 = { region_text = { start = "c", ending = "d" } }
-      ro.setup(opts2)
+      ro.setup()
       -- Extmark table should be preserved (same reference or new table)
       assert.is_table(ro.extmark)
     end)
@@ -281,9 +338,7 @@ describe("gnattest.read_only", function()
 
   describe("region detection", function()
     it("should get comments from utils", function()
-      ro.setup({
-        region_text = { start = "begin read only", ending = "end read only" },
-      })
+      ro.setup()
       local utils = require("gnattest.utils")
       local comments = utils.get_all_comments()
       assert.is_table(comments)
@@ -291,9 +346,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("should parse region markers from comments", function()
-      ro.setup({
-        region_text = { start = "begin read only", ending = "end read only" },
-      })
+      ro.setup()
       local utils = require("gnattest.utils")
       local comments = utils.get_all_comments()
       assert.is_equal("--begin read only", comments[1].text)
@@ -303,7 +356,7 @@ describe("gnattest.read_only", function()
 
   describe("state consistency", function()
     it("should maintain consistent state after setup operations", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       assert.is_not_nil(ro.namespace)
       assert.is_not_nil(ro.ro_group)
       assert.is_not_nil(ro.hl_group)
@@ -312,8 +365,8 @@ describe("gnattest.read_only", function()
       -- Namespace and augroup should remain stable across setups
       local ns_before = ro.namespace
       local group_before = ro.ro_group
-      ro.setup({ foo = "bar" })
-      ro.setup({ region_text = { start = "a", ending = "b" } })
+      ro.setup()
+      ro.setup()
 
       assert.is_equal(ns_before, ro.namespace)
       assert.is_equal(group_before, ro.ro_group)
@@ -322,7 +375,7 @@ describe("gnattest.read_only", function()
 
   describe("vim API integration", function()
     it("should use required vim API functions and log levels", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local bufread_callback = autocmd_callbacks[2].opts.callback
       bufread_callback()
 
@@ -335,7 +388,7 @@ describe("gnattest.read_only", function()
 
   describe("pattern configuration", function()
     it("should use correct gnattest patterns for file matching", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local utils = require("gnattest.utils")
 
       assert.is_table(utils.gnattest_pattern)
@@ -344,9 +397,7 @@ describe("gnattest.read_only", function()
 
   describe("comment parsing edge cases", function()
     it("should handle comments with and without region markers", function()
-      ro.setup({
-        region_text = { start = "begin read only", ending = "end read only" },
-      })
+      ro.setup()
       local utils = require("gnattest.utils")
       local comments = utils.get_all_comments()
       assert.is_table(comments)
@@ -356,7 +407,7 @@ describe("gnattest.read_only", function()
 
   describe("region protection notifications", function()
     it("should use notification system with ERROR log level", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local utils = require("gnattest.utils")
       assert.is_not_nil(utils.notify)
       assert.is_equal(4, _G.vim.log.levels.ERROR)
@@ -365,7 +416,7 @@ describe("gnattest.read_only", function()
 
   describe("fix_ro_regions logic", function()
     it("should have required vim APIs for region processing", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
 
       assert.is_not_nil(_G.vim.schedule)
       assert.is_not_nil(_G.vim.api.nvim_buf_get_extmarks)
@@ -380,7 +431,7 @@ describe("gnattest.read_only", function()
     it(
       "should handle backup, change detection, protection, and mark restoration",
       function()
-        ro.setup({ region_text = { start = "begin", ending = "end" } })
+        ro.setup()
 
         -- Backup mechanism: Trigger BufReadPost to create backup
         local bufread_callback = autocmd_callbacks[2].opts.callback
@@ -407,9 +458,7 @@ describe("gnattest.read_only", function()
 
   describe("full workflow simulation", function()
     it("should handle BufReadPost callback operations correctly", function()
-      ro.setup({
-        region_text = { start = "begin read only", ending = "end read only" },
-      })
+      ro.setup()
 
       local bufread_callback = autocmd_callbacks[2].opts.callback
 
@@ -428,19 +477,27 @@ describe("gnattest.read_only", function()
 
   describe("configuration persistence", function()
     it("should maintain and update options correctly", function()
-      ro.setup({ region_text = { start = "TEST_START", ending = "TEST_END" } })
+      mock_config({
+        enabled = true,
+        region_text = { start = "TEST_START", ending = "TEST_END" },
+      })
+      ro.setup()
       local bufread_callback = autocmd_callbacks[2].opts.callback
       bufread_callback()
       assert.is_equal("TEST_START", ro.opt.region_text.start)
 
-      ro.setup({ region_text = { start = "NEW", ending = "NEW_END" } })
+      mock_config({
+        enabled = true,
+        region_text = { start = "NEW", ending = "NEW_END" },
+      })
+      ro.setup()
       assert.is_equal("NEW", ro.opt.region_text.start)
     end)
   end)
 
   describe("region modification detection and protection", function()
     it("should handle region protection scenarios correctly", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local utils = require("gnattest.utils")
       local bufread_callback = autocmd_callbacks[2].opts.callback
       bufread_callback()
@@ -488,7 +545,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("exercises extmarks with details and overlap options", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       _G.vim.opt.diff.get = function()
         return false
       end
@@ -504,7 +561,7 @@ describe("gnattest.read_only", function()
     end)
 
     it("uses extmarks with details and overlap options", function()
-      ro.setup({ region_text = { start = "begin", ending = "end" } })
+      ro.setup()
       local bufread_callback = autocmd_callbacks[2].opts.callback
       bufread_callback()
 
@@ -557,7 +614,7 @@ describe("gnattest.read_only", function()
       it(
         "_fix_ro_regions calls vim.api.nvim_buf_get_extmarks with details and overlap",
         function()
-          ro.setup({ region_text = { start = "begin", ending = "end" } })
+          ro.setup()
           local bufread_callback = autocmd_callbacks[2].opts.callback
           bufread_callback()
 
