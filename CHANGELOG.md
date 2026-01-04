@@ -18,7 +18,8 @@ First public release.
 - Visual syntax highlighting for protected regions (🔒 icon)
 - XML parsing for GNATtest metadata extraction
 - Tab completion for commands and arguments
-- Comprehensive test suite (99.82% coverage)
+- Health check module (`:checkhealth gnattest`) for setup verification
+- Comprehensive test suite (99.83% coverage)
 - Full CI/CD pipeline (formatting, linting, testing)
 - AI-generated tests and documentation
 
