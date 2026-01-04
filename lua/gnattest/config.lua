@@ -45,7 +45,7 @@ function M.get()
   return M.opts
 end
 
----@param opts GnattestConfig
+---@param opts GnattestConfig|nil
 function M.set(opts)
   if is_valid(opts) then
     M.opts = vim.tbl_deep_extend("force", default_opts, opts or {})
