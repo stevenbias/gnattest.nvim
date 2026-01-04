@@ -7,18 +7,19 @@ Repository: https://github.com/StevenBias/gnattest.nvim
 ==============================================================================
 CONTENTS                                                  *gnattest-contents*
 
-1. Introduction.........................|gnattest-introduction|
-2. Requirements.........................|gnattest-requirements|
-3. Dependencies.........................|gnattest-dependencies|
-4. Installation.........................|gnattest-installation|
-5. Quick Start..........................|gnattest-quickstart|
-6. Commands.............................|gnattest-commands|
-7. Configuration........................|gnattest-configuration|
-8. Features.............................|gnattest-features|
-9. Limitations..........................|gnattest-limitations|
-10. Troubleshooting......................|gnattest-troubleshooting|
-11. Contributing........................|gnattest-contributing|
-12. License.............................|gnattest-license|
+ 1. Introduction.........................|gnattest-introduction|
+ 2. Requirements.........................|gnattest-requirements|
+ 3. Dependencies.........................|gnattest-dependencies|
+ 4. Installation.........................|gnattest-installation|
+ 5. Quick Start..........................|gnattest-quickstart|
+ 6. Commands.............................|gnattest-commands|
+ 7. Configuration........................|gnattest-configuration|
+ 8. API Reference........................|gnattest-api|
+ 9. Features.............................|gnattest-features|
+ 10. Limitations.........................|gnattest-limitations|
+ 11. Troubleshooting.....................|gnattest-troubleshooting|
+ 12. Contributing........................|gnattest-contributing|
+ 13. License.............................|gnattest-license|
 
 ==============================================================================
 INTRODUCTION                                          *gnattest-introduction*
@@ -155,11 +156,14 @@ gnattest.setup({opts})
           read_only = {
             enabled = false,
           },
-        })
-<
+         })
+ <
 
-==============================================================================
-FEATURES                                                  *gnattest-features*
+ ==============================================================================
+ API REFERENCE                                                *gnattest-api*
+
+ ==============================================================================
+ FEATURES                                                  *gnattest-features*
 
 READ-ONLY PROTECTION                              *gnattest-read-only*
 
