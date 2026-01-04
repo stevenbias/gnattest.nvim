@@ -1,195 +1,210 @@
-local hl = require("gnattest.highlight")
-
 local M = {
-	namespace = vim.api.nvim_create_namespace("read_only"),
-	ro_group = vim.api.nvim_create_augroup("read_only", { clear = true }),
-	hl_group = "hl_ro",
-	opt = {},
+  namespace = vim.api.nvim_create_namespace("read_only"),
+  ro_group = vim.api.nvim_create_augroup("read_only", { clear = true }),
+  hl_group = "hl_ro",
+  extmark = {},
+  backup = nil,
+  opt = {},
+  region_text = {
+    start = "begin read only",
+    ending = "end read only",
+  },
 }
 
 local comments = {}
-local regions = {}
 local protect_flag = false
-local nb_regions = 0
 
-local function get_parser()
-	local buf = vim.api.nvim_get_current_buf()
-	local ok, parser = pcall(vim.treesitter.get_parser, buf, "ada")
+local function parse_comment(comment)
+  -- Remove common comment prefixes to get to the actual content
+  local content = comment.text:gsub('^[%-%/%#%"%;%%]+%s*', "")
 
-	if ok then
-		return parser
-	end
-	return nil
+  -- Check for region markers
+  local start_region = content:match("^" .. M.region_text.start .. "%s*(.*)")
+  if start_region then
+    return {
+      type = "start",
+      line = comment.line,
+    }
+  elseif content:match("^" .. M.region_text.ending .. "%s*") then
+    return {
+      type = "end",
+      line = comment.line,
+    }
+  end
+  return nil
 end
 
--- Get the root node of the syntax tree
-local function get_root()
-	local parser = get_parser()
-	if not parser then
-		return nil
-	end
-	return parser:parse()[1]:root()
+-- Use mark_id to update an extmark
+local function set_extmark(start_row, end_row, mark_id)
+  local opt = {
+    end_row = end_row + 1,
+    hl_eol = true,
+    hl_group = M.hl_group,
+    virt_text = { { "🔒", M.hl_group } },
+    virt_text_pos = "overlay",
+  }
+
+  if mark_id ~= 0 then
+    opt.id = mark_id
+  end
+
+  mark_id = vim.api.nvim_buf_set_extmark(
+    require("gnattest.utils").get_bufid(),
+    M.namespace,
+    start_row,
+    0,
+    opt
+  )
+
+  M.extmark[mark_id] = {
+    lines = require("gnattest.utils").get_lines(start_row, end_row),
+    start_row = start_row,
+    end_row = end_row,
+  }
 end
 
-local function parse_comment(comment, opt)
-	-- Remove common comment prefixes to get to the actual content
-	local content = comment.text:gsub('^[%-%/%#%"%;%%]+%s*', "")
+-- Calls `cb(start_line, end_line, index)` for each detected region.
+-- `cb` should be a function accepting (start_line, end_line, index) parameters.
+local function get_regions(cb)
+  local region = nil
+  local idx = 0
 
-	-- Check for region markers
-	local start_region = content:match("^" .. opt.region_text.start .. "%s*(.*)")
-	if start_region then
-		return {
-			type = "start",
-			title = #start_region > 0 and start_region or nil,
-			line = comment.line,
-		}
-	elseif content:match("^" .. opt.region_text.ending .. "%s*") then
-		return {
-			type = "end",
-			line = comment.line,
-		}
-	end
-	return nil
+  for _, comment in ipairs(comments) do
+    local marker = parse_comment(comment)
+    if marker then
+      if marker.type == "start" then
+        region = { start = marker.line }
+      elseif marker.type == "end" and region then
+        region.ending = marker.line
+        idx = idx + 1
+        cb(region.start, region.ending, idx)
+        region = nil
+      end
+    end
+  end
+
+  if M.backup == nil then
+    M.backup = vim.deepcopy(M.extmark)
+  end
 end
 
-local function get_all_comments()
-	local root = get_root()
-	if not root then
-		return {}
-	end
-
-	local cmts = {}
-	local query_string = "(comment) @comment"
-	local ok, query = pcall(vim.treesitter.query.parse, "ada", query_string)
-
-	if not ok or not query then
-		return {}
-	end
-
-	for id, node in query:iter_captures(root, 0) do
-		if query.captures[id] == "comment" then
-			local start_row = node:range()
-			local text = vim.treesitter.get_node_text(node, 0)
-			table.insert(cmts, {
-				node = node,
-				text = text:gsub("^%s*", ""):gsub("%s*$", ""), -- Trim whitespace
-				line = start_row + 1, -- Convert to 1-based line number
-			})
-		end
-	end
-	return cmts
-end
-
-local function get_regions()
-	local regions_found = {}
-	local current_region = nil
-
-	for _, comment in ipairs(comments) do
-		local marker = parse_comment(comment, M.opt)
-		if marker then
-			if marker.type == "start" then
-				current_region = {
-					start = marker.line,
-					title = marker.title,
-				}
-			elseif marker.type == "end" and current_region then
-				current_region.ending = marker.line
-				table.insert(regions_found, current_region)
-				current_region = nil
-			end
-		end
-	end
-	return regions_found
-end
-
-local function fix_ro_region()
-	local utils = require("gnattest.utils")
-	protect_flag = true
-	vim.cmd([[stopinsert]])
-	vim.cmd("undo")
-	utils.notify("This is a read only region!", "error")
-end
-
-local function protect_ro_regions()
-	if vim.opt.diff:get() then
-		return
-	end
-
-	vim.schedule(function()
-		local lnum = vim.fn.getpos(".")[2]
-		if #regions ~= nb_regions then
-			fix_ro_region()
-			return
-		end
-		for _, region in ipairs(regions) do
-			if lnum > region.start and lnum <= region.ending then
-				fix_ro_region()
-				return
-			end
-		end
-	end)
-end
-
-local function set_extmark(start_line, end_line)
-	local utils = require("gnattest.utils")
-	vim.api.nvim_buf_set_extmark(
-		utils.get_bufid(),
-		M.namespace,
-		start_line - 1,
-		0,
-		{ end_row = end_line, hl_eol = true, hl_group = M.hl_group }
-	)
-end
-
-local function highlight_regions()
-	for _, region in ipairs(regions) do
-		set_extmark(region.start, region.ending)
-	end
-	hl.set_highlight(M.namespace, M.hl_group)
+local function protected_region_notif()
+  protect_flag = true
+  require("gnattest.utils").notify(
+    "This is a read only region!",
+    vim.log.levels.ERROR
+  )
 end
 
 local function prepare_gnattest()
-	comments = get_all_comments()
-	regions = get_regions()
-	highlight_regions()
+  comments = require("gnattest.utils").get_all_comments("ada")
+  get_regions(set_extmark)
+  require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
 end
 
-function M.setup(opt)
-	M.opt = opt
+local function restore_lines(start, end_row, lines)
+  vim.api.nvim_buf_set_lines(0, start, end_row, true, lines)
+end
 
-	vim.api.nvim_create_autocmd("ColorScheme", {
-		group = M.ro_group,
-		callback = function()
-			hl.set_highlight(M.namespace, M.hl_group)
-		end,
-	})
+local function fix_ro_regions()
+  if vim.opt.diff:get() then
+    return
+  end
 
-	vim.api.nvim_create_autocmd("BufReadPost", {
-		group = M.ro_group,
-		pattern = { "*.adb", "*.ads" },
-		callback = function()
-			prepare_gnattest()
+  vim.schedule(function()
+    local cursor_pos = vim.fn.getpos(".")
+    local lnum = cursor_pos[2]
+    local cnum = cursor_pos[3]
 
-			if #regions <= 0 then
-				return
-			end
+    local marks_to_restore = {}
 
-			nb_regions = #regions
+    local all_marks = vim.api.nvim_buf_get_extmarks(
+      require("gnattest.utils").get_bufid(),
+      M.namespace,
+      0,
+      -1,
+      { details = true, overlap = true }
+    )
 
-			vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-				group = M.ro_group,
-				pattern = { "*.adb", "*.ads" },
-				callback = function()
-					if protect_flag then
-						protect_flag = false
-						return
-					end
-					protect_ro_regions()
-					prepare_gnattest()
-				end,
-			})
-		end,
-	})
+    for _, mark in ipairs(all_marks) do
+      local mark_id = mark[1]
+      local start_row = mark[2]
+      local end_row = mark[4].end_row
+
+      if end_row ~= nil then
+        local lines =
+          require("gnattest.utils").get_lines(start_row, end_row - 1)
+        if not vim.deep_equal(lines, M.extmark[mark_id].lines) then
+          table.insert(marks_to_restore, {
+            start_row = start_row,
+            end_row = end_row,
+            id = mark_id,
+          })
+        end
+      end
+    end
+    if #marks_to_restore > 0 then
+      for _, mark in ipairs(marks_to_restore) do
+        local mark_id = mark.id
+        protected_region_notif()
+        vim.cmd([[stopinsert]])
+        restore_lines(mark.start_row, mark.end_row, M.extmark[mark_id].lines)
+        set_extmark(
+          M.extmark[mark_id].start_row,
+          M.extmark[mark_id].end_row,
+          mark_id
+        )
+        -- reset cursor position
+        vim.api.nvim_win_set_cursor(0, { lnum, cnum })
+      end
+    end
+  end)
+end
+
+function M.setup()
+  M.opt = require("gnattest.config").get().read_only
+
+  if M.opt.enabled == false then
+    return
+  end
+
+  local gnattest_pattern = require("gnattest.utils").gnattest_pattern
+
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = M.ro_group,
+    callback = function()
+      require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufReadPost", {
+    group = M.ro_group,
+    pattern = gnattest_pattern,
+    callback = function()
+      prepare_gnattest()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = M.ro_group,
+    pattern = gnattest_pattern,
+    callback = function()
+      if protect_flag then
+        protect_flag = false
+        prepare_gnattest()
+        return
+      end
+      fix_ro_regions()
+    end,
+  })
+end
+
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M._parse_comment = parse_comment
+  M._get_regions = get_regions
+  M._set_extmark = set_extmark
+  M._fix_ro_regions = fix_ro_regions
 end
 
 return M

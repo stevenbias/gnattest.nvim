@@ -1,0 +1,112 @@
+name: Process Pre-Release
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  process-prerelease:
+    name: Process Pre-Release and Create PR
+    runs-on: ubuntu-latest
+    if: github.event.release.prerelease == true
+    
+    steps:
+      - name: Validate pre-release conditions
+        run: |
+          if [[ ! "${{ github.event.release.tag_name }}" =~ -test$ ]]; then
+            echo "ERROR: Pre-release tag must end with -test"
+            exit 1
+          fi
+      
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install vimcats
+        run: cargo install vimcats --features=cli
+      
+      - name: Generate API docs
+        run: |
+          vimcats lua/gnattest/init.lua \
+                   lua/gnattest/config.lua \
+                   plugin/gnattest.lua > api-docs.txt
+      
+      - name: Integrate into main doc
+        run: |
+          grep -q "<!-- CI/CD: API DOCS BEGIN -->" doc/gnattest.txt || \
+            { echo "ERROR: CI/CD BEGIN marker not found"; exit 1; }
+          grep -q "<!-- CI/CD: API DOCS END -->" doc/gnattest.txt || \
+            { echo "ERROR: CI/CD END marker not found"; exit 1; }
+          
+          awk '
+            /<!-- CI\/CD: API DOCS BEGIN -->/ { 
+              print; print ""; system("cat api-docs.txt"); print ""; skip=1; next 
+            }
+            /<!-- CI\/CD: API DOCS END -->/ { skip=0; print; next }
+            !skip
+          ' doc/gnattest.txt > doc/gnattest-new.txt
+          
+          grep -q "FEATURES" doc/gnattest-new.txt || \
+            { echo "ERROR: FEATURES section lost"; exit 1; }
+          
+          mv doc/gnattest-new.txt doc/gnattest.txt
+      
+      - name: Commit updated docs to dev
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "docs: auto-update API reference for ${{ github.event.release.tag_name }} [skip ci]"
+          file_pattern: doc/gnattest.txt
+          skip_dirty_check: false
+          branch: dev
+      
+      - name: Extract production version
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG%-test}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Production version: $VERSION"
+      
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --body "$(cat <<'EOF'
+          ## 🚀 Production Release: ${{ steps.version.outputs.version }}
+
+          This PR was automatically created from pre-release \`${{ github.event.release.tag_name }}\`.
+
+          ### Changes
+          - 📝 API documentation updated and integrated
+          - 🏷️ Pre-release tag \`${{ github.event.release.tag_name }}\` created on dev branch
+
+          ### What Happens After Merge
+          When you merge this PR, the automation will:
+          1. ✅ Create production tag \`${{ steps.version.outputs.version }}\` on main
+          2. ✅ Create **draft** production release \`${{ steps.version.outputs.version }}\`
+          3. ⏸️ You manually publish the release when ready
+
+          ### Pre-Release
+          - 🔗 View pre-release: [${{ github.event.release.tag_name }}](${{ github.event.release.html_url }})
+
+          ### Files Changed
+          - \`doc/gnattest.txt\` - API documentation updated
+
+          ---
+          *🤖 Automated release PR • Review and merge when ready*
+          EOF
+          )" \
+            --base main \
+            --head dev \
+            --label automated \
+            --label release \
+            --reviewer ${{ github.repository_owner }}

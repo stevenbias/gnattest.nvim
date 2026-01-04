@@ -1,35 +1,13 @@
-local default_opts = {
-	-- Region marker text (without comment syntax)
-	region_text = {
-		start = "begin read only",
-		ending = "end read only",
-	},
-}
+local M = {}
 
-local M = {
-	opts = default_opts,
-	is_started = false,
-}
+---@class GnattestConfig : table
+---@field highlight {percent: number}
+---@field read_only {enabled: boolean}
+---@field [string] any @Additional configuration options supported by gnattest.
 
+---@param opts GnattestConfig|nil
 function M.setup(opts)
-	vim.api.nvim_create_autocmd("BufReadPre", {
-		pattern = { "*.adb", "*.ads" },
-		callback = function()
-			if not require("gnattest.utils").is_gnattest_file() then
-				return
-			end
-
-			if not M.is_started then
-				M.is_started = true
-				if next(opts) ~= nil then
-					error("Options are not supported")
-				else
-					require("gnattest.read_only").setup(M.opts)
-					require("gnattest.ada_ls").setup()
-				end
-			end
-		end,
-	})
+  require("gnattest.config").set(opts)
 end
 
 return M
