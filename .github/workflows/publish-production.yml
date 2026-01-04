@@ -1,0 +1,80 @@
+name: Publish Production Release
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish-production:
+    name: Create Production Release
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      
+      - name: Extract version from PR title
+        id: version
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$TITLE" | sed -E 's/^Release //g')
+          
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Invalid version format in PR title: $TITLE"
+            echo "Expected format: Release v0.1.0"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Production version: $VERSION"
+      
+      - name: Get pre-release notes
+        id: prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE_TAG="${{ steps.version.outputs.version }}-test"
+          
+          NOTES=$(gh release view "$PRERELEASE_TAG" --json body --jq .body 2>/dev/null || echo "")
+          
+          if [ -z "$NOTES" ]; then
+            echo "Warning: Could not find pre-release $PRERELEASE_TAG"
+            NOTES="Production release ${{ steps.version.outputs.version }}"
+          fi
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Create production tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.version }}" -m "Production release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+      
+      - name: Create draft production release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --draft \
+            --title "Release ${{ steps.version.outputs.version }}" \
+            --notes "${{ steps.prerelease.outputs.notes }}"
+      
+      - name: Comment on PR with release link
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "✅ Production release created: [${{ steps.version.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})
+
+          Please review and publish the draft release when ready."
