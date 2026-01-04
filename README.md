@@ -22,13 +22,8 @@
 ```lua
 {
   "StevenBias/gnattest.nvim",
-  dependencies = {
-    "nvim-treesitter/nvim-treesitter",
-  },
+  dependencies = { "nvim-treesitter/nvim-treesitter" },
   ft = { "ada" },
-  config = function()
-    require("gnattest").setup()
-  end,
 }
 ```
 
@@ -118,7 +113,7 @@ especially before committing changes. Use version control to safeguard your work
 
 ## ⚙️ Configuration
 
-The plugin is designed to work with minimal configuration:
+The plugin works with sensible defaults:
 
 ```lua
 require("gnattest").setup()
@@ -126,18 +121,20 @@ require("gnattest").setup()
 
 ### Available Options
 
-Currently, only region marker text is configurable:
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `highlight.percent` | number | `3` | Brightness adjustment for protected region highlighting |
+| `read_only.enabled` | boolean | `true` | Enable/disable read-only protection |
+
+### Example: Disable Read-only Protection
 
 ```lua
 require("gnattest").setup({
-  region_text = {
-    start = "begin read only",  -- Default
-    ending = "end read only",   -- Default
-  }
+  read_only = {
+    enabled = false,
+  },
 })
 ```
-
-**Note:** These are GNATtest's standard markers. Most users should not need to change them.
 
 ## 🎯 About This Project
 
