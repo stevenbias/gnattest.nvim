@@ -172,6 +172,16 @@ Feedback and contributions are welcome.
 
 **⚠️ Note:** This plugin only supports Ada projects that use GNAT project files (`.gpr`). GNATtest must be configured in the `.gpr` file. Projects without `.gpr` files are not supported.
 
+### Health Check
+
+Verify your setup is correct:
+
+```vim
+:checkhealth gnattest
+```
+
+This will check all requirements and report any issues with your installation.
+
 ### Features
 
 - Limited configuration options (by design for simplicity)

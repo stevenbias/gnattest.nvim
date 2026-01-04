@@ -231,15 +231,33 @@ COMPATIBILITY ~
 ==============================================================================
 TROUBLESHOOTING                                    *gnattest-troubleshooting*
 
+RUN HEALTH CHECK ~
+                                                     *gnattest-checkhealth*
+
+Verify your installation and configuration: >
+    :checkhealth gnattest
+<
+
+This will check:
+- Neovim version compatibility
+- Required external tools (gnattest, gprbuild, gprclean)
+- Ada Language Server status
+- Treesitter parsers (ada, xml)
+- Project structure and configuration
+- Plugin activation status
+
 PLUGIN NOT ACTIVATING ~
 
-1. Check Ada Language Server is running: >
+1. Run health check first: >
+    :checkhealth gnattest
+<
+2. Check Ada Language Server is running: >
     :LspInfo
 <
-2. Verify Treesitter parsers are installed: >
+3. Verify Treesitter parsers are installed: >
     :TSInstallInfo
 <
-3. Ensure you're in a GNATtest project:
+4. Ensure you're in a GNATtest project:
    - Look for `gnattest/` directory in project
    - Or check for `obj/gnattest/` structure
 
