@@ -5,23 +5,27 @@ local M = {
   extmark = {},
   backup = nil,
   opt = {},
+  region_text = {
+    start = "begin read only",
+    ending = "end read only",
+  },
 }
 
 local comments = {}
 local protect_flag = false
 
-local function parse_comment(comment, opt)
+local function parse_comment(comment)
   -- Remove common comment prefixes to get to the actual content
   local content = comment.text:gsub('^[%-%/%#%"%;%%]+%s*', "")
 
   -- Check for region markers
-  local start_region = content:match("^" .. opt.region_text.start .. "%s*(.*)")
+  local start_region = content:match("^" .. M.region_text.start .. "%s*(.*)")
   if start_region then
     return {
       type = "start",
       line = comment.line,
     }
-  elseif content:match("^" .. opt.region_text.ending .. "%s*") then
+  elseif content:match("^" .. M.region_text.ending .. "%s*") then
     return {
       type = "end",
       line = comment.line,
@@ -66,7 +70,7 @@ local function get_regions(cb)
   local idx = 0
 
   for _, comment in ipairs(comments) do
-    local marker = parse_comment(comment, M.opt)
+    local marker = parse_comment(comment)
     if marker then
       if marker.type == "start" then
         region = { start = marker.line }

@@ -4,10 +4,6 @@ local default_opts = {
   },
   read_only = {
     enabled = true,
-    region_text = {
-      start = "begin read only",
-      ending = "end read only",
-    },
   },
 }
 
@@ -30,17 +26,6 @@ local function is_valid(opts)
   for key in pairs(opts) do
     if not vim.tbl_contains(valid_keys, key) then
       notify("Unknown config field: " .. key, vim.log.levels.ERROR)
-      return false
-    end
-  end
-
-  if opts.read_only and opts.read_only.region_text then
-    local rt = opts.read_only.region_text
-    if type(rt.start) ~= "string" or type(rt.ending) ~= "string" then
-      notify(
-        "region_text.start and ending must be strings",
-        vim.log.levels.ERROR
-      )
       return false
     end
   end
