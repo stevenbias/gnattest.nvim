@@ -267,6 +267,7 @@ describe("gnattest.navigation", function()
 
       it("searches by test name when in gnattest file", function()
         utils_mock.is_gnattest_file.returns(true)
+        utils_mock.get_filename.returns("test_file.adb")
         local test_entry =
           create_xml_test_entry("My_Function", "Test_My_Function")
         xml_mock.get_xml_info.returns({
@@ -386,6 +387,7 @@ describe("gnattest.navigation", function()
 
     it("switches to source file when in gnattest file", function()
       utils_mock.is_gnattest_file.returns(true)
+      utils_mock.get_filename.returns("test_file.adb")
       xml_mock.get_xml_info.returns({
         ["my_package.ads"] = {
           ["Package1"] = {
@@ -415,6 +417,7 @@ describe("gnattest.navigation", function()
 
     it("returns nil when src_dirs not available", function()
       utils_mock.is_gnattest_file.returns(true)
+      utils_mock.get_filename.returns("test_file.adb")
       xml_mock.get_xml_info.returns({
         ["my_package.ads"] = {
           ["Package1"] = {
@@ -466,6 +469,7 @@ describe("gnattest.navigation", function()
 
     it("handles multiple file entries correctly", function()
       utils_mock.is_gnattest_file.returns(true)
+      utils_mock.get_filename.returns("test_file.adb")
       xml_mock.get_xml_info.returns({
         ["my_package.ads"] = {
           ["Package1"] = {
