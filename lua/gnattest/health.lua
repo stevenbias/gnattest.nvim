@@ -39,8 +39,7 @@ local function check_treesitter_parser(lang)
 end
 
 local function check_lsp_client()
-  local bufnr = vim.api.nvim_get_current_buf()
-  local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "als" })
+  local clients = vim.lsp.get_clients({ name = "ada" })
 
   if #clients > 0 then
     local client = clients[1]
@@ -62,9 +61,7 @@ local function is_gnattest_project()
   local cwd = vim.fn.getcwd()
 
   local gnattest_dirs = vim.fs.find(function(name, path)
-    return name == "gnattest"
-      or (name == "gnattest" and path:match("obj"))
-      or name == "tests"
+    return name == "gnattest" or (name == "gnattest" and path:match("obj"))
   end, { path = cwd, type = "directory", limit = 3 })
 
   return #gnattest_dirs > 0
@@ -72,12 +69,6 @@ end
 
 local function check_project_structure()
   local bufname = vim.api.nvim_buf_get_name(0)
-  local filetype = vim.bo.filetype
-
-  if filetype ~= "ada" then
-    vim.health.info("Not in an Ada buffer - skipping project-specific checks")
-    return
-  end
 
   if not bufname or bufname == "" then
     vim.health.info("No file loaded - skipping project checks")
