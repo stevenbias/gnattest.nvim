@@ -4,7 +4,7 @@ package = "gnattest.nvim"
 version = "scm-1"
 description = {
   summary = " Neovim plugin for GNATtest ",
-  details = [[
+  detailed = [[
   Neovim plugin providing GNATtest workflow integration: generate, build, run, clean tests and navigate between source and test files
   ]],
   labels = {
