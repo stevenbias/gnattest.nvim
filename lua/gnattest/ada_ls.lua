@@ -195,9 +195,9 @@ function M.setup()
     pattern = {
       "*.ad[bs]",
     },
-    callback = function(ev)
-      local client = vim.lsp.get_client_by_id(ev.data.client_id)
-      if client ~= nil and client.name == "ada" then
+    callback = function()
+      local client = M.get_ada_ls()
+      if client ~= nil then
         init_module()
         utils.set_gnattest_pattern()
         if utils.is_gnattest_file() then
