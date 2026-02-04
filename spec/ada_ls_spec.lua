@@ -58,7 +58,6 @@ describe("gnattest.ada_ls", function()
       {
         lsp = {
           get_clients = stub.new().returns({}),
-          get_client_by_id = stub.new().returns(nil),
           util = {
             make_position_params = stub.new().returns({
               textDocument = { uri = "file:///test.adb" },
@@ -159,7 +158,6 @@ describe("gnattest.ada_ls", function()
           root_dir = "/home/user/project",
           request_sync = stub.new().returns(nil),
         }
-        _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
         _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
@@ -185,15 +183,32 @@ describe("gnattest.ada_ls", function()
         },
         {
           name = "should notify when client is not Ada",
-          client_return = { name = "rust_analyzer" },
+          client_return = { name = "rust" },
         },
       }
 
       for _, case in ipairs(error_notification_cases) do
         it(case.name, function()
-          ada_ls.setup()
           local utils = require("gnattest.utils")
-          _G.vim.lsp.get_client_by_id = stub.new().returns(case.client_return)
+          utils.notify = stub.new()
+          ada_ls.setup()
+          if case.client_return then
+            _G.vim.lsp.get_clients = function(filter)
+              if filter and filter.name == (case.client_return.name or nil) then
+                return {
+                  {
+                    name = case.client_return.name,
+                    request_sync = stub.new().returns(nil),
+                    notify = stub.new(),
+                  },
+                }
+              end
+            end
+          else
+            _G.vim.lsp.get_clients = function()
+              return {}
+            end
+          end
 
           autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
 
@@ -203,16 +218,18 @@ describe("gnattest.ada_ls", function()
         end)
       end
 
-      it("should get client by event data client_id", function()
+      it("should query Ada clients by name filter", function()
         ada_ls.setup()
-        _G.vim.lsp.get_client_by_id = stub.new().returns({
+        local mock_client = {
           name = "ada",
           notify = stub.new(),
-        })
+          request_sync = stub.new().returns(nil),
+        }
+        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         autocmd_callbacks[1].opts.callback({ data = { client_id = 456 } })
 
-        assert.stub(_G.vim.lsp.get_client_by_id).was_called_with(456)
+        assert.stub(_G.vim.lsp.get_clients).was_called_with({ name = "ada" })
       end)
 
       it("should extract gnattest directory from buffer path", function()
@@ -229,7 +246,6 @@ describe("gnattest.ada_ls", function()
           root_dir = "/home/user/my_project",
           request_sync = stub.new().returns(nil),
         }
-        _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
         _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
 
         autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
