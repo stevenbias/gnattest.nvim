@@ -1,6 +1,7 @@
 local utils = require("gnattest.utils")
 
 local M = {
+  is_init = false,
   root_dir = "",
   prj_file = "",
   src_dirs = {},
@@ -10,12 +11,18 @@ local M = {
 }
 
 local function init_module()
+  if M.is_init then
+    return
+  end
+
+  M.is_init = true
   M.root_dir = M.get_root_dir()
   M.prj_file = M.get_prj_file()
   M.src_dirs = M.get_src_dirs()
   M.obj_dir = M.get_obj_dir()
   M.harness_dir = M.get_harness_dir()
   M.tests_dir = M.get_tests_dir()
+  utils.set_gnattest_pattern()
 end
 
 function M.get_ada_ls()
@@ -87,7 +94,7 @@ function M.get_declarations()
 end
 
 function M.get_prj_file()
-  if utils.is_gnattest_file() or M.prj_file ~= "" then
+  if M.prj_file ~= "" then
     return M.prj_file
   end
 
@@ -166,10 +173,6 @@ function M.get_tests_dir()
 end
 
 local function switch_prj(prj)
-  if not utils.is_gnattest_file() then
-    return
-  end
-
   local client = M.get_ada_ls()
   if not client then
     return nil, "Ada LSP client not found"
@@ -191,26 +194,10 @@ function M.switch_to_tests()
 end
 
 function M.setup()
-  vim.api.nvim_create_autocmd("LspAttach", {
-    pattern = {
-      "*.ad[bs]",
-    },
-    callback = function()
-      local client = M.get_ada_ls()
-      if client ~= nil then
-        init_module()
-        utils.set_gnattest_pattern()
-        if utils.is_gnattest_file() then
-          M.switch_to_tests()
-        end
-      else
-        require("gnattest.utils").notify(
-          "Ada LSP client not found",
-          vim.log.levels.WARN
-        )
-      end
-    end,
-  })
+  init_module()
+  if utils.is_gnattest_file() then
+    M.switch_to_tests()
+  end
 end
 
 return M
