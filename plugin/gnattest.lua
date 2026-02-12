@@ -25,6 +25,11 @@ local function build_tests()
   vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
 end
 
+local function prepare_run()
+  build_tests()
+  vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
+end
+
 local function prepare_qf_item(test_info, line, type)
   local als = require("gnattest.ada_ls")
   local utils = require("gnattest.utils")
