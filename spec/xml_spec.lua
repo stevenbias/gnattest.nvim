@@ -79,7 +79,7 @@ describe("gnattest.xml", function()
 
   describe("module structure", function()
     it("exports required functions", function()
-      assert.is_function(xml.get_tests_by_name)
+      assert.is_function(xml.get_test_by_name)
       assert.is_function(xml.get_xml_info)
     end)
   end)
@@ -384,7 +384,7 @@ describe("gnattest.xml", function()
             pkg1 = { { source = { name = "testA" }, test = {} } },
           },
         })
-        local result, filename = xml.get_tests_by_name("pkg1", "testA")
+        local result, filename = xml.get_test_by_name("pkg1", "testA")
         assert.is_table(result)
         assert.equals("testA", result.source.name)
         assert.equals("file1", filename)
@@ -394,14 +394,14 @@ describe("gnattest.xml", function()
         xml = inject_xml_data({
           file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
         })
-        assert.is_nil(xml.get_tests_by_name("pkg1", "missing"))
+        assert.is_nil(xml.get_test_by_name("pkg1", "missing"))
       end)
 
       it("returns nil if package not present", function()
         xml = inject_xml_data({
           file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
         })
-        assert.is_nil(xml.get_tests_by_name("missing_pkg", "testA"))
+        assert.is_nil(xml.get_test_by_name("missing_pkg", "testA"))
       end)
 
       it("handles multiple tests and packages", function()
@@ -414,9 +414,9 @@ describe("gnattest.xml", function()
             pkg2 = { { source = { name = "testC" }, test = {} } },
           },
         })
-        local testA = xml.get_tests_by_name("pkg1", "testA")
-        local testB = xml.get_tests_by_name("pkg1", "testB")
-        local testC, filename = xml.get_tests_by_name("pkg2", "testC")
+        local testA = xml.get_test_by_name("pkg1", "testA")
+        local testB = xml.get_test_by_name("pkg1", "testB")
+        local testC, filename = xml.get_test_by_name("pkg2", "testC")
         assert.equals("testA", testA.source.name)
         assert.equals("testB", testB.source.name)
         assert.equals("testC", testC.source.name)
@@ -434,7 +434,7 @@ describe("gnattest.xml", function()
             },
           },
         })
-        local result, filename = xml.get_tests_by_name("pkg1", "test1")
+        local result, filename = xml.get_test_by_name("pkg1", "test1")
         assert.equals("test1", result.source.name)
         assert.equals("test.ads", result.test.file)
         assert.equals("10", result.source.line)
@@ -451,7 +451,7 @@ describe("gnattest.xml", function()
             },
           },
         })
-        local result = xml.get_tests_by_name("pkg1", "test1")
+        local result = xml.get_test_by_name("pkg1", "test1")
         assert.is_not_nil(result)
         assert.equals("test1", result.source.name)
       end)
@@ -460,13 +460,13 @@ describe("gnattest.xml", function()
     describe("edge cases", function()
       it("handles empty tests and enforces case sensitivity", function()
         xml = inject_xml_data({})
-        assert.is_nil(xml.get_tests_by_name("pkg", "test"))
+        assert.is_nil(xml.get_test_by_name("pkg", "test"))
 
         xml = inject_xml_data({
           file1 = { pkg1 = { { source = { name = "TestCase" }, test = {} } } },
         })
-        assert.is_not_nil(xml.get_tests_by_name("pkg1", "TestCase"))
-        assert.is_nil(xml.get_tests_by_name("pkg1", "testcase"))
+        assert.is_not_nil(xml.get_test_by_name("pkg1", "TestCase"))
+        assert.is_nil(xml.get_test_by_name("pkg1", "testcase"))
       end)
 
       it("handles special characters in names", function()
@@ -475,7 +475,7 @@ describe("gnattest.xml", function()
             ["pkg.sub"] = { { source = { name = "test_1" }, test = {} } },
           },
         })
-        local result = xml.get_tests_by_name("pkg.sub", "test_1")
+        local result = xml.get_test_by_name("pkg.sub", "test_1")
         assert.equals("test_1", result.source.name)
       end)
 
@@ -485,7 +485,7 @@ describe("gnattest.xml", function()
             ["my_pkg_v1"] = { { source = { name = "my_test" }, test = {} } },
           },
         })
-        local result = xml.get_tests_by_name("my_pkg_v1", "my_test")
+        local result = xml.get_test_by_name("my_pkg_v1", "my_test")
         assert.equals("my_test", result.source.name)
       end)
 
@@ -500,7 +500,7 @@ describe("gnattest.xml", function()
             },
           },
         })
-        local result = xml.get_tests_by_name("pkg1", "test")
+        local result = xml.get_test_by_name("pkg1", "test")
         assert.equals("100", result.source.line)
         assert.equals("20", result.source.column)
       end)
@@ -658,106 +658,117 @@ describe("gnattest.xml", function()
     end)
 
     describe("private functions", function()
-      it("_query_element returns query object for various inputs", function()
-        local inputs = {
-          { value = "unit" },
-          { value = nil },
-          { value = "" },
-          { value = "test_unit" },
-        }
-        for _, input in ipairs(inputs) do
-          local query = xml._query_element(input.value)
+      local helpers = require("spec.helpers.common")
+
+      local function get_pkg_tests_fn()
+        return xml._get_pkg_tests or xml.get_pkg_tests
+      end
+
+      if helpers.should_test_private_functions() then
+        it("_query_element returns query object for various inputs", function()
+          local inputs = {
+            { value = "unit" },
+            { value = nil },
+            { value = "" },
+            { value = "test_unit" },
+          }
+          for _, input in ipairs(inputs) do
+            local query = xml._query_element(input.value)
+            assert.is_not_nil(query)
+            assert.is_table(query)
+          end
+        end)
+        it("_query_test_info returns a query object", function()
+          local query = xml._query_test_info()
           assert.is_not_nil(query)
           assert.is_table(query)
-        end
-      end)
-      it("_query_test_info returns a query object", function()
-        local query = xml._query_test_info()
-        assert.is_not_nil(query)
-        assert.is_table(query)
-      end)
+        end)
 
-      it("_create_xml_buf creates buffer and returns buffer id", function()
-        local buf_id = xml._create_xml_buf()
-        assert.equals(1, buf_id)
-      end)
+        it("_create_xml_buf creates buffer and returns buffer id", function()
+          local buf_id = xml._create_xml_buf()
+          assert.equals(1, buf_id)
+        end)
 
-      it(
-        "_create_xml_buf executes file pattern matching in vim.fs.find callback",
-        function()
-          local captured_callback = nil
-          _G.vim.fs.find = function(callback)
-            captured_callback = callback
-            return { "gnattest.xml" }
+        it(
+          "_create_xml_buf executes file pattern matching in vim.fs.find callback",
+          function()
+            local captured_callback = nil
+            _G.vim.fs.find = function(callback)
+              captured_callback = callback
+              return { "gnattest.xml" }
+            end
+
+            xml._create_xml_buf()
+
+            assert.is_not_nil(captured_callback)
+            assert.is_function(captured_callback)
+
+            assert.is_true(captured_callback("gnattest.xml"))
+
+            assert.is_false(captured_callback("project_gnattest.xml"))
+            assert.is_false(captured_callback("my_gnattest.xml"))
+            assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
+            assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
+
+            assert.is_false(captured_callback("test.xml"))
+            assert.is_false(captured_callback("gnattest.adb"))
+            assert.is_false(captured_callback("gnattest.xml.backup"))
+            assert.is_false(captured_callback("gnattest_output.xml"))
           end
+        )
 
-          xml._create_xml_buf()
-
-          assert.is_not_nil(captured_callback)
-          assert.is_function(captured_callback)
-
-          assert.is_true(captured_callback("gnattest.xml"))
-
-          assert.is_false(captured_callback("project_gnattest.xml"))
-          assert.is_false(captured_callback("my_gnattest.xml"))
-          assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
-          assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
-
-          assert.is_false(captured_callback("test.xml"))
-          assert.is_false(captured_callback("gnattest.adb"))
-          assert.is_false(captured_callback("gnattest.xml.backup"))
-          assert.is_false(captured_callback("gnattest_output.xml"))
-        end
-      )
-
-      it("_get_pkg_tests returns tests for given package", function()
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["file1.xml"] = {
-          ["Package.SubPkg"] = {
-            { source = { name = "test1", line = 10 }, test = {} },
-            { source = { name = "test2", line = 20 }, test = {} },
-          },
-        }
-
-        local tests, filename = xml._get_pkg_tests("Package.SubPkg")
-        assert.is_not_nil(tests)
-        assert.equals("file1.xml", filename)
-        assert.equals(2, #tests)
-        assert.equals("test1", tests[1].source.name)
-        assert.equals("test2", tests[2].source.name)
-      end)
-
-      it("_get_pkg_tests returns nil for non-existent package", function()
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        xml._xml_info["file1.xml"] = {
-          ["Package.SubPkg"] = {
-            { source = { name = "test1", line = 10 }, test = {} },
-          },
-        }
-
-        local tests = xml._get_pkg_tests("NonExistent.Package")
-        assert.is_nil(tests)
-      end)
-
-      it(
-        "_get_pkg_tests calls get_xml_info if xml_info table is empty",
-        function()
+        it("_get_pkg_tests returns tests for given package", function()
+          local get_pkg_tests = get_pkg_tests_fn()
           for k in pairs(xml._xml_info) do
             xml._xml_info[k] = nil
           end
+          xml._xml_info["file1.xml"] = {
+            ["Package.SubPkg"] = {
+              { source = { name = "test1", line = 10 }, test = {} },
+              { source = { name = "test2", line = 20 }, test = {} },
+            },
+          }
 
-          _G.vim.fs.find = function()
-            return {}
+          local tests, filename = get_pkg_tests("Package.SubPkg")
+          assert.is_not_nil(tests)
+          assert.equals("file1.xml", filename)
+          assert.equals(2, #tests)
+          assert.equals("test1", tests[1].source.name)
+          assert.equals("test2", tests[2].source.name)
+        end)
+
+        it("_get_pkg_tests returns nil for non-existent package", function()
+          local get_pkg_tests = get_pkg_tests_fn()
+          for k in pairs(xml._xml_info) do
+            xml._xml_info[k] = nil
           end
+          xml._xml_info["file1.xml"] = {
+            ["Package.SubPkg"] = {
+              { source = { name = "test1", line = 10 }, test = {} },
+            },
+          }
 
-          local tests = xml._get_pkg_tests("Any.Package")
+          local tests = get_pkg_tests("NonExistent.Package")
           assert.is_nil(tests)
-        end
-      )
+        end)
+
+        it(
+          "_get_pkg_tests calls get_xml_info if xml_info table is empty",
+          function()
+            local get_pkg_tests = get_pkg_tests_fn()
+            for k in pairs(xml._xml_info) do
+              xml._xml_info[k] = nil
+            end
+
+            _G.vim.fs.find = function()
+              return {}
+            end
+
+            local tests = get_pkg_tests("Any.Package")
+            assert.is_nil(tests)
+          end
+        )
+      end
     end)
   end
 end)

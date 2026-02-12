@@ -158,7 +158,7 @@ function M.get_xml_info()
   return xml_info
 end
 
-local function get_pkg_tests(pkg)
+function M.get_pkg_tests(pkg)
   if next(xml_info) == nil then
     M.get_xml_info()
   end
@@ -174,19 +174,19 @@ local function get_pkg_tests(pkg)
   return nil
 end
 
-function M.get_tests_by_name(pkg, name)
+function M.get_test_by_name(pkg, name)
   if next(xml_info) == nil then
     M.get_xml_info()
   end
 
-  local pkg_info, filename = get_pkg_tests(pkg)
+  local pkg_info, filename = M.get_pkg_tests(pkg)
   if pkg_info == nil then
     return nil
   end
 
-  for _, p in pairs(pkg_info) do
-    if p.source.name == name then
-      return p, filename
+  for _, test_info in pairs(pkg_info) do
+    if test_info.source.name == name then
+      return test_info, filename
     end
   end
 
@@ -198,7 +198,6 @@ if os.getenv("GNATTEST_TEST_MODE") then
   M._query_element = query_element
   M._query_test_info = query_test_info
   M._create_xml_buf = create_xml_buf
-  M._get_pkg_tests = get_pkg_tests
   M._xml_info = xml_info
 end
 
