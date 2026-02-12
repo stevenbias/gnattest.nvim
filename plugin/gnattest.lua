@@ -35,6 +35,25 @@ local function run_all_tests()
         return
       end
 
+local function prepare_qf_item(test_info, line, type)
+  local als = require("gnattest.ada_ls")
+  local utils = require("gnattest.utils")
+
+  local test_dir = als.get_tests_dir()
+  local file = utils.find_file(test_info.test.file, test_dir)
+  local lnum = test_info.test.line
+  local col = test_info.test.column
+
+  return {
+    bufnr = 0,
+    filename = file,
+    lnum = lnum,
+    col = col,
+    text = tostring(line),
+    type = type or "E",
+  }
+end
+
       local stdout = obj.stdout or ""
 
       local src_dirs = require("gnattest.ada_ls").get_src_dirs()
