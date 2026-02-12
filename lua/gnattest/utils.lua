@@ -55,10 +55,11 @@ end
 
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
+  local bufdir = M.get_bufdir()
 
-  return string.find(M.get_bufdir(), "gnattest") ~= nil
-    or string.find(M.get_bufdir(), als.get_harness_dir()) ~= nil
-    or string.find(M.get_bufdir(), als.get_tests_dir()) ~= nil
+  return string.find(bufdir, "gnattest") ~= nil
+    or string.find(bufdir, als.get_harness_dir()) ~= nil
+    or string.find(bufdir, als.get_tests_dir()) ~= nil
 end
 
 function M.get_gnattest_project()

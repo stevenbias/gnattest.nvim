@@ -25,21 +25,24 @@ local function build_tests()
   vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
 end
 
-local function run_tests(filename, lnum)
-  local als = require("gnattest.ada_ls")
+local function run_all_tests()
+  vim.cmd("!" .. require("gnattest.ada_ls").get_harness_dir() .. "/test_runner")
+end
+
+local function run_test(filename, lnum)
   if filename == nil or lnum == nil then
-    vim.cmd("!" .. als.get_harness_dir() .. "/test_runner")
-  else
-    vim.cmd(
-      "!"
-        .. als.get_harness_dir()
-        .. "/test_runner"
-        .. " --routines="
-        .. filename
-        .. ":"
-        .. lnum
-    )
+    return
   end
+
+  vim.cmd(
+    "!"
+      .. require("gnattest.ada_ls").get_harness_dir()
+      .. "/test_runner"
+      .. " --routines="
+      .. filename
+      .. ":"
+      .. lnum
+  )
 end
 
 local function switch_source_test()
@@ -55,7 +58,7 @@ local function impl_run(args)
   if pkg_info == nil then
     return
   end
-  run_tests(filename, pkg_info.source.line)
+  run_test(filename, pkg_info.source.line)
 end
 
 local function compl_run(subcmd_arg_lead)
@@ -107,7 +110,7 @@ local subcommand_tbl = {
   },
   run_all = {
     impl = function()
-      run_tests()
+      run_all_tests()
     end,
   },
   switch = {
