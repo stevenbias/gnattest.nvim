@@ -174,6 +174,24 @@ function M.get_pkg_tests(pkg)
   return nil
 end
 
+function M.get_test_from_file_line(filename, line)
+  if next(xml_info) == nil then
+    M.get_xml_info()
+  end
+
+  for name, files in pairs(xml_info) do
+    for _, pkg_info in pairs(files) do
+      for _, test_info in pairs(pkg_info) do
+        if name == filename and tonumber(test_info.source.line) == line then
+          return pkg_info[1]
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
 function M.get_test_by_name(pkg, name)
   if next(xml_info) == nil then
     M.get_xml_info()
