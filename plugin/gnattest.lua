@@ -26,7 +26,15 @@ local function build_tests()
 end
 
 local function run_all_tests()
-  vim.cmd("!" .. require("gnattest.ada_ls").get_harness_dir() .. "/test_runner")
+  vim.system(
+    { require("gnattest.ada_ls").get_harness_dir() .. "/test_runner" },
+    { text = true },
+    function(obj)
+      if obj.stdout then
+        print(obj.stdout)
+      end
+    end
+  )
 end
 
 local function run_test(filename, lnum)
