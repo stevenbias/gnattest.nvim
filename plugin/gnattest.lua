@@ -25,16 +25,6 @@ local function build_tests()
   vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
 end
 
-local function run_all_tests()
-  vim.system(
-    { require("gnattest.ada_ls").get_harness_dir() .. "/test_runner" },
-    { text = true },
-    function(obj)
-      if obj.stderr and obj.stderr ~= "" then
-        print("Error running tests: " .. obj.stderr)
-        return
-      end
-
 local function prepare_qf_item(test_info, line, type)
   local als = require("gnattest.ada_ls")
   local utils = require("gnattest.utils")
@@ -54,34 +44,43 @@ local function prepare_qf_item(test_info, line, type)
   }
 end
 
-      local stdout = obj.stdout or ""
+local function on_exit_tests(obj)
+  if obj.stderr and obj.stderr ~= "" then
+    print("Error running tests: " .. obj.stderr)
+    return
+  end
 
-      local src_dirs = require("gnattest.ada_ls").get_src_dirs()
-      if not src_dirs then
-        return
+  local stdout = obj.stdout or ""
+  if stdout == "" then
+    print("No tests were run.")
+    return
+  end
+
+  vim.schedule(function()
+    local lines = vim.split(stdout, "\n")
+    local items = {}
+
+    for _, line in ipairs(lines) do
+      local test_info = require("gnattest.xml").get_test_from_file_line(
+        vim.split(line, ":")[1], -- filename
+        tonumber(vim.split(line, ":")[2]) -- line number
+      )
+      if test_info ~= nil then
+        table.insert(items, prepare_qf_item(test_info, line, "I"))
       end
-
-      vim.schedule(function()
-        local lines = vim.split(stdout, "\n")
-        local items = {}
-        for _, line in ipairs(lines) do
-          local filename = vim.split(line, ":")[1]
-          local lnum = vim.split(line, ":")[2]
-          local col = vim.split(line, ":")[3]
-          local file = require("gnattest.utils").find_file(filename, src_dirs)
-          table.insert(items, {
-            bufnr = 0,
-            filename = file,
-            lnum = lnum,
-            col = col,
-            text = tostring(vim.inspect(line)),
-            type = "I",
-          })
-        end
-        vim.fn.setqflist({}, "r", { title = "Gnattest run_all", items = items })
-        vim.cmd("copen")
-      end)
     end
+
+    vim.fn.setqflist({}, "r", { title = "Gnattest run_all", items = items })
+    vim.cmd("copen")
+  end)
+end
+
+local function run_all_tests()
+  local als = require("gnattest.ada_ls")
+  vim.system(
+    { als.get_harness_dir() .. "/test_runner" },
+    { text = true },
+    on_exit_tests
   )
 end
 
