@@ -1,7 +1,6 @@
 local M = {}
 
-local function get_subprogram_name()
-  local lnum = vim.fn.getpos(".")[2]
+local function get_subprogram_name_from_line(lnum)
   local symbols = require("gnattest.ada_ls").get_symbols()
   if not symbols then
     return nil
@@ -51,7 +50,7 @@ local function get_declaration_info()
   return declarations
 end
 
-local function get_gnattest_info_on_cursor()
+local function get_gnattest_info_on_line(lnum)
   local utils = require("gnattest.utils")
   local xml_info = require("gnattest.xml").get_xml_info()
 
@@ -59,7 +58,7 @@ local function get_gnattest_info_on_cursor()
     return nil
   end
 
-  local subr_name, start_pos = get_subprogram_name()
+  local subr_name, start_pos = get_subprogram_name_from_line(lnum)
   if subr_name == nil then
     return nil
   end
@@ -101,6 +100,10 @@ local function get_gnattest_info_on_cursor()
   return nil
 end
 
+local function get_gnattest_info_on_cursor()
+  return get_gnattest_info_on_line(vim.fn.getpos(".")[2])
+end
+
 function M.switch_subprogram()
   local utils = require("gnattest.utils")
   local info = get_gnattest_info_on_cursor()
@@ -135,7 +138,7 @@ end
 
 -- Test-specific exports - only exposed in test mode
 if os.getenv("GNATTEST_TEST_MODE") then
-  M._get_subprogram_name = get_subprogram_name
+  M._get_subprogram_name = get_subprogram_name_from_line
   M._get_declaration_info = get_declaration_info
   M._get_gnattest_info_on_cursor = get_gnattest_info_on_cursor
 end
