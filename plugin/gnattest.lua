@@ -30,9 +30,38 @@ local function run_all_tests()
     { require("gnattest.ada_ls").get_harness_dir() .. "/test_runner" },
     { text = true },
     function(obj)
-      if obj.stdout then
-        print(obj.stdout)
+      if obj.stderr and obj.stderr ~= "" then
+        print("Error running tests: " .. obj.stderr)
+        return
       end
+
+      local stdout = obj.stdout or ""
+
+      local src_dirs = require("gnattest.ada_ls").get_src_dirs()
+      if not src_dirs then
+        return
+      end
+
+      vim.schedule(function()
+        local lines = vim.split(stdout, "\n")
+        local items = {}
+        for _, line in ipairs(lines) do
+          local filename = vim.split(line, ":")[1]
+          local lnum = vim.split(line, ":")[2]
+          local col = vim.split(line, ":")[3]
+          local file = require("gnattest.utils").find_file(filename, src_dirs)
+          table.insert(items, {
+            bufnr = 0,
+            filename = file,
+            lnum = lnum,
+            col = col,
+            text = tostring(vim.inspect(line)),
+            type = "I",
+          })
+        end
+        vim.fn.setqflist({}, "r", { title = "Gnattest run_all", items = items })
+        vim.cmd("copen")
+      end)
     end
   )
 end
