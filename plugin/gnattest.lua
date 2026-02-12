@@ -30,6 +30,14 @@ local function prepare_run()
   vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
 end
 
+local function type_test_result(res)
+  if res:find("PASSED") then
+    return "I"
+  else
+    return "E"
+  end
+end
+
 local function prepare_qf_item(test_info, line, type)
   local als = require("gnattest.ada_ls")
   local utils = require("gnattest.utils")
@@ -44,7 +52,7 @@ local function prepare_qf_item(test_info, line, type)
     filename = file,
     lnum = lnum,
     col = col,
-    text = tostring(line),
+    text = line,
     type = type or "E",
   }
 end
@@ -71,38 +79,35 @@ local function on_exit_tests(obj)
         tonumber(vim.split(line, ":")[2]) -- line number
       )
       if test_info ~= nil then
-        table.insert(items, prepare_qf_item(test_info, line, "I"))
+        table.insert(
+          items,
+          prepare_qf_item(test_info, tostring(line), type_test_result(line))
+        )
       end
     end
 
-    vim.fn.setqflist({}, "r", { title = "Gnattest run_all", items = items })
+    vim.fn.setqflist({}, "a", { title = "Gnattest run_all", items = items })
     vim.cmd("copen")
   end)
 end
 
-local function run_all_tests()
-  local als = require("gnattest.ada_ls")
-  vim.system(
-    { als.get_harness_dir() .. "/test_runner" },
-    { text = true },
-    on_exit_tests
-  )
-end
-
 local function run_test(filename, lnum)
-  if filename == nil or lnum == nil then
-    return
+  local arg = ""
+  if filename ~= nil and lnum ~= nil then
+    arg = "--routines=" .. filename .. ":" .. lnum
   end
 
-  vim.cmd(
-    "!"
-      .. require("gnattest.ada_ls").get_harness_dir()
-      .. "/test_runner"
-      .. " --routines="
-      .. filename
-      .. ":"
-      .. lnum
-  )
+  local als = require("gnattest.ada_ls")
+  vim.system({
+    als.get_harness_dir() .. "/test_runner",
+    arg,
+    -- "--routines=" .. filename .. ":" .. lnum,
+  }, { text = true }, on_exit_tests)
+end
+
+local function run_all_tests()
+  prepare_run()
+  run_test(nil, nil)
 end
 
 local function switch_source_test()
@@ -127,6 +132,7 @@ local function impl_run(args)
     return
   end
 
+  prepare_run()
   for _, info in pairs(pkg_info) do
     run_test(filename, info.source.line)
   end
