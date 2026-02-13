@@ -183,7 +183,7 @@ function M.get_test_from_file_line(filename, line)
     for _, pkg_info in pairs(files) do
       for _, test_info in pairs(pkg_info) do
         if name == filename and tonumber(test_info.source.line) == line then
-          return pkg_info[1]
+          return test_info
         end
       end
     end
