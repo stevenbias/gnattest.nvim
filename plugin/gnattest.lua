@@ -23,18 +23,20 @@ end
 
 local function build_tests()
   local res = true
-  vim.system(
-    { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
-    { text = true },
-    function(obj)
-      if obj.stderr and obj.stderr ~= "" then
-        res = false
-        print("Error building tests: " .. obj.stderr)
-      else
-        print("Tests built successfully.")
+  vim
+    .system(
+      { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
+      { text = true },
+      function(obj)
+        if obj.stderr and obj.stderr ~= "" then
+          res = false
+          print("Error building tests: " .. obj.stderr)
+        else
+          print("Tests built successfully.")
+        end
       end
-    end
-  )
+    )
+    :wait()
   return res
 end
 
