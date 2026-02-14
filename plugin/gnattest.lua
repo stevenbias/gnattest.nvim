@@ -22,7 +22,20 @@ local function generate_tests()
 end
 
 local function build_tests()
-  vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
+  local res = true
+  vim.system(
+    { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
+    { text = true },
+    function(obj)
+      if obj.stderr and obj.stderr ~= "" then
+        res = false
+        print("Error building tests: " .. obj.stderr)
+      else
+        print("Tests built successfully.")
+      end
+    end
+  )
+  return res
 end
 
 local function prepare_run()
