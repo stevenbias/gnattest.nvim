@@ -39,8 +39,11 @@ local function build_tests()
 end
 
 local function prepare_run()
-  build_tests()
-  vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
+  if build_tests() then
+    vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
+    return true
+  end
+  return false
 end
 
 local function type_test_result(res)
@@ -114,13 +117,13 @@ local function run_test(filename, lnum)
   vim.system({
     als.get_harness_dir() .. "/test_runner",
     arg,
-    -- "--routines=" .. filename .. ":" .. lnum,
   }, { text = true }, on_exit_tests)
 end
 
 local function run_all_tests()
-  prepare_run()
-  run_test(nil, nil)
+  if prepare_run() then
+    run_test(nil, nil)
+  end
 end
 
 local function switch_source_test()
@@ -145,7 +148,9 @@ local function impl_run(args)
     return
   end
 
-  prepare_run()
+  if not prepare_run() then
+    return
+  end
   for _, info in pairs(pkg_info) do
     run_test(filename, info.source.line)
   end
