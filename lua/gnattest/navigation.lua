@@ -34,24 +34,12 @@ local function get_gnattest_info_on_line(lnum)
     return nil
   end
 
-  local subr_name, start_pos = als.get_subprogram_name_from_line(lnum)
+  local subr_name = als.get_subprogram_name_from_line(lnum)
   if subr_name == nil then
     return nil
   end
 
-  local filename
-  if utils.is_gnattest_file() then
-    filename = utils.get_filename()
-  else
-    if start_pos ~= nil then
-      vim.api.nvim_win_set_cursor(0, start_pos)
-    end
-    local declaration_info = get_declaration_info()[1]
-    if declaration_info == nil then
-      return nil
-    end
-    filename = vim.fs.basename(declaration_info.filepath)
-  end
+  local filename = utils.split_filename(utils.get_filename())
 
   for f, file_info in pairs(xml_info) do
     for _, pkg_info in pairs(file_info) do

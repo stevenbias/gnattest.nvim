@@ -92,10 +92,11 @@ local function on_exit_tests(obj)
     local items = {}
 
     for _, line in ipairs(lines) do
-      local test_info = require("gnattest.xml").get_test_from_file_line(
-        vim.split(line, ":")[1], -- filename
-        tonumber(vim.split(line, ":")[2]) -- line number
-      )
+      local _, _, test_info =
+        require("gnattest.xml").get_test_from_src_file_line(
+          vim.split(line, ":")[1], -- filename
+          tonumber(vim.split(line, ":")[2]) -- line number
+        )
       if test_info ~= nil then
         table.insert(
           items,
