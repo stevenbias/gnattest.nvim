@@ -83,7 +83,7 @@ local function on_exit_tests(obj)
 
   local stdout = obj.stdout or ""
   if stdout == "" then
-    print("No tests were run.")
+    print("No tests were run")
     return
   end
 

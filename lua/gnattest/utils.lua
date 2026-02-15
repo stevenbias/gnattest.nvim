@@ -53,6 +53,11 @@ function M.get_bufdir()
   return vim.fs.dirname(M.get_bufpath())
 end
 
+function M.split_filename(filename)
+  local name, ext = filename:match("(.+)%.(%w+)$")
+  return name, ext
+end
+
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
   local bufdir = M.get_bufdir()
