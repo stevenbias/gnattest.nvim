@@ -8,21 +8,6 @@ describe("gnattest.navigation", function()
   local xml_mock
 
   -- Test data builders for readability
-  local function create_lsp_symbol(name, start_line, end_line, start_char)
-    start_char = start_char or 0
-    return {
-      name = name,
-      range = {
-        start = { line = start_line, character = start_char },
-        ["end"] = { line = end_line, character = 0 },
-      },
-      selectionRange = {
-        start = { line = start_line, character = start_char },
-        ["end"] = { line = start_line, character = start_char + #name },
-      },
-    }
-  end
-
   local function create_lsp_declaration(
     filepath,
     line,
@@ -60,6 +45,7 @@ describe("gnattest.navigation", function()
     ada_ls_mock.get_symbols.returns(nil)
     ada_ls_mock.get_declarations.returns(nil)
     xml_mock.get_xml_info.returns({})
+    xml_mock.get_gnattest_info_on_cursor.returns(nil)
     utils_mock.is_gnattest_file.returns(false)
     utils_mock.get_filename.returns("my_package.ads")
   end
@@ -128,6 +114,7 @@ describe("gnattest.navigation", function()
 
     xml_mock = {
       get_xml_info = stub.new().returns({}),
+      get_gnattest_info_on_cursor = stub.new().returns(nil),
     }
     package.loaded["gnattest.xml"] = xml_mock
 
@@ -143,68 +130,7 @@ describe("gnattest.navigation", function()
     package.loaded["gnattest.xml"] = nil
   end)
 
-  -- Tests for private functions (requires GNATTEST_TEST_MODE=1)
   if os.getenv("GNATTEST_TEST_MODE") then
-    describe("_get_subprogram_name (private)", function()
-      it("returns nil when no matching symbols", function()
-        ada_ls_mock.get_symbols.returns(nil)
-        assert.is_nil(navigation._get_subprogram_name())
-
-        ada_ls_mock.get_symbols.returns({})
-        assert.is_nil(navigation._get_subprogram_name())
-
-        local symbol = create_lsp_symbol("My_Function", 10, 15, 9)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        assert.is_nil(navigation._get_subprogram_name())
-      end)
-
-      it("returns subprogram name when cursor is on exact line", function()
-        local symbol = create_lsp_symbol("My_Function", 4, 15, 9)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-
-        local result = navigation._get_subprogram_name()
-
-        assert.equals("My_Function", result)
-      end)
-
-      it("returns subprogram name and position when inside range", function()
-        local symbol = create_lsp_symbol("My_Procedure", 3, 20, 9)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-
-        local name, pos = navigation._get_subprogram_name()
-
-        assert.equals("My_Procedure", name)
-        assert.same({ 4, 10 }, pos)
-      end)
-
-      it("uses selectionRange when range is not available", function()
-        local symbol = {
-          name = "Another_Function",
-          selectionRange = {
-            start = { line = 4, character = 0 },
-            ["end"] = { line = 10, character = 0 },
-          },
-        }
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-
-        local result = navigation._get_subprogram_name()
-
-        assert.equals("Another_Function", result)
-      end)
-
-      it("handles multiple symbols and returns first match", function()
-        local symbols = {
-          create_lsp_symbol("First_Function", 10, 15, 0),
-          create_lsp_symbol("Second_Function", 3, 8, 0),
-        }
-        ada_ls_mock.get_symbols.returns({ { children = symbols } })
-
-        local result = navigation._get_subprogram_name()
-
-        assert.equals("Second_Function", result)
-      end)
-    end)
-
     describe("_get_declaration_info (private)", function()
       it("returns nil when get_declarations returns nil", function()
         ada_ls_mock.get_declarations.returns(nil)
@@ -254,155 +180,26 @@ describe("gnattest.navigation", function()
         assert.equals("/project/src/file2.adb", result[2].filepath)
       end)
     end)
-
-    describe("_get_gnattest_info_on_cursor (private)", function()
-      it("returns nil when prerequisites missing", function()
-        xml_mock.get_xml_info.returns({})
-        assert.is_nil(navigation._get_gnattest_info_on_cursor())
-
-        xml_mock.get_xml_info.returns({ ["my_package.ads"] = {} })
-        ada_ls_mock.get_symbols.returns(nil)
-        assert.is_nil(navigation._get_gnattest_info_on_cursor())
-      end)
-
-      it("searches by test name when in gnattest file", function()
-        utils_mock.is_gnattest_file.returns(true)
-        utils_mock.get_filename.returns("test_file.adb")
-        local test_entry =
-          create_xml_test_entry("My_Function", "Test_My_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("Test_My_Function", 4, 10, 0)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-
-        local result = navigation._get_gnattest_info_on_cursor()
-
-        assert.is_not_nil(result)
-        assert.is_not_nil(result["my_package.ads"])
-        assert.equals("My_Function", result["my_package.ads"].source.name)
-      end)
-
-      it("searches by source name when not in gnattest file", function()
-        utils_mock.is_gnattest_file.returns(false)
-        utils_mock.get_filename.returns("my_package.ads")
-        local test_entry =
-          create_xml_test_entry("My_Function", "Test_My_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("My_Function", 4, 10, 0)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        local decl =
-          create_lsp_declaration("/project/src/my_package.ads", 5, 0, 10, 0)
-        ada_ls_mock.get_declarations.returns({ decl })
-
-        local result = navigation._get_gnattest_info_on_cursor()
-
-        assert.is_not_nil(result)
-        assert.is_not_nil(result["my_package.ads"])
-        assert.equals("My_Function", result["my_package.ads"].source.name)
-      end)
-
-      it("returns nil when no matching subprogram in xml", function()
-        utils_mock.is_gnattest_file.returns(false)
-        utils_mock.get_filename.returns("my_package.ads")
-        local test_entry =
-          create_xml_test_entry("Other_Function", "Test_Other_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("My_Function", 4, 10, 0)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        local decl =
-          create_lsp_declaration("/project/src/my_package.ads", 5, 0, 10, 0)
-        ada_ls_mock.get_declarations.returns({ decl })
-
-        local result = navigation._get_gnattest_info_on_cursor()
-
-        assert.is_nil(result)
-      end)
-
-      it("uses declaration filename when not in gnattest file", function()
-        utils_mock.is_gnattest_file.returns(false)
-        utils_mock.get_filename.returns("my_package.adb")
-        local test_entry =
-          create_xml_test_entry("My_Function", "Test_My_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("My_Function", 3, 10, 0)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        local decl =
-          create_lsp_declaration("/project/src/my_package.ads", 5, 0, 10, 0)
-        ada_ls_mock.get_declarations.returns({ decl })
-
-        local result = navigation._get_gnattest_info_on_cursor()
-
-        assert.is_not_nil(result)
-        assert.stub(ada_ls_mock.get_declarations).was_called()
-      end)
-
-      it("sets cursor position when start_pos is available", function()
-        utils_mock.is_gnattest_file.returns(false)
-        local test_entry =
-          create_xml_test_entry("My_Function", "Test_My_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("My_Function", 2, 10, 5)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        local decl =
-          create_lsp_declaration("/project/src/my_package.ads", 5, 0, 10, 0)
-        ada_ls_mock.get_declarations.returns({ decl })
-
-        navigation._get_gnattest_info_on_cursor()
-
-        assert.stub(_G.vim.api.nvim_win_set_cursor).was_called_with(0, { 3, 6 })
-      end)
-
-      it("returns nil when declaration_info is nil", function()
-        utils_mock.is_gnattest_file.returns(false)
-        local test_entry =
-          create_xml_test_entry("My_Function", "Test_My_Function")
-        xml_mock.get_xml_info.returns({
-          ["my_package.ads"] = { ["Package1"] = { test_entry } },
-        })
-        local symbol = create_lsp_symbol("My_Function", 2, 10, 5)
-        ada_ls_mock.get_symbols.returns({ { children = { symbol } } })
-        ada_ls_mock.get_declarations.returns({})
-
-        local result = navigation._get_gnattest_info_on_cursor()
-
-        assert.is_nil(result)
-      end)
-    end)
   end -- if os.getenv("GNATTEST_TEST_MODE")
 
   describe("switch_subprogram", function()
     it("returns nil when get_gnattest_info_on_cursor returns nil", function()
-      xml_mock.get_xml_info.returns({})
       assert.is_nil(navigation.switch_subprogram())
     end)
 
     it("switches to source file when in gnattest file", function()
       utils_mock.is_gnattest_file.returns(true)
       utils_mock.get_filename.returns("test_file.adb")
-      xml_mock.get_xml_info.returns({
-        ["my_package.ads"] = {
-          ["Package1"] = {
-            create_xml_test_entry("My_Function", "Test_My_Function", {
-              source_line = 15,
-              source_column = 8,
-              test_line = 25,
-              test_column = 12,
-            }),
-          },
-        },
-      })
-      ada_ls_mock.get_symbols.returns({
-        { children = { create_lsp_symbol("Test_My_Function", 4, 10, 0) } },
-      })
+      xml_mock.get_gnattest_info_on_cursor.returns(
+        "my_package.ads",
+        "Package1",
+        create_xml_test_entry("My_Function", "Test_My_Function", {
+          source_line = 15,
+          source_column = 8,
+          test_line = 25,
+          test_column = 12,
+        })
+      )
       utils_mock.find_file.returns("/project/src/my_package.ads")
 
       navigation.switch_subprogram()
@@ -418,16 +215,11 @@ describe("gnattest.navigation", function()
     it("returns nil when src_dirs not available", function()
       utils_mock.is_gnattest_file.returns(true)
       utils_mock.get_filename.returns("test_file.adb")
-      xml_mock.get_xml_info.returns({
-        ["my_package.ads"] = {
-          ["Package1"] = {
-            create_xml_test_entry("My_Function", "Test_My_Function"),
-          },
-        },
-      })
-      ada_ls_mock.get_symbols.returns({
-        { children = { create_lsp_symbol("Test_My_Function", 4, 10, 0) } },
-      })
+      xml_mock.get_gnattest_info_on_cursor.returns(
+        "my_package.ads",
+        "Package1",
+        create_xml_test_entry("My_Function", "Test_My_Function")
+      )
       ada_ls_mock.get_src_dirs.returns(nil)
 
       local result = navigation.switch_subprogram()
@@ -439,24 +231,16 @@ describe("gnattest.navigation", function()
     it("switches to test file when in source file", function()
       utils_mock.is_gnattest_file.returns(false)
       utils_mock.get_filename.returns("my_package.ads")
-      xml_mock.get_xml_info.returns({
-        ["my_package.ads"] = {
-          ["Package1"] = {
-            create_xml_test_entry("My_Function", "Test_My_Function", {
-              source_line = 15,
-              source_column = 8,
-              test_line = 25,
-              test_column = 12,
-            }),
-          },
-        },
-      })
-      ada_ls_mock.get_symbols.returns({
-        { children = { create_lsp_symbol("My_Function", 4, 10, 0) } },
-      })
-      ada_ls_mock.get_declarations.returns({
-        create_lsp_declaration("/project/src/my_package.ads", 5, 0, 10, 0),
-      })
+      xml_mock.get_gnattest_info_on_cursor.returns(
+        "my_package.ads",
+        "Package1",
+        create_xml_test_entry("My_Function", "Test_My_Function", {
+          source_line = 15,
+          source_column = 8,
+          test_line = 25,
+          test_column = 12,
+        })
+      )
 
       navigation.switch_subprogram()
 
@@ -470,16 +254,11 @@ describe("gnattest.navigation", function()
     it("handles multiple file entries correctly", function()
       utils_mock.is_gnattest_file.returns(true)
       utils_mock.get_filename.returns("test_file.adb")
-      xml_mock.get_xml_info.returns({
-        ["my_package.ads"] = {
-          ["Package1"] = {
-            create_xml_test_entry("My_Function", "Test_My_Function"),
-          },
-        },
-      })
-      ada_ls_mock.get_symbols.returns({
-        { children = { create_lsp_symbol("Test_My_Function", 4, 10, 0) } },
-      })
+      xml_mock.get_gnattest_info_on_cursor.returns(
+        "my_package.ads",
+        "Package1",
+        create_xml_test_entry("My_Function", "Test_My_Function")
+      )
 
       navigation.switch_subprogram()
 

@@ -81,6 +81,10 @@ describe("gnattest.xml", function()
     it("exports required functions", function()
       assert.is_function(xml.get_test_by_name)
       assert.is_function(xml.get_xml_info)
+      assert.is_function(xml.get_pkg_tests)
+      assert.is_function(xml.get_test_from_src_file_line)
+      assert.is_function(xml.get_gnattest_info_on_line)
+      assert.is_function(xml.get_gnattest_info_on_cursor)
     end)
   end)
 
@@ -457,6 +461,197 @@ describe("gnattest.xml", function()
       end)
     end)
 
+    describe("get_pkg_tests", function()
+      it("returns tests for matching package", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = { { source = { name = "testA" }, test = {} } },
+          },
+        })
+
+        local tests, filename = xml.get_pkg_tests("pkg1")
+
+        assert.equals("file1", filename)
+        assert.equals("testA", tests[1].source.name)
+      end)
+
+      it("returns nil for missing package", function()
+        xml = inject_xml_data({
+          file1 = {
+            pkg1 = { { source = { name = "testA" }, test = {} } },
+          },
+        })
+
+        assert.is_nil(xml.get_pkg_tests("missing_pkg"))
+      end)
+    end)
+
+    describe("get_test_from_src_file_line", function()
+      it("finds test by filename and line", function()
+        xml = inject_xml_data({
+          ["my_package.ads"] = {
+            Package1 = {
+              {
+                source = { name = "My_Function", line = "10", column = "2" },
+                test = { name = "Test_My_Function", file = "test.adb" },
+              },
+            },
+          },
+        })
+
+        local file, pkg, info =
+          xml.get_test_from_src_file_line("my_package.ads", 10)
+
+        assert.equals("my_package.ads", file)
+        assert.equals("Package1", pkg)
+        assert.equals("My_Function", info.source.name)
+      end)
+
+      it("returns nil when no match", function()
+        xml = inject_xml_data({
+          ["my_package.ads"] = {
+            Package1 = {
+              {
+                source = { name = "My_Function", line = "10", column = "2" },
+                test = { name = "Test_My_Function", file = "test.adb" },
+              },
+            },
+          },
+        })
+
+        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 11))
+      end)
+    end)
+
+    describe("get_gnattest_info_on_line", function()
+      local original_get_subprogram
+      local original_is_gnattest_file
+      local original_get_filename
+      local original_match
+
+      before_each(function()
+        original_get_subprogram =
+          require("gnattest.ada_ls").get_subprogram_name_from_line
+        require("gnattest.ada_ls").get_subprogram_name_from_line = function()
+          return "My_Function"
+        end
+
+        local utils = require("gnattest.utils")
+        original_is_gnattest_file = utils.is_gnattest_file
+        original_get_filename = utils.get_filename
+        utils.is_gnattest_file = function()
+          return false
+        end
+        utils.get_filename = function()
+          return "my_package.ads"
+        end
+
+        original_match = _G.vim.fn.match
+        _G.vim.fn.match = function(str, pattern)
+          if type(str) == "string" and type(pattern) == "string" then
+            return str:find(pattern, 1, true) and 0 or -1
+          end
+          return -1
+        end
+      end)
+
+      after_each(function()
+        require("gnattest.ada_ls").get_subprogram_name_from_line =
+          original_get_subprogram
+        local utils = require("gnattest.utils")
+        utils.is_gnattest_file = original_is_gnattest_file
+        utils.get_filename = original_get_filename
+        _G.vim.fn.match = original_match
+      end)
+
+      it("returns nil when subprogram name missing", function()
+        require("gnattest.ada_ls").get_subprogram_name_from_line = function()
+          return nil
+        end
+
+        assert.is_nil(xml.get_gnattest_info_on_line(3))
+      end)
+
+      it("returns info when in source file", function()
+        xml = inject_xml_data({
+          ["my_package.ads"] = {
+            Package1 = {
+              {
+                source = { name = "My_Function", line = "10", column = "2" },
+                test = {
+                  name = "Test_My_Function",
+                  file = "test.adb",
+                  line = "20",
+                  column = "4",
+                },
+              },
+            },
+          },
+        })
+
+        local file, pkg, info = xml.get_gnattest_info_on_line(10)
+
+        assert.equals("my_package.ads", file)
+        assert.equals("Package1", pkg)
+        assert.equals("My_Function", info.source.name)
+      end)
+
+      it("returns info when in gnattest file", function()
+        local utils = require("gnattest.utils")
+        utils.is_gnattest_file = function()
+          return true
+        end
+        utils.get_filename = function()
+          return "test_file.adb"
+        end
+
+        xml = inject_xml_data({
+          ["my_package.ads"] = {
+            Package1 = {
+              {
+                source = { name = "My_Function", line = "10", column = "2" },
+                test = {
+                  name = "Test_My_Function",
+                  file = "test_file.adb",
+                  line = "20",
+                  column = "4",
+                },
+              },
+            },
+          },
+        })
+
+        local file, pkg, info = xml.get_gnattest_info_on_line(20)
+
+        assert.equals("my_package.ads", file)
+        assert.equals("Package1", pkg)
+        assert.equals("Test_My_Function", info.test.name)
+      end)
+    end)
+
+    describe("get_gnattest_info_on_cursor", function()
+      it("delegates to get_gnattest_info_on_line", function()
+        local original_getpos = _G.vim.fn.getpos
+        _G.vim.fn.getpos = function()
+          return { 0, 10, 0 }
+        end
+        local get_line_calls = {}
+        local original_get_line = xml.get_gnattest_info_on_line
+        xml.get_gnattest_info_on_line = function(lnum)
+          table.insert(get_line_calls, lnum)
+          return nil
+        end
+
+        xml.get_gnattest_info_on_cursor()
+
+        assert.equals(1, #get_line_calls)
+        assert.equals(10, get_line_calls[1])
+
+        xml.get_gnattest_info_on_line = original_get_line
+        _G.vim.fn.getpos = original_getpos
+      end)
+    end)
+
     describe("edge cases", function()
       it("handles empty tests and enforces case sensitivity", function()
         xml = inject_xml_data({})
@@ -658,117 +853,106 @@ describe("gnattest.xml", function()
     end)
 
     describe("private functions", function()
-      local helpers = require("spec.helpers.common")
-
-      local function get_pkg_tests_fn()
-        return xml._get_pkg_tests or xml.get_pkg_tests
-      end
-
-      if helpers.should_test_private_functions() then
-        it("_query_element returns query object for various inputs", function()
-          local inputs = {
-            { value = "unit" },
-            { value = nil },
-            { value = "" },
-            { value = "test_unit" },
-          }
-          for _, input in ipairs(inputs) do
-            local query = xml._query_element(input.value)
-            assert.is_not_nil(query)
-            assert.is_table(query)
-          end
-        end)
-        it("_query_test_info returns a query object", function()
-          local query = xml._query_test_info()
+      it("_query_element returns query object for various inputs", function()
+        local inputs = {
+          { value = "unit" },
+          { value = nil },
+          { value = "" },
+          { value = "test_unit" },
+        }
+        for _, input in ipairs(inputs) do
+          local query = xml._query_element(input.value)
           assert.is_not_nil(query)
           assert.is_table(query)
-        end)
+        end
+      end)
+      it("_query_test_info returns a query object", function()
+        local query = xml._query_test_info()
+        assert.is_not_nil(query)
+        assert.is_table(query)
+      end)
 
-        it("_create_xml_buf creates buffer and returns buffer id", function()
-          local buf_id = xml._create_xml_buf()
-          assert.equals(1, buf_id)
-        end)
+      it("_create_xml_buf creates buffer and returns buffer id", function()
+        local buf_id = xml._create_xml_buf()
+        assert.equals(1, buf_id)
+      end)
 
-        it(
-          "_create_xml_buf executes file pattern matching in vim.fs.find callback",
-          function()
-            local captured_callback = nil
-            _G.vim.fs.find = function(callback)
-              captured_callback = callback
-              return { "gnattest.xml" }
-            end
-
-            xml._create_xml_buf()
-
-            assert.is_not_nil(captured_callback)
-            assert.is_function(captured_callback)
-
-            assert.is_true(captured_callback("gnattest.xml"))
-
-            assert.is_false(captured_callback("project_gnattest.xml"))
-            assert.is_false(captured_callback("my_gnattest.xml"))
-            assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
-            assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
-
-            assert.is_false(captured_callback("test.xml"))
-            assert.is_false(captured_callback("gnattest.adb"))
-            assert.is_false(captured_callback("gnattest.xml.backup"))
-            assert.is_false(captured_callback("gnattest_output.xml"))
+      it(
+        "_create_xml_buf executes file pattern matching in vim.fs.find callback",
+        function()
+          local captured_callback = nil
+          _G.vim.fs.find = function(callback)
+            captured_callback = callback
+            return { "gnattest.xml" }
           end
-        )
 
-        it("_get_pkg_tests returns tests for given package", function()
-          local get_pkg_tests = get_pkg_tests_fn()
+          xml._create_xml_buf()
+
+          assert.is_not_nil(captured_callback)
+          assert.is_function(captured_callback)
+
+          assert.is_true(captured_callback("gnattest.xml"))
+
+          assert.is_false(captured_callback("project_gnattest.xml"))
+          assert.is_false(captured_callback("my_gnattest.xml"))
+          assert.is_false(captured_callback("/path/to/build/gnattest.xml"))
+          assert.is_false(captured_callback("nested/deep/path/gnattest.xml"))
+
+          assert.is_false(captured_callback("test.xml"))
+          assert.is_false(captured_callback("gnattest.adb"))
+          assert.is_false(captured_callback("gnattest.xml.backup"))
+          assert.is_false(captured_callback("gnattest_output.xml"))
+        end
+      )
+
+      it("_get_pkg_tests returns tests for given package", function()
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { source = { name = "test1", line = 10 }, test = {} },
+            { source = { name = "test2", line = 20 }, test = {} },
+          },
+        }
+
+        local tests, filename = xml.get_pkg_tests("Package.SubPkg")
+        assert.is_not_nil(tests)
+        assert.equals("file1.xml", filename)
+        assert.equals(2, #tests)
+        assert.equals("test1", tests[1].source.name)
+        assert.equals("test2", tests[2].source.name)
+      end)
+
+      it("_get_pkg_tests returns nil for non-existent package", function()
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+        xml._xml_info["file1.xml"] = {
+          ["Package.SubPkg"] = {
+            { source = { name = "test1", line = 10 }, test = {} },
+          },
+        }
+
+        local tests = xml.get_pkg_tests("NonExistent.Package")
+        assert.is_nil(tests)
+      end)
+
+      it(
+        "_get_pkg_tests calls get_xml_info if xml_info table is empty",
+        function()
           for k in pairs(xml._xml_info) do
             xml._xml_info[k] = nil
           end
-          xml._xml_info["file1.xml"] = {
-            ["Package.SubPkg"] = {
-              { source = { name = "test1", line = 10 }, test = {} },
-              { source = { name = "test2", line = 20 }, test = {} },
-            },
-          }
 
-          local tests, filename = get_pkg_tests("Package.SubPkg")
-          assert.is_not_nil(tests)
-          assert.equals("file1.xml", filename)
-          assert.equals(2, #tests)
-          assert.equals("test1", tests[1].source.name)
-          assert.equals("test2", tests[2].source.name)
-        end)
-
-        it("_get_pkg_tests returns nil for non-existent package", function()
-          local get_pkg_tests = get_pkg_tests_fn()
-          for k in pairs(xml._xml_info) do
-            xml._xml_info[k] = nil
+          _G.vim.fs.find = function()
+            return {}
           end
-          xml._xml_info["file1.xml"] = {
-            ["Package.SubPkg"] = {
-              { source = { name = "test1", line = 10 }, test = {} },
-            },
-          }
 
-          local tests = get_pkg_tests("NonExistent.Package")
+          local tests = xml.get_pkg_tests("Any.Package")
           assert.is_nil(tests)
-        end)
-
-        it(
-          "_get_pkg_tests calls get_xml_info if xml_info table is empty",
-          function()
-            local get_pkg_tests = get_pkg_tests_fn()
-            for k in pairs(xml._xml_info) do
-              xml._xml_info[k] = nil
-            end
-
-            _G.vim.fs.find = function()
-              return {}
-            end
-
-            local tests = get_pkg_tests("Any.Package")
-            assert.is_nil(tests)
-          end
-        )
-      end
+        end
+      )
     end)
   end
 end)
