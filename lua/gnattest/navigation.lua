@@ -80,16 +80,12 @@ local function get_gnattest_info_on_line(lnum)
   for f, file_info in pairs(xml_info) do
     for _, pkg_info in pairs(file_info) do
       for _, info in pairs(pkg_info) do
-        if not utils.is_gnattest_file() then
-          if
-            vim.fn.match(f, filename) == 0
+        if
+          not utils.is_gnattest_file()
+            and vim.fn.match(f, filename) == 0
             and vim.fn.match(info.source.name, subr_name) ~= -1
-          then
-            return { [f] = info }
-          end
-        elseif
-          vim.fn.match(info.test.file, filename) == 0
-          and vim.fn.match(info.test.name, subr_name) ~= -1
+          or vim.fn.match(info.test.file, filename) == 0
+            and vim.fn.match(info.test.name, subr_name) ~= -1
         then
           return { [f] = info }
         end

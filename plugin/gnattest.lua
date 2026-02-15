@@ -32,7 +32,7 @@ local function build_tests()
           res = false
           print("Error building tests: " .. obj.stderr)
         else
-          print("Tests built successfully.")
+          print("Tests built successfully")
         end
       end
     )
