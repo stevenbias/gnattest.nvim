@@ -123,6 +123,20 @@ local function run_test(filename, lnum)
   }, { text = true }, on_exit_tests)
 end
 
+local function run_cursor()
+  if prepare_run() then
+    local f, _, info = require("gnattest.xml").get_gnattest_info_on_cursor()
+    if f == nil or info == nil then
+      require("gnattest.utils").notify(
+        "No test information found at cursor",
+        "warn"
+      )
+      return
+    end
+    run_test(f, info.source.line)
+  end
+end
+
 local function run_all_tests()
   if prepare_run() then
     run_test(nil, nil)
@@ -209,6 +223,11 @@ local subcommand_tbl = {
   run_all = {
     impl = function()
       run_all_tests()
+    end,
+  },
+  run_cursor = {
+    impl = function()
+      run_cursor()
     end,
   },
   switch = {
