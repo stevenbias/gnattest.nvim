@@ -22,64 +22,110 @@ local function generate_tests()
 end
 
 local function build_tests()
-  vim.cmd("!gprbuild -P " .. require("gnattest.utils").get_gnattest_project())
-end
-
-local function run_all_tests()
-  vim.system(
-    { require("gnattest.ada_ls").get_harness_dir() .. "/test_runner" },
-    { text = true },
-    function(obj)
-      if obj.stderr and obj.stderr ~= "" then
-        print("Error running tests: " .. obj.stderr)
-        return
-      end
-
-      local stdout = obj.stdout or ""
-
-      local src_dirs = require("gnattest.ada_ls").get_src_dirs()
-      if not src_dirs then
-        return
-      end
-
-      vim.schedule(function()
-        local lines = vim.split(stdout, "\n")
-        local items = {}
-        for _, line in ipairs(lines) do
-          local filename = vim.split(line, ":")[1]
-          local lnum = vim.split(line, ":")[2]
-          local col = vim.split(line, ":")[3]
-          local file = require("gnattest.utils").find_file(filename, src_dirs)
-          table.insert(items, {
-            bufnr = 0,
-            filename = file,
-            lnum = lnum,
-            col = col,
-            text = tostring(vim.inspect(line)),
-            type = "I",
-          })
+  local res = true
+  vim
+    .system(
+      { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
+      { text = true },
+      function(obj)
+        if obj.stderr and obj.stderr ~= "" then
+          res = false
+          print("Error building tests: " .. obj.stderr)
+        else
+          print("Tests built successfully")
         end
-        vim.fn.setqflist({}, "r", { title = "Gnattest run_all", items = items })
-        vim.cmd("copen")
-      end)
-    end
-  )
+      end
+    )
+    :wait()
+  return res
 end
 
-local function run_test(filename, lnum)
-  if filename == nil or lnum == nil then
+local function prepare_run()
+  if build_tests() then
+    vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
+    return true
+  end
+  return false
+end
+
+local function type_test_result(res)
+  if res:find("PASSED") then
+    return "I"
+  else
+    return "E"
+  end
+end
+
+local function prepare_qf_item(test_info, line, type)
+  local als = require("gnattest.ada_ls")
+  local utils = require("gnattest.utils")
+
+  local test_dir = als.get_tests_dir()
+  local file = utils.find_file(test_info.test.file, test_dir)
+  local lnum = test_info.test.line
+  local col = test_info.test.column
+
+  return {
+    bufnr = 0,
+    filename = file,
+    lnum = lnum,
+    col = col,
+    text = line,
+    type = type or "E",
+  }
+end
+
+local function on_exit_tests(obj)
+  if obj.stderr and obj.stderr ~= "" then
+    print("Error running tests: " .. obj.stderr)
     return
   end
 
-  vim.cmd(
-    "!"
-      .. require("gnattest.ada_ls").get_harness_dir()
-      .. "/test_runner"
-      .. " --routines="
-      .. filename
-      .. ":"
-      .. lnum
-  )
+  local stdout = obj.stdout or ""
+  if stdout == "" then
+    print("No tests were run.")
+    return
+  end
+
+  vim.schedule(function()
+    local lines = vim.split(stdout, "\n")
+    local items = {}
+
+    for _, line in ipairs(lines) do
+      local test_info = require("gnattest.xml").get_test_from_file_line(
+        vim.split(line, ":")[1], -- filename
+        tonumber(vim.split(line, ":")[2]) -- line number
+      )
+      if test_info ~= nil then
+        table.insert(
+          items,
+          prepare_qf_item(test_info, tostring(line), type_test_result(line))
+        )
+      end
+    end
+
+    vim.fn.setqflist({}, "a", { title = "Gnattest run_all", items = items })
+    vim.cmd("copen")
+  end)
+end
+
+local function run_test(filename, lnum)
+  local arg = ""
+  if filename ~= nil and lnum ~= nil then
+    arg = "--routines=" .. filename .. ":" .. lnum
+  end
+
+  local als = require("gnattest.ada_ls")
+  vim.system({
+    als.get_harness_dir() .. "/test_runner",
+    arg,
+  }, { text = true }, on_exit_tests)
+end
+
+local function run_all_tests()
+  if prepare_run() then
+    run_test(nil, nil)
+  end
 end
 
 local function switch_source_test()
@@ -104,6 +150,9 @@ local function impl_run(args)
     return
   end
 
+  if not prepare_run() then
+    return
+  end
   for _, info in pairs(pkg_info) do
     run_test(filename, info.source.line)
   end
