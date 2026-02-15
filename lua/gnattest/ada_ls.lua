@@ -185,6 +185,31 @@ local function switch_prj(prj)
   client:notify("workspace/didChangeConfiguration", { settings = config })
 end
 
+function M.get_subprogram_name_from_line(lnum)
+  local symbols = require("gnattest.ada_ls").get_symbols()
+  if not symbols then
+    return nil
+  end
+
+  for _, symbol in ipairs(symbols) do
+    for _, child in ipairs(symbol.children) do
+      local range = child.range or child.selectionRange
+      if range.start.line + 1 == lnum then
+        return child.name
+      elseif range.start.line + 1 < lnum and lnum <= range["end"].line + 1 then
+        range = child.selectionRange
+        return child.name,
+          {
+            tonumber(range.start.line + 1),
+            tonumber(range.start.character + 1),
+          }
+      end
+    end
+  end
+
+  return nil
+end
+
 function M.switch_to_source()
   switch_prj(M.get_prj_file())
 end
