@@ -25,48 +25,10 @@ local function get_declaration_info()
   return declarations
 end
 
-local function get_gnattest_info_on_line(lnum)
-  local utils = require("gnattest.utils")
-  local xml_info = require("gnattest.xml").get_xml_info()
-  local als = require("gnattest.ada_ls")
-
-  if next(xml_info) == nil then
-    return nil
-  end
-
-  local subr_name = als.get_subprogram_name_from_line(lnum)
-  if subr_name == nil then
-    return nil
-  end
-
-  local filename = utils.split_filename(utils.get_filename())
-
-  for f, file_info in pairs(xml_info) do
-    for _, pkg_info in pairs(file_info) do
-      for _, info in pairs(pkg_info) do
-        if
-          not utils.is_gnattest_file()
-            and vim.fn.match(f, filename) == 0
-            and vim.fn.match(info.source.name, subr_name) ~= -1
-          or vim.fn.match(info.test.file, filename) == 0
-            and vim.fn.match(info.test.name, subr_name) ~= -1
-        then
-          return { [f] = info }
-        end
-      end
-    end
-  end
-
-  return nil
-end
-
-local function get_gnattest_info_on_cursor()
-  return get_gnattest_info_on_line(vim.fn.getpos(".")[2])
-end
-
 function M.switch_subprogram()
   local utils = require("gnattest.utils")
-  local info = get_gnattest_info_on_cursor()
+  local filename, _, info =
+    require("gnattest.xml").get_gnattest_info_on_cursor()
   if info == nil then
     return nil
   end
@@ -74,32 +36,30 @@ function M.switch_subprogram()
   local als = require("gnattest.ada_ls")
   local line, column, file
 
-  for filename, file_info in pairs(info) do
-    if utils.is_gnattest_file() then
-      local src_dirs = als.get_src_dirs()
-      if not src_dirs then
-        return nil
-      end
-      file = utils.find_file(filename, src_dirs)
-      line = tonumber(file_info.source.line)
-      column = tonumber(file_info.source.column)
-      als.switch_to_source()
-    else
-      file = als.get_tests_dir() .. "/" .. file_info.test.file
-      line = tonumber(file_info.test.line)
-      column = tonumber(file_info.test.column)
-      als.switch_to_tests()
+  if utils.is_gnattest_file() then
+    local src_dirs = als.get_src_dirs()
+    if not src_dirs then
+      return nil
     end
-    vim.cmd("edit " .. file)
-    local pos = { line, column }
-    vim.api.nvim_win_set_cursor(0, pos)
+    file = utils.find_file(filename, src_dirs)
+    line = tonumber(info.source.line)
+    column = tonumber(info.source.column)
+    als.switch_to_source()
+  else
+    file = als.get_tests_dir() .. "/" .. info.test.file
+    line = tonumber(info.test.line)
+    column = tonumber(info.test.column)
+    als.switch_to_tests()
   end
+
+  vim.cmd("edit " .. file)
+  local pos = { line, column }
+  vim.api.nvim_win_set_cursor(0, pos)
 end
 
 -- Test-specific exports - only exposed in test mode
 if os.getenv("GNATTEST_TEST_MODE") then
   M._get_declaration_info = get_declaration_info
-  M._get_gnattest_info_on_cursor = get_gnattest_info_on_cursor
 end
 
 return M

@@ -211,6 +211,44 @@ function M.get_test_by_name(pkg, name)
   return nil
 end
 
+function M.get_gnattest_info_on_line(lnum)
+  if next(xml_info) == nil then
+    M.get_xml_info()
+  end
+
+  local utils = require("gnattest.utils")
+  local als = require("gnattest.ada_ls")
+
+  local subr_name = als.get_subprogram_name_from_line(lnum)
+  if subr_name == nil then
+    return nil
+  end
+
+  local filename = utils.split_filename(utils.get_filename())
+
+  for f, file_info in pairs(xml_info) do
+    for p, pkg_info in pairs(file_info) do
+      for _, info in pairs(pkg_info) do
+        if
+          not utils.is_gnattest_file()
+            and vim.fn.match(f, filename) == 0
+            and vim.fn.match(info.source.name, subr_name) ~= -1
+          or vim.fn.match(info.test.file, filename) == 0
+            and vim.fn.match(info.test.name, subr_name) ~= -1
+        then
+          return f, p, info
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+function M.get_gnattest_info_on_cursor()
+  return M.get_gnattest_info_on_line(vim.fn.getpos(".")[2])
+end
+
 -- Test-specific exports - only exposed in test mode
 if os.getenv("GNATTEST_TEST_MODE") then
   M._query_element = query_element
