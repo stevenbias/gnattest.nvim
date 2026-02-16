@@ -42,6 +42,9 @@ function M.switch_subprogram()
       return nil
     end
     file = utils.find_file(filename, src_dirs)
+    if not file then
+      return nil
+    end
     line = tonumber(info.source.line)
     column = tonumber(info.source.column)
     als.switch_to_source()
