@@ -7,6 +7,7 @@ vim.g.loaded_gnattest = true
 
 local cmd_name = "Gnattest"
 local qf_items = {}
+local pending_runs = 0
 
 local function clean_tests()
   vim.cmd("!gprclean -P " .. require("gnattest.utils").get_gnattest_project())
@@ -44,6 +45,7 @@ end
 local function prepare_run()
   if build_tests() then
     qf_items = {} -- Clear previous quickfix items
+    pending_runs = 0 -- Reset pending runs counter
     vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
     return true
   end
@@ -64,8 +66,8 @@ local function prepare_qf_item(pkg, test_info, line, type)
 
   local test_dir = als.get_tests_dir()
   local file = utils.find_file(test_info.test.file, test_dir)
-  local lnum = test_info.test.line
-  local col = test_info.test.column
+  local lnum = tonumber(test_info.test.line)
+  local col = tonumber(test_info.test.column)
 
   -- Replace "corresponding" in the line with the actual package and test name
   line = line:gsub("corresponding", pkg .. ":" .. test_info.source.name)
@@ -81,30 +83,28 @@ local function prepare_qf_item(pkg, test_info, line, type)
 end
 
 local function open_qf_list()
-  -- Delay opening the quickfix list to ensure it's populated with the test
-  -- results
-  vim.schedule(function()
-    table.sort(qf_items, function(a, b)
-      if a.type ~= b.type then
-        return a.type == "E" -- Errors come before info
-      else
-        return a.text < b.text
-      end
-    end)
-
-    vim.fn.setqflist({}, "a", { title = "Gnattest run", items = qf_items })
-    vim.cmd("copen")
+  table.sort(qf_items, function(a, b)
+    if a.type ~= b.type then
+      return a.type == "E" -- Errors come before info
+    else
+      return a.text < b.text
+    end
   end)
+
+  vim.fn.setqflist({}, "a", { title = "Gnattest run", items = qf_items })
+  vim.cmd("copen")
 end
 
 local function on_exit_tests(obj)
   if obj.stderr and obj.stderr ~= "" then
+    pending_runs = pending_runs - 1
     print("Error running tests: " .. obj.stderr)
     return
   end
 
   local stdout = obj.stdout or ""
   if stdout == "" then
+    pending_runs = pending_runs - 1
     print("No tests were run")
     return
   end
@@ -130,6 +130,10 @@ local function on_exit_tests(obj)
         )
       end
     end
+    pending_runs = pending_runs - 1
+    if pending_runs == 0 then
+      open_qf_list()
+    end
   end)
 end
 
@@ -138,6 +142,8 @@ local function run_test(filename, lnum)
   if filename ~= nil and lnum ~= nil then
     arg = "--routines=" .. filename .. ":" .. lnum
   end
+
+  pending_runs = pending_runs + 1
 
   local als = require("gnattest.ada_ls")
   vim
@@ -153,7 +159,7 @@ local function get_test_info_on_cursor()
   if f == nil or info == nil then
     require("gnattest.utils").notify(
       "No test information found at cursor",
-      "warn"
+      vim.log.levels.WARN
     )
     return
   end
@@ -169,7 +175,7 @@ local function impl_run(arg1, arg2)
     return
   end
 
-  if not arg1 then
+  if not arg1 or type(arg1) == "table" and not next(arg1) then
     run_test() -- Run all tests
   elseif not arg2 then -- Run tests by package or package:test
     local str_args = vim.split(arg1[1], ":")
@@ -195,9 +201,6 @@ local function impl_run(arg1, arg2)
     local lnum = tonumber(arg2)
     run_test(filename, lnum)
   end
-
-  -- Open the quickfix list after a short delay to ensure it's populated
-  open_qf_list()
 end
 
 local function compl_run(subcmd_arg_lead)
@@ -249,6 +252,10 @@ local subcommand_tbl = {
   },
   run_all = {
     impl = function()
+      local msg =
+        "'run_all' command will be deprecated in favor of 'run' with no arguments"
+      require("gnattest.utils").notify(msg, vim.log.levels.WARN)
+      print(msg)
       impl_run()
     end,
   },
@@ -286,7 +293,7 @@ local function subcmd(opts)
 end
 
 vim.api.nvim_create_user_command(cmd_name, subcmd, {
-  nargs = "+",
+  nargs = "*",
   desc = cmd_name .. " commands",
   complete = function(arg_lead, cmdline, _)
     -- Get the subcommand.
