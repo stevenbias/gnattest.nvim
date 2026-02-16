@@ -56,7 +56,7 @@ local function type_test_result(res)
   end
 end
 
-local function prepare_qf_item(test_info, line, type)
+local function prepare_qf_item(pkg, test_info, line, type)
   local als = require("gnattest.ada_ls")
   local utils = require("gnattest.utils")
 
@@ -64,6 +64,9 @@ local function prepare_qf_item(test_info, line, type)
   local file = utils.find_file(test_info.test.file, test_dir)
   local lnum = test_info.test.line
   local col = test_info.test.column
+
+  -- Replace "corresponding" in the line with the actual package and test name
+  line = line:gsub("corresponding", pkg .. ":" .. test_info.source.name)
 
   return {
     bufnr = 0,
@@ -92,15 +95,20 @@ local function on_exit_tests(obj)
     local items = {}
 
     for _, line in ipairs(lines) do
-      local _, _, test_info =
+      local _, pkg, test_info =
         require("gnattest.xml").get_test_from_src_file_line(
           vim.split(line, ":")[1], -- filename
           tonumber(vim.split(line, ":")[2]) -- line number
         )
-      if test_info ~= nil then
+      if test_info ~= nil and pkg ~= nil then
         table.insert(
           items,
-          prepare_qf_item(test_info, tostring(line), type_test_result(line))
+          prepare_qf_item(
+            pkg,
+            test_info,
+            tostring(line),
+            type_test_result(line)
+          )
         )
       end
     end
