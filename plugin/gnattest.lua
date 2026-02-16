@@ -255,7 +255,6 @@ local subcommand_tbl = {
       local msg =
         "'run_all' command will be deprecated in favor of 'run' with no arguments"
       require("gnattest.utils").notify(msg, vim.log.levels.WARN)
-      print(msg)
       impl_run()
     end,
   },
