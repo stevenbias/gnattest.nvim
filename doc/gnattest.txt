@@ -117,7 +117,10 @@ All commands are subcommands of |:Gnattest|:
             :Gnattest run
 <
     run_all                                          *:Gnattest-run_all*
-        Run entire test suite.
+        Run entire test suite. Deprecated; use |:Gnattest-run| with no args.
+
+    run_cursor                                    *:Gnattest-run_cursor*
+        Run the test corresponding to the current cursor position.
 
     clean                                              *:Gnattest-clean*
         Clean test build artifacts using gprclean.

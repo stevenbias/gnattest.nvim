@@ -65,8 +65,9 @@ All commands are subcommands of `:Gnattest`:
 
 - `:Gnattest generate` - Generate test harness from source files
 - `:Gnattest build` - Build the test project
-- `:Gnattest run [package:subprogram]` - Run specific test (with tab completion)
-- `:Gnattest run_all` - Run entire test suite
+- `:Gnattest run [package:subprogram]` - Run specific test (with tab completion). When no args are provided, runs all tests
+- `:Gnattest run_all` - Run entire test suite (deprecated; use `:Gnattest run` with no args)
+- `:Gnattest run_cursor` - Run the test corresponding to the current cursor
 - `:Gnattest clean` - Clean test build artifacts
 - `:Gnattest switch` - Toggle between source and test file
 
@@ -76,7 +77,7 @@ All commands are subcommands of `:Gnattest`:
 ```vim
 :Gnattest generate
 :Gnattest build
-:Gnattest run_all
+:Gnattest run
 ```
 
 **Navigate to a specific test:**
@@ -90,6 +91,11 @@ All commands are subcommands of `:Gnattest`:
 ```vim
 :Gnattest run Board:Init
 " Tab completion available for package:subprogram names
+```
+
+**Run the test at the cursor:**
+```vim
+:Gnattest run_cursor
 ```
 
 ### Read-only Protection
