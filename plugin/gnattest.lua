@@ -140,30 +140,24 @@ local function run_test(filename, lnum)
   end
 
   local als = require("gnattest.ada_ls")
-  vim.system({
-    als.get_harness_dir() .. "/test_runner",
-    arg,
-  }, { text = true }, on_exit_tests)
+  vim
+    .system({
+      als.get_harness_dir() .. "/test_runner",
+      arg,
+    }, { text = true }, on_exit_tests)
+    :wait() -- Wait for the test runner to finish before proceeding
 end
 
-local function run_cursor()
-  if prepare_run() then
-    local f, _, info = require("gnattest.xml").get_gnattest_info_on_cursor()
-    if f == nil or info == nil then
-      require("gnattest.utils").notify(
-        "No test information found at cursor",
-        "warn"
-      )
-      return
-    end
-    run_test(f, info.source.line)
+local function get_test_info_on_cursor()
+  local f, _, info = require("gnattest.xml").get_gnattest_info_on_cursor()
+  if f == nil or info == nil then
+    require("gnattest.utils").notify(
+      "No test information found at cursor",
+      "warn"
+    )
+    return
   end
-end
-
-local function run_all_tests()
-  if prepare_run() then
-    run_test(nil, nil)
-  end
+  return f, info
 end
 
 local function switch_source_test()
@@ -255,12 +249,15 @@ local subcommand_tbl = {
   },
   run_all = {
     impl = function()
-      run_all_tests()
+      impl_run()
     end,
   },
   run_cursor = {
     impl = function()
-      run_cursor()
+      local f, info = get_test_info_on_cursor()
+      if f ~= nil and info ~= nil then
+        impl_run(f, info.source.line)
+      end
     end,
   },
   switch = {
