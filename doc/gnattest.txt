@@ -108,19 +108,23 @@ All commands are subcommands of |:Gnattest|:
     build                                            *:Gnattest-build*
         Build the test project using gprbuild.
 
-    run [package:subprogram]                           *:Gnattest-run*
-        Run specific test. If no argument provided, runs all tests.
+    run [package[:subprogram]]                          *:Gnattest-run*
+        Run a specific test, a whole package, or the entire test suite.
+        Results are summarized in the quickfix list.
         Supports tab completion for package:subprogram names.
         
         Examples: >
             :Gnattest run Board:Init
+            :Gnattest run Board
             :Gnattest run
 <
     run_all                                          *:Gnattest-run_all*
         Run entire test suite. Deprecated; use |:Gnattest-run| with no args.
+        Results are summarized in the quickfix list.
 
     run_cursor                                    *:Gnattest-run_cursor*
         Run the test corresponding to the current cursor position.
+        Results are summarized in the quickfix list.
 
     clean                                              *:Gnattest-clean*
         Clean test build artifacts using gprclean.
@@ -247,6 +251,12 @@ Tab completion available for:
 - Test names in run command: >
     :Gnattest run <Tab>
 <
+
+QUICKFIX RESULTS                                  *gnattest-quickfix*
+
+After running tests, the plugin opens the quickfix list with:
+- Errors first, then passed results
+- Links to the corresponding test locations
 
 ==============================================================================
 LIMITATIONS                                            *gnattest-limitations*

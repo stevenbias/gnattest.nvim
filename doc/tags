@@ -4,7 +4,12 @@
 :Gnattest-generate	gnattest.txt	/*:Gnattest-generate*
 :Gnattest-run	gnattest.txt	/*:Gnattest-run*
 :Gnattest-run_all	gnattest.txt	/*:Gnattest-run_all*
+:Gnattest-run_cursor	gnattest.txt	/*:Gnattest-run_cursor*
 :Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
+GnattestConfig	gnattest.txt	/*GnattestConfig*
+M.get	gnattest.txt	/*M.get*
+M.set	gnattest.txt	/*M.set*
+M.setup	gnattest.txt	/*M.setup*
 gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
 gnattest-completion	gnattest.txt	/*gnattest-completion*
@@ -18,6 +23,7 @@ gnattest-introduction	gnattest.txt	/*gnattest-introduction*
 gnattest-license	gnattest.txt	/*gnattest-license*
 gnattest-limitations	gnattest.txt	/*gnattest-limitations*
 gnattest-navigation	gnattest.txt	/*gnattest-navigation*
+gnattest-quickfix	gnattest.txt	/*gnattest-quickfix*
 gnattest-quickstart	gnattest.txt	/*gnattest-quickstart*
 gnattest-read-only	gnattest.txt	/*gnattest-read-only*
 gnattest-read-only-disclaimer	gnattest.txt	/*gnattest-read-only-disclaimer*
