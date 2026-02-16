@@ -53,12 +53,22 @@ function M.get_bufdir()
   return vim.fs.dirname(M.get_bufpath())
 end
 
+function M.split_filename(filename)
+  local name, ext = filename:match("(.+)%.(%w+)$")
+  if not name then
+    -- No extension found; return the original filename as name and nil as extension
+    return filename, nil
+  end
+  return name, ext
+end
+
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
+  local bufdir = M.get_bufdir()
 
-  return string.find(M.get_bufdir(), "gnattest") ~= nil
-    or string.find(M.get_bufdir(), als.get_harness_dir()) ~= nil
-    or string.find(M.get_bufdir(), als.get_tests_dir()) ~= nil
+  return string.find(bufdir, "gnattest") ~= nil
+    or string.find(bufdir, als.get_harness_dir()) ~= nil
+    or string.find(bufdir, als.get_tests_dir()) ~= nil
 end
 
 function M.get_gnattest_project()

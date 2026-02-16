@@ -158,7 +158,7 @@ function M.get_xml_info()
   return xml_info
 end
 
-local function get_pkg_tests(pkg)
+function M.get_pkg_tests(pkg)
   if next(xml_info) == nil then
     M.get_xml_info()
   end
@@ -174,23 +174,80 @@ local function get_pkg_tests(pkg)
   return nil
 end
 
-function M.get_tests_by_name(pkg, name)
+function M.get_test_from_src_file_line(filename, line)
   if next(xml_info) == nil then
     M.get_xml_info()
   end
 
-  local pkg_info, filename = get_pkg_tests(pkg)
-  if pkg_info == nil then
-    return nil
-  end
-
-  for _, p in pairs(pkg_info) do
-    if p.source.name == name then
-      return p, filename
+  for f, files in pairs(xml_info) do
+    for p, pkg_info in pairs(files) do
+      for _, test_info in pairs(pkg_info) do
+        if f == filename and tonumber(test_info.source.line) == line then
+          return f, p, test_info
+        end
+      end
     end
   end
 
   return nil
+end
+
+function M.get_test_by_name(pkg, name)
+  if next(xml_info) == nil then
+    M.get_xml_info()
+  end
+
+  local pkg_info, filename = M.get_pkg_tests(pkg)
+  if pkg_info == nil then
+    return nil
+  end
+
+  for _, test_info in pairs(pkg_info) do
+    if test_info.source.name == name then
+      return test_info, filename
+    end
+  end
+
+  return nil
+end
+
+function M.get_gnattest_info_on_line(lnum)
+  if next(xml_info) == nil then
+    M.get_xml_info()
+  end
+
+  local utils = require("gnattest.utils")
+  local als = require("gnattest.ada_ls")
+
+  local subr_name = als.get_subprogram_name_from_line(lnum)
+  if subr_name == nil then
+    return nil
+  end
+
+  local filename = utils.split_filename(utils.get_filename())
+
+  for f, file_info in pairs(xml_info) do
+    for p, pkg_info in pairs(file_info) do
+      for _, info in pairs(pkg_info) do
+        if
+          not utils.is_gnattest_file()
+            and vim.fn.match(f, filename) == 0
+            and vim.fn.match(info.source.name, subr_name) ~= -1
+          or utils.is_gnattest_file()
+            and vim.fn.match(info.test.file, filename) == 0
+            and vim.fn.match(info.test.name, subr_name) ~= -1
+        then
+          return f, p, info
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+function M.get_gnattest_info_on_cursor()
+  return M.get_gnattest_info_on_line(vim.fn.getpos(".")[2])
 end
 
 -- Test-specific exports - only exposed in test mode
@@ -198,7 +255,6 @@ if os.getenv("GNATTEST_TEST_MODE") then
   M._query_element = query_element
   M._query_test_info = query_test_info
   M._create_xml_buf = create_xml_buf
-  M._get_pkg_tests = get_pkg_tests
   M._xml_info = xml_info
 end
 

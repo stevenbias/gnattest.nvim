@@ -6,16 +6,34 @@
 
 > Neovim plugin providing GNATtest workflow integration: generate, build, run, clean tests and navigate between source and test files
 
-## ✨ Features
+## Features
 
-- 🔒 **Read-only Protection** - Automatically protect auto-generated test regions
-- 🔄 **Smart Navigation** - Jump between source and test files with LSP integration
-- ⚡ **Command Integration** - Run GNATtest directly from Neovim
-- 🎨 **Syntax Highlighting** - Visual indicators for protected code regions
-- 🔍 **XML Parsing** - Automatic test metadata extraction
-- ✅ **Tab Completion** - Command and argument autocompletion
+- **Read-only Protection** - Automatically protect auto-generated test regions
+- **Navigation** - Jump between source and test files with LSP integration
+- **Command Integration** - Run GNATtest directly from Neovim
+- **Quickfix Results** - Test run output is summarized in the quickfix list
+- **Syntax Highlighting** - Visual indicators for protected code regions
+- **Ada Language Server support** - update ALS project context when switching files (source <-> test)
+- **Tab Completion** - Command and argument autocompletion
 
-## 📦 Installation
+## Demo
+### Command Integration
+
+![GNATtest Commands](media/gnattest_cmds.gif)
+*Demonstrates available GNATtest commands with tab completion.*
+
+### Navigation & Read-only Protection
+
+![Switch and Protection](media/gnattest_switch_and_protect.gif)
+*Shows `:Gnattest switch` to navigate between source and test files, plus read-only region protection in action.*
+
+### Build and Run Specific Test
+
+![Build and Run](media/gnattest_build_and_run.gif)
+*Example of building the test project and running a specific test using `:Gnattest run` with package:subprogram syntax.*
+
+
+## Installation
 
 ### lazy.nvim
 
@@ -38,35 +56,31 @@ require("gnattest").setup()
 EOF
 ```
 
-## 🔧 Requirements
+## Requirements
 
 - **Neovim** >= 0.10
 - **Ada Language Server** - Must be configured and running ([setup guide](https://github.com/AdaCore/ada_language_server))
 - **GNAT Project File** - Only Ada projects using `.gpr` files are supported (GNATtest must be configured in the `.gpr` file)
-- **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide))
-- **Treesitter parsers**: `ada`, `xml`
-  ```vim
-  :TSInstall ada xml
-  ```
+- **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide) and [Github repo](https://github.com/AdaCore/gnattest))
+- **Treesitter parsers**: `ada`, `xml` (`:TSInstall ada xml`)
 
-## 🚀 Quick Start
+### Health Check
 
-```lua
-require("gnattest").setup()
+Verify your setup is correct:
+```vim
+:checkhealth gnattest
 ```
 
-That's it! The plugin will automatically activate for Ada files in GNATtest projects.
-
-## 📚 Usage
+## Usage
 
 ### Commands
 
 All commands are subcommands of `:Gnattest`:
-
 - `:Gnattest generate` - Generate test harness from source files
 - `:Gnattest build` - Build the test project
-- `:Gnattest run [package:subprogram]` - Run specific test (with tab completion)
-- `:Gnattest run_all` - Run entire test suite
+- `:Gnattest run [package[:subprogram]]` - Run a specific test, a whole package, or the entire test suite. Results are sent to the quickfix list
+- `:Gnattest run_all` - Run entire test suite (deprecated; use `:Gnattest run` with no args). Results are sent to the quickfix list
+- `:Gnattest run_cursor` - Run the test corresponding to the current cursor. Results are sent to the quickfix list
 - `:Gnattest clean` - Clean test build artifacts
 - `:Gnattest switch` - Toggle between source and test file
 
@@ -76,7 +90,7 @@ All commands are subcommands of `:Gnattest`:
 ```vim
 :Gnattest generate
 :Gnattest build
-:Gnattest run_all
+:Gnattest run
 ```
 
 **Navigate to a specific test:**
@@ -92,7 +106,16 @@ All commands are subcommands of `:Gnattest`:
 " Tab completion available for package:subprogram names
 ```
 
+**Run the test at the cursor:**
+```vim
+:Gnattest run_cursor
+```
+
 ### Read-only Protection
+> **⚠️ Disclaimer:** The read-only protection feature is provided as-is. While it 
+works in most common scenarios, there may be edge cases or unknown issues where 
+protection could fail. Always verify that protected regions remain intact, 
+especially before committing changes. Use version control to safeguard your work.
 
 GNATtest generates test harnesses with protected regions marked by comments:
 ```ada
@@ -106,18 +129,7 @@ The plugin automatically:
 - Prevents editing (changes are automatically reverted)
 - Shows notifications when you attempt to modify protected code
 
-**⚠️ Disclaimer:** The read-only protection feature is provided as-is. While it 
-works in most common scenarios, there may be edge cases or unknown issues where 
-protection could fail. Always verify that protected regions remain intact, 
-especially before committing changes. Use version control to safeguard your work.
-
-## ⚙️ Configuration
-
-The plugin works with sensible defaults:
-
-```lua
-require("gnattest").setup()
-```
+## Configuration
 
 ### Available Options
 
@@ -125,6 +137,19 @@ require("gnattest").setup()
 |--------|------|---------|-------------|
 | `highlight.percent` | number | `3` | Brightness adjustment for protected region highlighting |
 | `read_only.enabled` | boolean | `true` | Enable/disable read-only protection |
+
+### Default Configuration
+
+```lua
+require("gnattest").setup({
+  highlight = {
+    percent = 3,
+  },
+  read_only = {
+    enabled = true,
+  },
+})
+```
 
 ### Example: Disable Read-only Protection
 
@@ -136,98 +161,29 @@ require("gnattest").setup({
 })
 ```
 
-## 🎯 About This Project
+## About This Project
 
 This is my first public Neovim plugin. I created it to:
 - Learn modern Neovim plugin development practices
 - Improve my Ada development workflow
 - Explore LSP integration, Treesitter parsing, and extmarks
-- Practice professional software engineering (testing, CI/CD, documentation)
-- Understand GNATtest's workflow and integration possibilities
-
-### Key Learning Areas
-
-- **Architecture**: Modular design with 7 specialized modules
-- **LSP Integration**: Deep integration with Ada Language Server for project information and navigation
-- **Testing**: Comprehensive test suite achieving 99.82% coverage with dual-mode testing
-- **CI/CD**: Full automated pipeline with formatting, linting, and cross-version testing
-- **Best Practices**: Following [Neovim plugin best practices](https://github.com/lumen-oss/nvim-best-practices), including proper command structure with tab completion
-- **Treesitter**: Using parsers for Ada syntax and GNATtest XML metadata
-- **GNATtest**: Understanding test generation, harness structure, and integration patterns
 
 ### Development Notes
 
-Tests and documentation were generated with AI assistance.
-
+Tests and documentation were generated with AI assistance.\
 While functional and well-tested, this plugin reflects my learning journey. 
 Feedback and contributions are welcome.
 
-## ⚠️ Known Limitations
-
-### Requirements
-
-- Ada Language Server must be configured before plugin activation
-- GNATtest tool must be installed separately
-- Treesitter parsers required: `ada`, `xml`
-
-**⚠️ Note:** This plugin only supports Ada projects that use GNAT project files (`.gpr`). GNATtest must be configured in the `.gpr` file. Projects without `.gpr` files are not supported.
-
-### Health Check
-
-Verify your setup is correct:
-
-```vim
-:checkhealth gnattest
-```
-
-This will check all requirements and report any issues with your installation.
-
-### Features
-
-- Limited configuration options (by design for simplicity)
-- GNATtest `Tests_Root` attribute not supported
-
-### Compatibility
-
-- Tested on Linux (Ubuntu in CI)
-- Requires Neovim >= 0.10
-
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-As this is a learning project, I'm particularly interested in:
-- Bug reports and fixes
-- Documentation improvements
-- Usability feedback
-- Feature suggestions
-
-## 📸 Demo
-
-### Command Integration
-
-![GNATtest Commands](media/gnattest_cmds.gif)
-
-*Demonstrates available GNATtest commands with tab completion.*
-
-### Navigation & Read-only Protection
-
-![Switch and Protection](media/gnattest_switch_and_protect.gif)
-
-*Shows `:Gnattest switch` to navigate between source and test files, plus read-only region protection in action.*
-
-### Build and Run Specific Test
-
-![Build and Run](media/gnattest_build_and_run.gif)
-
-*Example of building the test project and running a specific test using `:Gnattest run` with package:subprogram syntax.*
-
-## 🔗 Related Projects
+## Related Projects
 
 - [Ada Language Server](https://github.com/AdaCore/ada_language_server) - LSP server for Ada
 - [GNATtest User's Guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide) - Official GNATtest documentation
 - [Neovim Best Practices](https://github.com/lumen-oss/nvim-best-practices) - Plugin development guidelines
 
-## 📜 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
