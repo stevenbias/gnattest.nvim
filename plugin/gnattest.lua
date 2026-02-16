@@ -6,6 +6,7 @@ end
 vim.g.loaded_gnattest = true
 
 local cmd_name = "Gnattest"
+local qf_items = {}
 
 local function clean_tests()
   vim.cmd("!gprclean -P " .. require("gnattest.utils").get_gnattest_project())
@@ -42,6 +43,7 @@ end
 
 local function prepare_run()
   if build_tests() then
+    qf_items = {} -- Clear previous quickfix items
     vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
     return true
   end
@@ -78,6 +80,23 @@ local function prepare_qf_item(pkg, test_info, line, type)
   }
 end
 
+local function open_qf_list()
+  -- Delay opening the quickfix list to ensure it's populated with the test
+  -- results
+  vim.schedule(function()
+    table.sort(qf_items, function(a, b)
+      if a.type ~= b.type then
+        return a.type == "E" -- Errors come before info
+      else
+        return a.text < b.text
+      end
+    end)
+
+    vim.fn.setqflist({}, "a", { title = "Gnattest run", items = qf_items })
+    vim.cmd("copen")
+  end)
+end
+
 local function on_exit_tests(obj)
   if obj.stderr and obj.stderr ~= "" then
     print("Error running tests: " .. obj.stderr)
@@ -92,7 +111,6 @@ local function on_exit_tests(obj)
 
   vim.schedule(function()
     local lines = vim.split(stdout, "\n")
-    local items = {}
 
     for _, line in ipairs(lines) do
       local _, pkg, test_info =
@@ -102,7 +120,7 @@ local function on_exit_tests(obj)
         )
       if test_info ~= nil and pkg ~= nil then
         table.insert(
-          items,
+          qf_items,
           prepare_qf_item(
             pkg,
             test_info,
@@ -112,9 +130,6 @@ local function on_exit_tests(obj)
         )
       end
     end
-
-    vim.fn.setqflist({}, "a", { title = "Gnattest run_all", items = items })
-    vim.cmd("copen")
   end)
 end
 
@@ -155,30 +170,40 @@ local function switch_source_test()
   require("gnattest.navigation").switch_subprogram()
 end
 
-local function impl_run(args)
-  local str_args = vim.split(args[1], ":")
-  local pkg = str_args[1]
-  local name = str_args[2]
-  local pkg_info, filename
-
-  if name then
-    local test_info
-    test_info, filename = require("gnattest.xml").get_test_by_name(pkg, name)
-    pkg_info = { test_info }
-  else
-    pkg_info, filename = require("gnattest.xml").get_pkg_tests(pkg)
-  end
-
-  if pkg_info == nil or next(pkg_info) == nil or filename == nil then
-    return
-  end
-
+local function impl_run(arg1, arg2)
   if not prepare_run() then
     return
   end
-  for _, info in pairs(pkg_info) do
-    run_test(filename, info.source.line)
+
+  if not arg1 then
+    run_test() -- Run all tests
+  elseif not arg2 then -- Run tests by package or package:test
+    local str_args = vim.split(arg1[1], ":")
+    local pkg = str_args[1]
+    local name = str_args[2]
+    local pkg_info, filename
+    if name then
+      local test_info
+      test_info, filename = require("gnattest.xml").get_test_by_name(pkg, name)
+      pkg_info = { test_info }
+    else
+      pkg_info, filename = require("gnattest.xml").get_pkg_tests(pkg)
+    end
+
+    if pkg_info == nil or next(pkg_info) == nil or filename == nil then
+      return
+    end
+    for _, info in pairs(pkg_info) do
+      run_test(filename, info.source.line)
+    end
+  else -- Run tests by file and line
+    local filename = arg1
+    local lnum = tonumber(arg2)
+    run_test(filename, lnum)
   end
+
+  -- Open the quickfix list after a short delay to ensure it's populated
+  open_qf_list()
 end
 
 local function compl_run(subcmd_arg_lead)
