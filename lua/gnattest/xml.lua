@@ -233,7 +233,8 @@ function M.get_gnattest_info_on_line(lnum)
           not utils.is_gnattest_file()
             and vim.fn.match(f, filename) == 0
             and vim.fn.match(info.source.name, subr_name) ~= -1
-          or vim.fn.match(info.test.file, filename) == 0
+          or utils.is_gnattest_file()
+            and vim.fn.match(info.test.file, filename) == 0
             and vim.fn.match(info.test.name, subr_name) ~= -1
         then
           return f, p, info

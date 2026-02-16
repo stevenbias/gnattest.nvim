@@ -24,28 +24,25 @@ local function generate_tests()
 end
 
 local function build_tests()
-  local res = true
-  vim
+  local obj = vim
     .system(
       { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
-      { text = true },
-      function(obj)
-        if obj.stderr and obj.stderr ~= "" then
-          res = false
-          print("Error building tests: " .. obj.stderr)
-        else
-          print("Tests built successfully")
-        end
-      end
+      { text = true }
     )
     :wait()
-  return res
+
+  if obj.stderr and obj.stderr ~= "" then
+    print("Error building tests: " .. obj.stderr)
+    return false
+  else
+    print("Tests built successfully")
+    return true
+  end
 end
 
 local function prepare_run()
-  if build_tests() then
+  if pending_runs == 0 and build_tests() then
     qf_items = {} -- Clear previous quickfix items
-    pending_runs = 0 -- Reset pending runs counter
     vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
     return true
   end
@@ -65,9 +62,17 @@ local function prepare_qf_item(pkg, test_info, line, type)
   local utils = require("gnattest.utils")
 
   local test_dir = als.get_tests_dir()
-  local file = utils.find_file(test_info.test.file, test_dir)
   local lnum = tonumber(test_info.test.line)
   local col = tonumber(test_info.test.column)
+  local file = utils.find_file(test_info.test.file, test_dir)
+
+  if not file then
+    file = test_info.test.file
+    utils.notify(
+      file .. " not found in " .. test_dir .. " directory",
+      vim.log.levels.WARN
+    )
+  end
 
   -- Replace "corresponding" in the line with the actual package and test name
   line = line:gsub("corresponding", pkg .. ":" .. test_info.source.name)
@@ -146,12 +151,10 @@ local function run_test(filename, lnum)
   pending_runs = pending_runs + 1
 
   local als = require("gnattest.ada_ls")
-  vim
-    .system({
-      als.get_harness_dir() .. "/test_runner",
-      arg,
-    }, { text = true }, on_exit_tests)
-    :wait() -- Wait for the test runner to finish before proceeding
+  vim.system({
+    als.get_harness_dir() .. "/test_runner",
+    arg,
+  }, { text = true }, on_exit_tests)
 end
 
 local function get_test_info_on_cursor()
@@ -185,6 +188,9 @@ local function impl_run(arg1, arg2)
     if name then
       local test_info
       test_info, filename = require("gnattest.xml").get_test_by_name(pkg, name)
+      if test_info == nil then
+        return
+      end
       pkg_info = { test_info }
     else
       pkg_info, filename = require("gnattest.xml").get_pkg_tests(pkg)
