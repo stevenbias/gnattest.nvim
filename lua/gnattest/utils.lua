@@ -55,6 +55,10 @@ end
 
 function M.split_filename(filename)
   local name, ext = filename:match("(.+)%.(%w+)$")
+  if not name then
+    -- No extension found; return the original filename as name and nil as extension
+    return filename, nil
+  end
   return name, ext
 end
 
