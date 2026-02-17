@@ -106,7 +106,7 @@ function M.get_prj_file()
 end
 
 function M.get_src_dirs()
-  if next(M.src_dirs) ~= nil then
+  if M.src_dirs ~= nil and next(M.src_dirs) ~= nil then
     return M.src_dirs
   end
 
