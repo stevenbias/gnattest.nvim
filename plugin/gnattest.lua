@@ -27,7 +27,6 @@ local function generate_tests()
     if disable_ro then
       ---@diagnostic disable-next-line: missing-fields
       require("gnattest.config").set({ read_only = { enabled = false } })
-      vim.cmd("write") -- Save the file to trigger the read-only extmarks to be cleared
     end
 
     local obj = vim
@@ -40,8 +39,7 @@ local function generate_tests()
     end
 
     if disable_ro then
-      vim.cmd("write") -- Save the file to trigger the read-only extmarks to be set again
-      require("gnattest.read_only").refresh()
+      require("gnattest.read_only").reset()
       ---@diagnostic disable-next-line: missing-fields
       require("gnattest.config").set({ read_only = { enabled = true } })
     end

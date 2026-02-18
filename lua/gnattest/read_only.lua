@@ -191,7 +191,7 @@ local function fix_ro_regions()
   end)
 end
 
-function M.refresh()
+local function refresh()
   clear()
   prepare_gnattest()
 end
@@ -212,11 +212,11 @@ function M.setup()
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter" }, {
+  vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter", "BufEnter" }, {
     group = M.ro_group,
     pattern = gnattest_pattern,
     callback = function()
-      M.refresh()
+      refresh()
     end,
   })
 
@@ -232,6 +232,11 @@ function M.setup()
       fix_ro_regions()
     end,
   })
+end
+
+function M.reset()
+  refresh()
+  M.setup()
 end
 
 -- Test-specific exports - only exposed in test mode
