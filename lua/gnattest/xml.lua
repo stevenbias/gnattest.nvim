@@ -56,8 +56,8 @@ local function create_xml_buf()
   return buf_id
 end
 
-function M.get_xml_info()
-  if next(xml_info) ~= nil then
+function M.get_xml_info(refresh)
+  if next(xml_info) ~= nil and refresh ~= true then
     return xml_info
   end
 
