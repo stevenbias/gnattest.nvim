@@ -87,7 +87,8 @@ function M.set_gnattest_pattern()
 end
 
 function M.get_lines(start_row, end_row)
-  return vim.api.nvim_buf_get_lines(0, start_row, end_row + 1, true)
+  local bufid = M.get_bufid()
+  return vim.api.nvim_buf_get_lines(bufid, start_row, end_row + 1, true)
 end
 
 function M.find_file(filename, path)
@@ -141,10 +142,17 @@ function M.get_all_comments(language)
     return {}
   end
 
-  for id, node in query:iter_captures(root, 0) do
+  local bufid = require("gnattest.utils").get_bufid()
+
+  for id, node in query:iter_captures(root, bufid) do
     if query.captures[id] == "comment" then
       local start_row = node:range()
-      local text = vim.treesitter.get_node_text(node, 0)
+      local text
+      ok, text = pcall(vim.treesitter.get_node_text, node, bufid)
+      if not ok or text == "" then
+        return {}
+      end
+
       table.insert(cmts, {
         node = node,
         text = text:gsub("^%s*", ""):gsub("%s*$", ""), -- Trim whitespace
