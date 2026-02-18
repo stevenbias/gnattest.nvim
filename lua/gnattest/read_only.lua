@@ -115,6 +115,12 @@ local function protected_region_notif()
 end
 
 local function prepare_gnattest()
+  M.opt = require("gnattest.config").get().read_only
+  if M.opt.enabled == false then
+    clear()
+    return
+  end
+
   comments = require("gnattest.utils").get_all_comments("ada")
   get_regions(set_extmark)
   require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
@@ -130,6 +136,12 @@ local function fix_ro_regions()
   end
 
   vim.schedule(function()
+    M.opt = require("gnattest.config").get().read_only
+    if M.opt.enabled == false then
+      clear()
+      return
+    end
+
     local cursor_pos = vim.fn.getpos(".")
     local lnum = cursor_pos[2]
     local cnum = cursor_pos[3]
