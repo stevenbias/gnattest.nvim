@@ -34,6 +34,24 @@ local function parse_comment(comment)
   return nil
 end
 
+local function clear_extmarks()
+  local bufid = require("gnattest.utils").get_bufid()
+  vim.api.nvim_buf_clear_namespace(
+    require("gnattest.utils").get_bufid(),
+    M.namespace,
+    bufid,
+    -1
+  )
+  M.extmark = {}
+end
+
+local function clear()
+  clear_extmarks()
+  comments = {}
+  protect_flag = false
+  M.backup = nil
+end
+
 -- Use mark_id to update an extmark
 local function set_extmark(start_row, end_row, mark_id)
   local opt = {
@@ -159,6 +177,11 @@ local function fix_ro_regions()
       end
     end
   end)
+end
+
+function M.refresh()
+  clear()
+  prepare_gnattest()
 end
 
 function M.setup()
