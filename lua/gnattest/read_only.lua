@@ -196,6 +196,40 @@ local function refresh()
   prepare_gnattest()
 end
 
+local function conform_workaround()
+  local is_ro_enabled = require("gnattest.config").get().read_only.enabled
+  if is_ro_enabled == false then
+    return
+  end
+
+  vim.api.nvim_create_autocmd("User", {
+    group = M.ro_group,
+    pattern = "ConformFormatPre",
+    callback = function()
+      is_ro_enabled = require("gnattest.config").get().read_only.enabled
+      -- This is a workaround for conform.nvim, which doesn't trigger TextChanged events during formatting.
+      -- By refreshing the read-only regions before formatting, we ensure that any changes made by the formatter
+      -- are correctly handled and that the read-only regions are properly protected.
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = false } })
+    end,
+  })
+  vim.api.nvim_create_autocmd("User", {
+    group = M.ro_group,
+    pattern = "ConformFormatPost",
+    callback = function()
+      if is_ro_enabled == false then
+        return
+      end
+      -- After formatting is done, we need to fix the read-only regions again to ensure that any changes made by the formatter
+      -- are correctly handled and that the read-only regions are properly protected.
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = true } })
+      vim.schedule(refresh)
+    end,
+  })
+end
+
 function M.setup()
   M.opt = require("gnattest.config").get().read_only
 
@@ -232,6 +266,8 @@ function M.setup()
       fix_ro_regions()
     end,
   })
+
+  conform_workaround()
 end
 
 function M.reset()
