@@ -212,11 +212,11 @@ function M.setup()
     end,
   })
 
-  vim.api.nvim_create_autocmd("BufReadPost", {
+  vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter" }, {
     group = M.ro_group,
     pattern = gnattest_pattern,
     callback = function()
-      prepare_gnattest()
+      M.refresh()
     end,
   })
 
