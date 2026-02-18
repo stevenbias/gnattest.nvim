@@ -15,11 +15,21 @@ end
 
 local function generate_tests()
   local ada_ls = require("gnattest.ada_ls").get_ada_ls()
+
   if ada_ls ~= nil then
     local json_file = ada_ls.config.root_dir .. "/.als.json"
     local config = vim.fn.json_decode(vim.fn.readfile(json_file))
 
-    vim.cmd("!gnattest -P " .. config.projectFile)
+    local obj = vim
+      .system({ "gnattest", "-P" .. config.projectFile }, { text = true })
+      :wait()
+    if obj.code ~= 0 then
+      print("Error generating tests: Process exited with code " .. obj.code)
+    else
+      print("Tests generated successfully")
+    end
+
+    require("gnattest.xml").get_xml_info(true) -- Refresh XML info after generating tests
   end
 end
 
