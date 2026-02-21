@@ -304,50 +304,45 @@ describe("gnattest.read_only", function()
 
     it("disables read_only during ConformFormatPre", function()
       ro.setup()
-      local config = require("gnattest.config")
       local pre_callback = get_callback(4)
 
       pre_callback()
 
-      assert
-        .stub(config.set)
-        .was_called_with({ read_only = { enabled = false } })
+      assert.is_false(ro.opt.enabled)
     end)
 
     it("re-enables read_only during ConformFormatPost", function()
       ro.setup()
-      local config = require("gnattest.config")
+      local pre_callback = get_callback(4)
       local post_callback = get_callback(5)
       local schedule_spy = stub.new().invokes(function(cb)
         cb()
       end)
       _G.vim.schedule = schedule_spy
 
+      pre_callback()
       post_callback()
 
-      assert
-        .stub(config.set)
-        .was_called_with({ read_only = { enabled = true } })
+      assert.is_true(ro.opt.enabled)
       assert.stub(schedule_spy).was_called()
     end)
 
     it("skips ConformFormatPost when read_only disabled", function()
       ro.setup()
-      local config = require("gnattest.config")
       local pre_callback = get_callback(4)
       local post_callback = get_callback(5)
       local schedule_spy = stub.new()
       _G.vim.schedule = schedule_spy
 
+      local config = require("gnattest.config")
       config.get = function()
         return { read_only = { enabled = false } }
       end
 
       pre_callback()
-      local set_count_before = #config.set.calls
       post_callback()
 
-      assert.equals(set_count_before, #config.set.calls)
+      assert.is_false(ro.opt.enabled)
       assert.stub(schedule_spy).was_not_called()
     end)
   end)
