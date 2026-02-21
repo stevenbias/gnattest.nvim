@@ -10,6 +10,7 @@
 
 - **Read-only Protection** - Automatically protect auto-generated test regions
 - **Navigation** - Jump between source and test files with LSP integration
+- **XML Metadata** - Parse `gnattest.xml` for test locations and completion
 - **Command Integration** - Run GNATtest directly from Neovim
 - **Quickfix Results** - Test run output is summarized in the quickfix list
 - **Syntax Highlighting** - Visual indicators for protected code regions
@@ -78,7 +79,7 @@ Verify your setup is correct:
 All commands are subcommands of `:Gnattest`:
 - `:Gnattest generate` - Generate test harness from source files
 - `:Gnattest build` - Build the test project
-- `:Gnattest run [package[:subprogram]]` - Run a specific test, a whole package, or the entire test suite. Results are sent to the quickfix list
+- `:Gnattest run [package[:subprogram]]` - Build tests, then run a specific test, a whole package, or the entire test suite. Results are sent to the quickfix list
 - `:Gnattest run_all` - Run entire test suite (deprecated; use `:Gnattest run` with no args). Results are sent to the quickfix list
 - `:Gnattest run_cursor` - Run the test corresponding to the current cursor. Results are sent to the quickfix list
 - `:Gnattest clean` - Clean test build artifacts
