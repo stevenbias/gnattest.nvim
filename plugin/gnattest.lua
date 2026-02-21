@@ -30,7 +30,7 @@ local function generate_tests()
     end
 
     local obj = vim
-      .system({ "gnattest", "-P" .. config.projectFile }, { text = true })
+      .system({ "gnattest", "-P", config.projectFile }, { text = true })
       :wait()
     if obj.code ~= 0 then
       print("Error generating tests: Process exited with code " .. obj.code)

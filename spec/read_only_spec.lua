@@ -383,7 +383,7 @@ describe("gnattest.read_only", function()
 
       assert
         .stub(_G.vim.api.nvim_buf_clear_namespace)
-        .was_called_with(1, ro.namespace, 1, -1)
+        .was_called_with(1, ro.namespace, 0, -1)
     end)
 
     it("reset clears and reinitializes state", function()

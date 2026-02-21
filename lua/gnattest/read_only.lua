@@ -35,11 +35,10 @@ local function parse_comment(comment)
 end
 
 local function clear_extmarks()
-  local bufid = require("gnattest.utils").get_bufid()
   vim.api.nvim_buf_clear_namespace(
     require("gnattest.utils").get_bufid(),
     M.namespace,
-    bufid,
+    0,
     -1
   )
   M.extmark = {}
@@ -272,6 +271,7 @@ end
 
 function M.reset()
   refresh()
+  M.ro_group = vim.api.nvim_create_augroup("read_only", { clear = true })
   M.setup()
 end
 
