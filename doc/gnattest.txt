@@ -1,4 +1,5 @@
-*gnattest.txt*  GNATtest integration for Neovim
+==============================================================================
+GNATtest integration for Neovim                    *gnattest* *gnattest.nvim*
 
 Author:  Steven Bias
 License: MIT
@@ -38,7 +39,7 @@ REQUIREMENTS                                          *gnattest-requirements*
 
 - Neovim >= 0.10
 - Ada Language Server (configured and running)
-- GNAT project file (.gpr) - GNATtest must be configured in the .gpr file
+- GNAT project file (GPR) - GNATtest must be configured in the GPR file
 - GNATtest (separate testing framework for Ada)
 - Treesitter parsers: `ada`, `xml`
 
@@ -53,9 +54,9 @@ Before installing GNATtest.nvim, ensure you have:
 
 1. Ada Language Server
    Repository: https://github.com/AdaCore/ada_language_server
-   Must be configured and running (use nvim-lspconfig or any method)
+   Must be configured and running
 
-2. nvim-treesitter with parsers
+2. nvim-treesitter with 'ada' and 'xml' parsers
    Install parsers: >
        :TSInstall ada xml
 <
@@ -92,6 +93,23 @@ After installation, add to your configuration: >lua
 
 The plugin will automatically activate for Ada files in GNATtest projects.
 
+Quick start: ~
+
+1. Open an Ada file in a project
+2. Configure Ada Language Server with the correct GPR file. Example `.als.json`: >json
+    {
+      "projectFile": "/path/to/your/project.gpr"
+    }
+<
+3. Generate tests: >
+    :Gnattest generate
+<
+4. Run tests: >
+    :Gnattest run
+<
+   Tests are built before every run.
+5. Review results in the quickfix list
+
 ==============================================================================
 COMMANDS                                                  *gnattest-commands*
 
@@ -109,9 +127,9 @@ All commands are subcommands of |:Gnattest|:
         Build the test project using gprbuild.
 
     run [package[:subprogram]]                          *:Gnattest-run*
-        Build the test project, then run tests.
-        Run a specific test, a whole package, or the entire test suite.
-        Results are summarized in the quickfix list.
+        Run the entire test suite, a whole package, or a specific test.
+        Results are summarized in the quickfix list (errors first).
+        Tests are built before every run.
         Supports tab completion for package:subprogram names.
         
         Examples: >
@@ -131,7 +149,7 @@ All commands are subcommands of |:Gnattest|:
         Clean test build artifacts using gprclean.
 
     switch                                            *:Gnattest-switch*
-        Toggle between source and test file.
+        Place cursor on a subprogram and toggle between source and test.
         - In source file: jumps to corresponding test
         - In test file: jumps back to source
         Cursor is positioned at the relevant subprogram.
@@ -226,9 +244,7 @@ Example structure (abridged): >xml
         <test_unit target_file="Package_A">
           <tested name="Initialize" line="10" column="13">
             <test_case name="test case" line="10" column="4">
-              <test file="pkg_a-tests.adb"
-                    line="39" column="1"
-                    name="Test_Initialize_abc123"/>
+              <test file="pkg_a-tests.adb" line="39" column="1" name="Test_Initialize_abc123"/>
             </test_case>
           </tested>
         </test_unit>
@@ -248,7 +264,7 @@ Tab completion available for:
 QUICKFIX RESULTS                                  *gnattest-quickfix*
 
 After running tests, the plugin opens the quickfix list with:
-- Errors first, then passed results
+- Errors first, then sorted by filename and line
 - Links to the corresponding test locations
 
 ==============================================================================
@@ -256,14 +272,14 @@ LIMITATIONS                                            *gnattest-limitations*
 
 REQUIREMENTS ~
 - Ada Language Server must be configured before plugin activation
-- GNAT project file (.gpr) with GNATtest configured
+- GNAT project file (GPR) with GNATtest configured
 - GNATtest tool must be installed separately
 - Treesitter parsers (ada, xml) required
 
 FEATURES ~
 - Limited configuration options (by design for simplicity)
 - GNATtest `Tests_Root` attribute not supported
-- GNATtest must be configured in .gpr file
+- GNATtest must be configured in GPR file
 
 COMPATIBILITY ~
 - Tested on Linux (Ubuntu in CI)
@@ -294,7 +310,7 @@ PLUGIN NOT ACTIVATING ~
     :checkhealth gnattest
 <
 2. Check Ada Language Server is running: >
-    :LspInfo
+    :checkhealth vim.lsp
 <
 3. Verify Treesitter parsers are installed: >
     :TSInstallInfo
@@ -317,7 +333,7 @@ NAVIGATION NOT WORKING ~
 
 COMMAND COMPLETION NOT WORKING ~
 
-1. Ensure `gnattest.xml` is present and parseable
+1. Ensure `gnattest.xml` is present and parseable in harness directory
 2. Check that XML contains test metadata
 3. Try running `:Gnattest generate` first
 

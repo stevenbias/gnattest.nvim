@@ -7,6 +7,7 @@
 :Gnattest-run_cursor	gnattest.txt	/*:Gnattest-run_cursor*
 :Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
 GnattestConfig	gnattest.txt	/*GnattestConfig*
+gnattest	gnattest.txt	/*gnattest*
 gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
 gnattest-completion	gnattest.txt	/*gnattest-completion*
@@ -27,5 +28,5 @@ gnattest-read-only-disclaimer	gnattest.txt	/*gnattest-read-only-disclaimer*
 gnattest-requirements	gnattest.txt	/*gnattest-requirements*
 gnattest-troubleshooting	gnattest.txt	/*gnattest-troubleshooting*
 gnattest-xml	gnattest.txt	/*gnattest-xml*
+gnattest.nvim	gnattest.txt	/*gnattest.nvim*
 gnattest.setup()	gnattest.txt	/*gnattest.setup()*
-gnattest.txt	gnattest.txt	/*gnattest.txt*
