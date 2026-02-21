@@ -77,7 +77,7 @@ local function check_project_structure()
 
   local lsp_ok, client = check_lsp_client()
 
-  if not lsp_ok then
+  if not lsp_ok or client == nil then
     return
   end
 
@@ -119,10 +119,11 @@ local function check_project_structure()
       )
     end
   else
-    vim.health.info("GNATtest project structure not detected", {
-      "This may be a regular Ada project without GNATtest",
-      "Run :Gnattest generate to create test harness",
-    })
+    vim.health.info([[
+      GNATtest project structure not detected
+      This may be a regular Ada project without GNATtest
+      Run :Gnattest generate to create test harness
+      ]])
   end
 end
 
