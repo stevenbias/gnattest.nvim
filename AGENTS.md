@@ -1,220 +1,145 @@
 # AGENTS.md
 
-## 🚨 CRITICAL: Git Commit Protocol 🚨
+This file is for agentic coding assistants working in this repository.
+Follow these guidelines to keep changes consistent, safe, and reviewable.
 
-**MANDATORY PRE-COMMIT CHECK:**
-- ✅ User must EXPLICITLY say: "commit", "create a commit", or "you may commit"
-- ❌ NEVER commit for: "continue", "finish this", "next steps", "implement it"
+## Project snapshot
+- **Repo**: GNATtest.nvim (Neovim plugin for Ada + GNATtest)
+- **Languages**: Lua (primary), Vim help docs (`doc/gnattest.txt`)
+- **Neovim**: 0.10+ required
+- **Primary modules**: `lua/gnattest/*.lua`, entrypoint `lua/gnattest/init.lua`
+- **Commands**: defined in `plugin/gnattest.lua` under `:Gnattest`
+- **Tests**: `spec/*_spec.lua` (busted)
 
-**When Given Permission:**
-1. Run `git status` + `git diff` to review changes
-2. Check `git log --oneline -10` for commit message style
-3. Draft conventional commit message (feat/fix/docs/refactor/test/style/chore/ci/build/perf)
-4. `git add <files>` + `git commit -m "message"`
-5. Verify with `git status`
-6. **ONE commit per permission** - Stop and wait for new permission
----
-## Project Overview
-GNATtest.nvim is a Neovim plugin for Ada developers that integrates with GNATtest, a unit testing framework for Ada. It provides complete GNATtest workflow integration:
-- Read-only region protection in test files
-- Navigation between source and test files
-- GNATtest command integration: generate test harnesses, build tests, run tests, clean artifacts
-- Syntax highlighting for GNATtest markers
-- XML parsing of test information
-- Command autocompletion
+## Key modules
+- `lua/gnattest/ada_ls.lua`: Ada LS client discovery + project context.
+- `lua/gnattest/xml.lua`: parse `gnattest.xml`, map source/tests.
+- `lua/gnattest/navigation.lua`: switch between source/test subprograms.
+- `lua/gnattest/read_only.lua`: read-only region protection + autocmds.
+- `lua/gnattest/highlight.lua`: highlight groups and extmarks.
+- `lua/gnattest/health.lua`: `:checkhealth gnattest` checks.
+- `lua/gnattest/utils.lua`: shared helpers, notify, filesystem utilities.
 
-## Build/Test Commands
-- **Lint**: `luacheck .` (configured in .luacheckrc)
-- **Format check**: `stylua --check lua/` (2-space indent, 80 char width, double quotes)
-- **Format fix**: `stylua lua/` (auto-fixes formatting)
-- **Test all**: `busted` or `busted -v` (tests public API only - must pass)
-- **Test all with test mode**: `GNATTEST_TEST_MODE=1 busted` (adds private function unit tests - must also pass)
-- **Test single file**: `busted spec/<filename>_spec.lua` (e.g., `busted spec/utils_spec.lua`)
-- **Test single file with test mode**: `GNATTEST_TEST_MODE=1 busted spec/utils_spec.lua`
-- **Important**: Tests must pass BOTH with and without GNATTEST_TEST_MODE. CI runs with mode enabled.
-- **Coverage report**: `busted --coverage && cat luacov.report.out` (minimum 90% required)
-- **Pre-commit hooks**: `pre-commit install` (runs stylua, luacheck, commitizen)
-- **Run pre-commit**: `pre-commit run --all-files` (manual check)
+## Build / lint / test commands
+
+Run from repo root unless noted.
+
+### Lint / format
+- **Lint**: `luacheck .`
+- **Format check**: `stylua --check lua/`
+- **Format fix**: `stylua lua/`
+
+### Tests
+- **All tests (public API)**: `busted`
+- **All tests (includes private tests)**: `GNATTEST_TEST_MODE=1 busted`
+- **Single test file**: `busted spec/<name>_spec.lua`
+- **Single test file + test mode**: `GNATTEST_TEST_MODE=1 busted spec/<name>_spec.lua`
+- **Verbose**: `busted -v`
+
+### Coverage
+- **Generate**: `busted --coverage`
+- **View report**: `cat luacov.report.out`
+- **Minimum**: 90% (CI enforces on stable coverage report)
+
+### Local install / packaging
 - **Local install**: `luarocks make gnattest-scm-1.rockspec`
 
-## Code Style Guidelines
+### Pre-commit hooks
+- **Install**: `pre-commit install`
+- **Run all**: `pre-commit run --all-files`
 
-### Formatting & Naming
-- **Formatting**: 2-space indent, 80 char width, double quotes (StyLua enforced)
-- **Naming**: snake_case functions/variables, PascalCase modules, UPPER_SNAKE_CASE constants
-- **Modules**: `local M = {}` pattern, requires at top, dot notation for relative imports
+## CI behavior (from GitHub workflows)
+- **Format check**: StyLua `--check` on `lua/`
+- **Lint**: luacheck
+- **Tests**: `busted` via nvim-busted-action with `GNATTEST_TEST_MODE=1`
+- **Coverage**: threshold 90% (stable matrix result)
 
-### Error Handling & API Patterns
-- **Errors**: `error()` for programming errors, `nil, err_msg` for recoverable failures, `pcall()` for risky ops
-- **User notifications**: `vim.notify()` or `M.notify()` with log levels
-- **Vim API**: Use `vim.api.nvim_*` functions, wrap Treesitter in `pcall()`, prefer `vim.fs.*` over `vim.fn.*`
-- **Security**: Validate inputs/configs, use `vim.tbl_contains()` for validation, escape shell args
+## Code style guidelines
 
-### Testing Patterns
-- **Structure**: `spec/<module>_spec.lua` mirrors `lua/gnattest/<module>.lua`
-- **Mocks**: Use `spec.helpers.common.create_basic_vim_api()` and `package.preload`
-- **Cleanup**: Clear `package.loaded`, `package.preload`, `_G.vim` in `after_each`
-- **GNATTEST_TEST_MODE**: Environment variable for dual-mode testing
-  - Without: Tests public API only
-  - With `=1`: Adds private function unit tests (CI uses this mode)
-- **Test exports**: Conditionally export private functions at module end:
+### Formatting
+- **Indentation**: 2 spaces (Lua); avoid tabs
+- **Line width**: 80 columns (`.stylua.toml`)
+- **Quotes**: prefer double quotes (StyLua)
+- **Line endings**: Unix (`.stylua.toml`, `.editorconfig`)
+
+### Imports / module layout
+- Prefer `local M = {}` module pattern and `return M` at EOF.
+- Keep `require(...)` statements at the top of the file.
+- Use local functions for private helpers; expose only via `M`.
+- Avoid cyclic requires; factor helpers into `lua/gnattest/utils.lua`.
+- Keep side effects limited to module scope and autocmd setup.
+- Add private exports only in test mode (see Testing conventions).
+
+### Naming conventions
+- **Functions/vars**: `snake_case`
+- **Modules**: `PascalCase` only for user-facing labels; filenames are `snake_case`.
+- **Constants**: `UPPER_SNAKE_CASE`
+- **Plugin name**: use `GNATtest` (note casing) in UI strings.
+
+### Types / data
+- Use Lua tables for structured data; keep shapes consistent across modules.
+- Prefer `vim.tbl_*`, `vim.islist()`, and `vim.iter` for table ops.
+- Validate user config inputs; reject unknown options (see `lua/gnattest/config.lua`).
+- Use Lua annotations (`---@class`, `---@param`, `---@return`) for public API.
+
+### Error handling / notifications
+- **Programming errors**: `error(...)` for invariants or programmer misuse.
+- **Recoverable failures**: return `nil, err` or `false, err` and let caller decide.
+- Use `pcall(...)` around Treesitter and risky Neovim APIs.
+- User-facing issues go through `vim.notify` or `utils.notify` with log levels.
+- Keep log level semantics consistent with existing messages.
+
+### Neovim API usage
+- Prefer `vim.api.nvim_*` over `vim.fn.*` when possible.
+- Prefer `vim.fs.*` for file operations.
+- Use `vim.system` for async shell commands; avoid blocking the UI.
+- Guard Treesitter access with `pcall` and handle missing parser gracefully.
+
+### Configuration behavior
+- Defaults live in `lua/gnattest/config.lua` and are merged with user opts.
+- Use `vim.tbl_deep_extend("force", ...)` for merges to preserve defaults.
+- Preserve existing option names and validation errors unless changing API.
+
+### GNATtest workflow / UX
+- Commands are subcommands of `:Gnattest` (generate/build/run/run_all/run_cursor/clean/switch).
+- If adding new commands, follow the pattern in `plugin/gnattest.lua`.
+- Preserve existing user-facing wording and quickfix behavior.
+- Only GNAT project files (`.gpr`) are supported.
+- Read-only protection should never silently modify user code.
+
+### Testing conventions
+- File layout: `spec/<module>_spec.lua` mirrors `lua/gnattest/<module>.lua`.
+- Use `spec/helpers/common.lua` to mock vim and helpers.
+- Cleanup in `after_each`: `package.loaded`, `package.preload`, `_G.vim`.
+- Prefer `luassert.stub` for API mocks and restore after tests.
+- **Dual-mode tests**:
+  - Normal: public API only
+  - `GNATTEST_TEST_MODE=1`: include private function tests
+- Private functions can be exposed at EOF:
   ```lua
-  if os.getenv("GNATTEST_TEST_MODE") then M._private_function = private_function end
+  if os.getenv("GNATTEST_TEST_MODE") then
+    M._private_fn = private_fn
+  end
   ```
 
-### Lua Best Practices & Configuration
-- **Globals**: Only `vim` allowed (luacheck enforced)
-- **Utilities**: `vim.tbl_*`, `vim.iter`, `vim.islist()` for type checking
-- **Configuration**: `require("gnattest").setup(opts)` with `highlight.percent` and `read_only.enabled` options
+### Docs / help files
+- Help docs are in `doc/gnattest.txt` and use Vim help formatting.
+- API docs are inserted between CI markers; keep markers intact.
+- Update README examples when you add or change user commands.
 
-### Project-Specific Patterns
-- **Ada integration**: Ada LS and GNATtest tool handling
-- **File patterns**: `**/gnattest/` detection, `*.ads/*.adb` files, XML parsing
-- **Navigation**: Source ↔ test switching for Ada subprograms
-- **Commands**: `:Gnattest` subcommands (`generate`, `build`, `run`) with completion
+## Linting rules (luacheck)
+- Global `vim` is allowed.
+- No other implicit globals (see `.luacheckrc`).
 
-### Development Workflow
-- **Branching**: Feature branches → PR → main
-- **Quality**: Tests pass (both modes), linting clean, 90% coverage min, format check passes
-- **CI/CD**: Format check, linting, tests on stable/nightly Neovim with coverage threshold
-- **Docs**: Update README.md, maintain help docs in `doc/` with tags
-- **Versioning**: Semantic via rockspec, conventional commits (commitizen enforced)
-- **Valid commit types**: feat, fix, docs, refactor, test, style, chore, ci, build, perf
-- **AI commits**: Must end with "Generated by AI" in commit body
+## Release / automation notes
+- CI runs on push and PR; coverage enforced on stable matrix job.
+- Pre-release automation runs on `dev` and creates a PR to `main`.
 
-## Code Examples
+## Commit rules (for agents)
+Only create a git commit if the user explicitly requests it.
+When authorized, follow the repo's conventional commit types:
+`feat`, `fix`, `docs`, `refactor`, `test`, `style`, `chore`, `ci`, `build`, `perf`.
 
-#### Module Structure
-```lua
-local M = {}
-
-function M.public_function()
-  -- Use snake_case for functions
-end
-
-local function private_function()
-  -- Use local for private functions
-end
-
--- Test exports at end of file
-if os.getenv("GNATTEST_TEST_MODE") then
-  M._private_function = private_function
-end
-
-return M
-```
-
-#### Error Handling Pattern
-```lua
--- For operations that might fail
-local ok, result = pcall(vim.treesitter.get_parser, buf, "ada")
-if not ok or not result then
-  vim.notify("User-friendly message", vim.log.levels.WARN)
-  return nil
-end
-
--- For invalid configuration
-if opts ~= nil and next(opts) ~= nil then
-  error("Options are not supported")
-end
-```
-
-#### Test Structure Example
-```lua
-describe("module_name", function()
-  before_each(function()
-    _G.vim = helpers.create_basic_vim_api()
-    package.preload["module"] = function() return mock end
-  end)
-
-  after_each(function()
-    package.loaded["module"] = nil
-    package.preload["module"] = nil
-  end)
-
-  it("describes the behavior", function()
-    assert.equals(expected, actual)
-  end)
-end)
-```
-
-#### Test Optimization Pattern
-```lua
--- Before: Duplicate tests
-it("handles case A", function()
-  local result = func("input_a")
-  assert.equals("expected_a", result)
-end)
-it("handles case B", function()
-  local result = func("input_b")
-  assert.equals("expected_b", result)
-end)
-
--- After: Data-driven test
-it("handles multiple inputs", function()
-  local cases = {
-    { input = "input_a", expected = "expected_a" },
-    { input = "input_b", expected = "expected_b" },
-  }
-  for _, case in ipairs(cases) do
-    assert.equals(case.expected, func(case.input))
-  end
-end)
-
--- Testing nil values with ipairs()
-it("handles nil values", function()
-  local cases = {
-    { val = "text" },
-    { val = nil },     -- Wrapped to avoid array hole
-    { val = "" },
-  }
-  for _, case in ipairs(cases) do
-    local result = func(case.val)
-    assert.is_not_nil(result)
-  end
-end)
-```
-
-#### Vim API Patterns
-```lua
--- Autocmd creation
-vim.api.nvim_create_autocmd("BufReadPost", {
-  group = group_id,
-  pattern = { "*.ads", "*.adb" },
-  callback = function()
-    -- handler code
-  end,
-})
-
--- Namespace and highlighting
-local ns = vim.api.nvim_create_namespace("plugin_name")
-vim.api.nvim_set_hl(ns, "HighlightGroup", { bg = "#color" })
-
--- Extmarks for virtual text
-vim.api.nvim_buf_set_extmark(bufnr, ns, row, col, {
-  end_row = end_row,
-  hl_group = "HighlightGroup",
-  virt_text = { { "icon", "HighlightGroup" } },
-})
-```
-
-## Common Pitfalls to Avoid
-- **Don't**: Use `cd` in bash commands; use `workdir` parameter instead
-- **Don't**: Mix tabs and spaces; StyLua enforces 2-space indentation
-- **Don't**: Forget to clean up mocks in `after_each` blocks
-- **Don't**: Access vim API without mocking in tests
-- **Don't**: Use `vim.fn.*` when `vim.fs.*` or `vim.api.*` alternatives exist
-- **Don't**: Hardcode paths; use `vim.fs.find` for file discovery
-- **Don't**: Skip the test mode check for private function exports
-- **Don't**: Create duplicate test cases; use data-driven testing with tables
-- **Don't**: Use `ipairs()` on arrays with nil values without wrapping (causes early loop exit)
-- **Don't**: Add comments that restate obvious code; keep only section headers and technical notes
-
-## Plugin-Specific Conventions
-- **Command structure**: All commands are subcommands of `:Gnattest` (e.g., `:Gnattest generate`, `:Gnattest build`, `:Gnattest run`)
-- **Command implementation**: Follow the pattern in `plugin/gnattest.lua` with subcommands table and completion callbacks
-- **Read-only regions**: Use the standard markers defined in `lua/gnattest/init.lua`
-- **Ada file patterns**: Use `*.ads` for specs and `*.adb` for bodies
-- **Test file detection**: Check for `gnattest`, harness dir, or tests dir in file path
-- **XML parsing**: Use the utilities in `lua/gnattest/xml.lua` for parsing GNATtest output
-- **Navigation**: Implement source ↔ test switching using `lua/gnattest/navigation.lua`
+## Cursor / Copilot rules
+- No Cursor rules found in `.cursor/rules/` or `.cursorrules`.
+- No Copilot rules found in `.github/copilot-instructions.md`.
