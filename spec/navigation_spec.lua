@@ -228,6 +228,19 @@ describe("gnattest.navigation", function()
       assert.stub(ada_ls_mock.get_src_dirs).was_called()
     end)
 
+    it("returns nil when find_file returns nil", function()
+      utils_mock.is_gnattest_file.returns(true)
+      xml_mock.get_gnattest_info_on_cursor.returns(
+        "my_package.ads",
+        "Package1",
+        create_xml_test_entry("My_Function", "Test_My_Function")
+      )
+      ada_ls_mock.get_src_dirs.returns({ "/project/src" })
+      utils_mock.find_file.returns(nil)
+
+      assert.is_nil(navigation.switch_subprogram())
+    end)
+
     it("switches to test file when in source file", function()
       utils_mock.is_gnattest_file.returns(false)
       utils_mock.get_filename.returns("my_package.ads")
