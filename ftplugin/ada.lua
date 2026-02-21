@@ -5,7 +5,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
   },
   callback = function()
     if require("gnattest.ada_ls").get_ada_ls then
-      require("gnattest.highlight").setup()
       require("gnattest.ada_ls").setup()
       require("gnattest.read_only").setup()
     else

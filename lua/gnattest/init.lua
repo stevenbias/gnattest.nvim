@@ -7,7 +7,7 @@ local M = {}
 
 ---@param opts GnattestConfig|nil
 function M.setup(opts)
-  require("gnattest.config").set(opts)
+  require("gnattest.config").setup(opts)
 end
 
 return M
