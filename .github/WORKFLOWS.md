@@ -28,19 +28,19 @@ This directory contains the CI/CD configuration for the GNATtest.nvim plugin.
 The release automation uses a two-workflow system for pre-release → production cycle:
 
 #### Process Pre-Release Workflow (`process-prerelease.yml`)
-- **Purpose**: Automate API doc generation and create PR for production release
-- **Triggers**: GitHub pre-release published (tag ending with `-test`)
-- **Requirements**: 
+- **Purpose**: Create PR for production release
+- **Triggers**: GitHub pre-release published (tag ending with `-pre`)
+- **Requirements**:
   - Pre-release must be created from `dev` branch
-  - Tag must follow pattern `v{version}-test` (e.g., `v0.1.0-test`)
+  - Tag must follow pattern `v{version}-pre` (e.g., `v0.1.0-pre`)
 - **Process**:
   1. Validates pre-release conditions
-  2. Generates API docs from luaCATS annotations
-  3. Commits updated docs to dev branch
-  4. Creates PR: dev → main
-  5. Auto-assigns repository owner as reviewer
+  2. Checks out dev branch
+  3. Extracts production version
+  4. Injects changelog section into PR body
+  5. Creates PR: dev → main
+  6. Auto-assigns repository owner as reviewer
 - **PR Labels**: `automated`, `release`
-- **Commit Target**: dev branch with `[skip ci]` tag
 
 #### Publish Production Workflow (`publish-production.yml`)
 - **Purpose**: Create production tag and draft release after PR merge
@@ -55,9 +55,9 @@ The release automation uses a two-workflow system for pre-release → production
 - **Manual Step**: User publishes draft release when ready
 
 #### Tag Naming Convention
-- **Pre-release**: `v{version}-test` (e.g., `v0.1.0-test`)
+- **Pre-release**: `v{version}-pre` (e.g., `v0.1.0-pre`)
 - **Production**: `v{version}` (e.g., `v0.1.0`)
-- **Pattern**: Production strips `-test` suffix from pre-release tag
+- **Pattern**: Production strips `-pre` suffix from pre-release tag
 
 #### Job Details
 
@@ -90,21 +90,15 @@ The release automation uses a two-workflow system for pre-release → production
 #### Release Automation Pipeline Job Details
 
 **Process-Prerelease Job**
-- **Purpose**: Auto-generate API documentation and create PR for production release
-- **Trigger**: Only runs when a pre-release with `-test` suffix is published
-- **Tool**: `vimcats` CLI tool (Rust-based)
+- **Purpose**: Create PR for production release
+- **Trigger**: Only runs when a pre-release with `-pre` suffix is published
 - **Process**:
-  1. Validates pre-release tag ends with `-test`
+  1. Validates pre-release tag ends with `-pre`
   2. Checks out dev branch
-  3. Installs Rust toolchain and vimcats
-  4. Generates API docs from Lua files with luaCATS annotations
-  5. Integrates generated docs into `doc/gnattest.txt` using CI/CD markers
-  6. Validates FEATURES section preserved
-  7. Commits updated docs to dev branch with `[skip ci]` tag
-  8. Extracts production version (strips `-test` suffix)
-  9. Creates PR from dev to main with labels and reviewer
-- **Commit Target**: dev branch
-- **Skip CI**: Prevents infinite workflow loops
+  3. Validates tag commit is on dev
+  4. Extracts production version (strips `-pre` suffix)
+  5. Injects changelog section into PR body
+  6. Creates PR from dev to main with labels and reviewer
 
 **Publish-Production Job**
 - **Purpose**: Create production tag and draft release after PR merge
@@ -112,7 +106,7 @@ The release automation uses a two-workflow system for pre-release → production
 - **Process**:
   1. Extracts version from PR title
   2. Validates version format (`v0.1.0`)
-  3. Finds corresponding pre-release (`v0.1.0-test`)
+  3. Finds corresponding pre-release (`v0.1.0-pre`)
   4. Copies release notes from pre-release
   5. Creates production tag on main branch
   6. Creates draft production release
@@ -132,25 +126,29 @@ The release automation uses a two-workflow system for pre-release → production
 
 #### Creating a Pre-Release (Manual Step)
 1. Ensure you're on the `dev` branch with latest changes
-2. Create and publish a pre-release with `-test` suffix:
+2. Bump version and update changelog with Commitizen:
    ```bash
-   gh release create v0.1.0-test \
+   cz bump --release-as 0.1.0-pre
+   git push origin dev --tags
+   ```
+3. Create and publish a pre-release with `-pre` suffix:
+   ```bash
+   gh release create v0.1.0-pre \
      --target dev \
      --prerelease \
-     --title "Pre-release v0.1.0-test" \
+     --title "Pre-release v0.1.0-pre" \
      --notes "Pre-release for testing v0.1.0"
    ```
 
 #### Automated Process (No Manual Intervention)
 - **Process Pre-Release Workflow** automatically:
-  1. Generates API documentation
-  2. Commits to dev branch
-  3. Creates PR to main branch
-  4. Assigns you as reviewer
+  1. Validates tag format and branch
+  2. Creates PR to main branch with changelog section
+  3. Assigns you as reviewer
 
 #### Review and Merge PR (Manual Step)
 1. Review the automated PR
-2. Verify API documentation changes
+2. Review changelog section
 3. Merge the PR to main
 
 #### Production Release Creation (Automated)
@@ -166,9 +164,9 @@ The release automation uses a two-workflow system for pre-release → production
 
 #### Complete Workflow Summary
 ```
-User: Create v0.1.0-test pre-release on dev
+User: Create v0.1.0-pre pre-release on dev
   ↓ (automatic)
-Workflow 1: Generate docs → Commit to dev → Create PR
+Workflow 1: Validate tag → Create PR
   ↓ (manual)
 User: Review and merge PR
   ↓ (automatic)
@@ -253,20 +251,12 @@ ci.yml (code quality)
 process-prerelease.yml (pre-release automation)
 └── process-prerelease (triggered on pre-release published)
     ├── validate pre-release conditions
-    │   └── check tag ends with -test
+    │   └── check tag ends with -pre
     ├── checkout dev branch
-    ├── generate API docs
-    │   ├── install Rust + vimcats
-    │   └── generate from luaCATS annotations
-    ├── integrate docs
-    │   ├── verify CI/CD markers (doc/gnattest.txt)
-    │   ├── replace content with AWK
-    │   └── validate FEATURES section preserved
-    ├── commit to dev
-    │   ├── commit docs [skip ci]
-    │   └── tag remains at original commit
+    ├── validate tag commit on dev
     ├── extract production version
-    │   └── strip -test suffix
+    │   └── strip -pre suffix
+    ├── extract changelog section
     └── create PR
         ├── PR: dev → main
         ├── add labels: automated, release
@@ -280,7 +270,7 @@ publish-production.yml (production release automation)
     ├── extract version from PR title
     │   └── validate format: v0.1.0
     ├── get pre-release notes
-    │   ├── find pre-release: v{version}-test
+    │   ├── find pre-release: v{version}-pre
     │   └── fallback to generic notes if not found
     ├── create production tag on main
     ├── create draft production release

@@ -42,7 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PRERELEASE_TAG="${{ steps.version.outputs.version }}-test"
+          PRERELEASE_TAG="${{ steps.version.outputs.version }}-pre"
           
           NOTES=$(gh release view "$PRERELEASE_TAG" --json body --jq .body 2>/dev/null || echo "")
           
