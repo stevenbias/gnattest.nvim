@@ -7,9 +7,6 @@
 :Gnattest-run_cursor	gnattest.txt	/*:Gnattest-run_cursor*
 :Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
 GnattestConfig	gnattest.txt	/*GnattestConfig*
-M.get	gnattest.txt	/*M.get*
-M.set	gnattest.txt	/*M.set*
-M.setup	gnattest.txt	/*M.setup*
 gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
 gnattest-completion	gnattest.txt	/*gnattest-completion*
