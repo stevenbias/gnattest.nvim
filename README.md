@@ -101,6 +101,19 @@ All commands are subcommands of `:Gnattest`:
 - `:Gnattest clean` - Clean test build artifacts
 - `:Gnattest switch` - Place cursor on a subprogram and toggle between source and test file
 
+### Keymaps
+
+Suggested mappings (prefix `<leader>t`):
+
+```lua
+vim.keymap.set("n", "<leader>tg", "<cmd>Gnattest generate<cr>", { desc = "GNATtest: generate" })
+vim.keymap.set("n", "<leader>tb", "<cmd>Gnattest build<cr>", { desc = "GNATtest: build" })
+vim.keymap.set("n", "<leader>ta", "<cmd>Gnattest run<cr>", { desc = "GNATtest: run all" })
+vim.keymap.set("n", "<leader>tr", "<cmd>Gnattest run_cursor<cr>", { desc = "GNATtest: run cursor" })
+vim.keymap.set("n", "<leader>ts", "<cmd>Gnattest switch<cr>", { desc = "GNATtest: switch source/test" })
+vim.keymap.set("n", "<leader>tc", "<cmd>Gnattest clean<cr>", { desc = "GNATtest: clean" })
+```
+
 ### Read-only Protection
 > **⚠️ Disclaimer:** The read-only protection feature is provided as-is. While it 
 works in most common scenarios, there may be edge cases or unknown issues where 
