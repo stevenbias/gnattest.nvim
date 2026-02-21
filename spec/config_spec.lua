@@ -3,6 +3,11 @@ local helpers = require("spec.helpers.common")
 describe("gnattest.config", function()
   local config
 
+  local function assert_defaults(opts)
+    assert.equals(3, opts.highlight.percent)
+    assert.is_true(opts.read_only.enabled)
+  end
+
   before_each(function()
     helpers.mock_utils()
 
@@ -45,16 +50,32 @@ describe("gnattest.config", function()
 
     it("should handle nil opts (use defaults)", function()
       config.set(nil)
-      local opts = config.get()
-      assert.equals(3, opts.highlight.percent)
-      assert.is_true(opts.read_only.enabled)
+      assert_defaults(config.get())
     end)
 
     it("should handle empty table (use defaults)", function()
       config.set({})
+      assert_defaults(config.get())
+    end)
+  end)
+
+  describe("setup() with valid config", function()
+    it("should reset to defaults and apply options", function()
+      config.set({ highlight = { percent = 10 } })
+      config.setup({ read_only = { enabled = false } })
       local opts = config.get()
       assert.equals(3, opts.highlight.percent)
-      assert.is_true(opts.read_only.enabled)
+      assert.is_false(opts.read_only.enabled)
+    end)
+
+    it("should not update when config is invalid", function()
+      config.set({ highlight = { percent = 10 } })
+      local utils = require("gnattest.utils")
+      config.setup({ highlight = { percent = "bad" } })
+      assert
+        .stub(utils.notify)
+        .was_called_with("highlight.percent must be a number", vim.log.levels.ERROR)
+      assert.equals(10, config.get().highlight.percent)
     end)
   end)
 
@@ -67,12 +88,12 @@ describe("gnattest.config", function()
       assert.equals(10, config.get().highlight.percent)
     end)
 
-    it("should reset to defaults on each set()", function()
+    it("should merge with existing config on each set()", function()
       config.set({ highlight = { percent = 10 } })
       config.set({ read_only = { enabled = false } })
       local opts = config.get()
-      -- First config (highlight) should be reset to default
-      assert.equals(3, opts.highlight.percent)
+      -- First config (highlight) should be preserved
+      assert.equals(10, opts.highlight.percent)
       -- Second config should be applied
       assert.is_false(opts.read_only.enabled)
     end)
@@ -88,8 +109,7 @@ describe("gnattest.config", function()
         .was_called_with("Unknown config field: unknown_field", vim.log.levels.ERROR)
 
       -- Config should not be updated
-      local opts = config.get()
-      assert.equals(3, opts.highlight.percent) -- still defaults
+      assert_defaults(config.get())
     end)
 
     it("should reject multiple unknown fields", function()
@@ -106,8 +126,7 @@ describe("gnattest.config", function()
 
       -- Should reject entire config
       assert.stub(utils.notify).was_called()
-      local opts = config.get()
-      assert.equals(3, opts.highlight.percent) -- still defaults, not 5
+      assert_defaults(config.get())
     end)
   end)
 

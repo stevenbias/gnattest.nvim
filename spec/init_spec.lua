@@ -7,7 +7,7 @@ describe("gnattest.init", function()
   before_each(function()
     -- Mock config module
     config_mock = {
-      set = stub_new(),
+      setup = stub_new(),
     }
     package.preload["gnattest.config"] = function()
       return config_mock
@@ -24,26 +24,26 @@ describe("gnattest.init", function()
   end)
 
   describe("setup()", function()
-    it("should delegate to config.set() with nil", function()
+    it("should delegate to config.setup() with nil", function()
       gnattest_init.setup()
-      assert.stub(config_mock.set).was_called_with(nil)
+      assert.stub(config_mock.setup).was_called_with(nil)
     end)
 
-    it("should delegate to config.set() with empty table", function()
+    it("should delegate to config.setup() with empty table", function()
       gnattest_init.setup({})
-      assert.stub(config_mock.set).was_called_with({})
+      assert.stub(config_mock.setup).was_called_with({})
     end)
 
-    it("should delegate to config.set() with options", function()
+    it("should delegate to config.setup() with options", function()
       local opts = { highlight = { percent = 5 } }
       gnattest_init.setup(opts)
-      assert.stub(config_mock.set).was_called_with(opts)
+      assert.stub(config_mock.setup).was_called_with(opts)
     end)
 
     it("should pass through any options to config", function()
       local opts = { read_only = { enabled = false } }
       gnattest_init.setup(opts)
-      assert.stub(config_mock.set).was_called_with(opts)
+      assert.stub(config_mock.setup).was_called_with(opts)
     end)
   end)
 end)
