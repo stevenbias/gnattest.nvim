@@ -210,7 +210,7 @@ local function conform_workaround()
       -- By refreshing the read-only regions before formatting, we ensure that any changes made by the formatter
       -- are correctly handled and that the read-only regions are properly protected.
       ---@diagnostic disable-next-line: missing-fields
-      require("gnattest.config").set({ read_only = { enabled = false } })
+      M.opt.enabled = false
     end,
   })
   vim.api.nvim_create_autocmd("User", {
@@ -223,7 +223,7 @@ local function conform_workaround()
       -- After formatting is done, we need to fix the read-only regions again to ensure that any changes made by the formatter
       -- are correctly handled and that the read-only regions are properly protected.
       ---@diagnostic disable-next-line: missing-fields
-      require("gnattest.config").set({ read_only = { enabled = true } })
+      M.opt.enabled = true
       vim.schedule(refresh)
     end,
   })
@@ -270,8 +270,8 @@ function M.setup()
 end
 
 function M.reset()
-  refresh()
   M.ro_group = vim.api.nvim_create_augroup("read_only", { clear = true })
+  refresh()
   M.setup()
 end
 

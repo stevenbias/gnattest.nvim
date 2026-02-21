@@ -39,9 +39,10 @@ local function generate_tests()
     end
 
     if disable_ro then
-      require("gnattest.read_only").reset()
       ---@diagnostic disable-next-line: missing-fields
       require("gnattest.config").set({ read_only = { enabled = true } })
+      require("gnattest.read_only").reset()
+      vim.cmd.edit() -- Refresh the buffer to apply read-only regions after generating tests
     end
 
     require("gnattest.xml").get_xml_info(true) -- Refresh XML info after generating tests
