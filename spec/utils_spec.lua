@@ -14,9 +14,7 @@ describe("gnattest.utils", function()
       nvim_get_current_buf = function()
         return 0
       end,
-      nvim_buf_get_lines = function()
-        return { "line1", "line2" }
-      end,
+      nvim_buf_get_lines = stub.new().returns({ "line1", "line2" }),
       nvim__get_runtime = function()
         return {}
       end,
@@ -130,8 +128,9 @@ describe("gnattest.utils", function()
     assert.is_true(utils.is_gnattest_file())
   end)
 
-  it("returns lines from get_lines", function()
+  it("returns lines from get_lines using current buffer", function()
     assert.are.same({ "line1", "line2" }, utils.get_lines(0, 1))
+    assert.stub(_G.vim.api.nvim_buf_get_lines).was_called_with(0, 0, 2, true)
   end)
 
   it("returns comments via get_all_comments", function()
@@ -140,36 +139,70 @@ describe("gnattest.utils", function()
     assert.same("--begin read only", comments[1].text)
   end)
 
-  it("handles missing ada treesitter parser gracefully", function()
-    _G.vim.treesitter.get_parser = function(_, lang)
-      if lang == "ada" then
-        return nil
-      end
-      error("No parser")
-    end
-    utils = require("gnattest.utils")
+  it("returns empty table for invalid treesitter states", function()
+    local cases = {
+      {
+        name = "get_node_text errors",
+        apply = function()
+          _G.vim.treesitter.get_node_text = function()
+            error("text error")
+          end
+        end,
+      },
+      {
+        name = "get_node_text empty",
+        apply = function()
+          _G.vim.treesitter.get_node_text = function()
+            return ""
+          end
+        end,
+      },
+      {
+        name = "missing ada parser",
+        apply = function()
+          _G.vim.treesitter.get_parser = function(_, lang)
+            if lang == "ada" then
+              return nil
+            end
+            error("No parser")
+          end
+          utils = require("gnattest.utils")
+        end,
+      },
+      {
+        name = "query parse failure",
+        apply = function()
+          _G.vim.treesitter.query.parse = function()
+            return nil
+          end
+          utils = require("gnattest.utils")
+        end,
+      },
+      {
+        name = "parser pcall failure",
+        apply = function()
+          _G.vim.treesitter.get_parser = function()
+            error("Parser error")
+          end
+          utils = require("gnattest.utils")
+        end,
+      },
+    }
 
-    local comments = utils.get_all_comments("ada")
-    assert.same({}, comments)
+    for _, case in ipairs(cases) do
+      case.apply()
+      local comments = utils.get_all_comments("ada")
+      assert.same({}, comments)
+    end
   end)
 
-  it("handles treesitter query parse failure gracefully", function()
+  it("returns empty table when query.parse errors", function()
     _G.vim.treesitter.query.parse = function()
-      return nil
+      error("query parse error")
     end
-    utils = require("gnattest.utils")
 
     local comments = utils.get_all_comments("ada")
-    assert.same({}, comments)
-  end)
 
-  it("handles failed parser pcall", function()
-    _G.vim.treesitter.get_parser = function()
-      error("Parser error")
-    end
-    utils = require("gnattest.utils")
-
-    local comments = utils.get_all_comments("ada")
     assert.same({}, comments)
   end)
 

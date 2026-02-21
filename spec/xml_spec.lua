@@ -65,6 +65,40 @@ local stub_vim_api = function()
   end
 end
 
+-- Simplified XML parsing mock setup
+local function setup_xml_parsing_mocks(
+  unit_captures,
+  pkg_captures,
+  test_captures,
+  node_text_mapping
+)
+  _G.vim.treesitter.query.parse = function(_, query_str)
+    return {
+      captures = query_str:find("test_unit") and { "target_file" }
+        or query_str:find("unit") and { "source_file" }
+        or { "src", "tst" },
+      iter_captures = function()
+        local captures = query_str:find("test_unit") and (pkg_captures or {})
+          or query_str:find("unit") and (unit_captures or {})
+          or (test_captures or {})
+        local idx = 0
+        return function()
+          idx = idx + 1
+          if idx <= #captures then
+            return captures[idx].id, captures[idx].node
+          end
+        end
+      end,
+    }
+  end
+  _G.vim.treesitter.get_node_text = function(node)
+    return (node_text_mapping and node_text_mapping[node]) or tostring(node)
+  end
+  _G.vim.fn.readfile = function()
+    return { "<tests_mapping></tests_mapping>" }
+  end
+end
+
 describe("gnattest.xml", function()
   before_each(function()
     stub_vim_api()
@@ -139,12 +173,45 @@ describe("gnattest.xml", function()
       local result = xml.get_xml_info()
       assert.is_table(result)
     end)
+
+    it("refresh bypasses cache", function()
+      local parse_calls = 0
+      _G.vim.treesitter.get_parser = function()
+        parse_calls = parse_calls + 1
+        return {
+          parse = function()
+            return {
+              {
+                root = function()
+                  return "root"
+                end,
+              },
+            }
+          end,
+        }
+      end
+
+      setup_xml_parsing_mocks(
+        { { id = 1, node = "unit_flag" }, { id = 1, node = "unit_file" } },
+        {},
+        {},
+        { unit_flag = "source_file", unit_file = "my_file.ads" }
+      )
+
+      xml.get_xml_info()
+      xml.get_xml_info()
+      xml.get_xml_info(true)
+
+      assert.equals(2, parse_calls)
+    end)
   end)
 
   describe("real fixture parsing", function()
-    it("validates fixture file XML structure and content", function()
-      local fixture_path = "spec/fixtures/gnattest.xml"
-      local xml_lines = {}
+    local fixture_path = "spec/fixtures/gnattest.xml"
+    local xml_lines
+
+    before_each(function()
+      xml_lines = {}
       local file = io.open(fixture_path, "r")
       assert.is_not_nil(file)
       if file then
@@ -153,7 +220,9 @@ describe("gnattest.xml", function()
         end
         file:close()
       end
+    end)
 
+    it("validates fixture file XML structure and content", function()
       assert.is_true(#xml_lines > 0)
       local content = table.concat(xml_lines, "\n")
 
@@ -267,40 +336,6 @@ describe("gnattest.xml", function()
     end)
   end)
 
-  -- Simplified XML parsing mock setup
-  local function setup_xml_parsing_mocks(
-    unit_captures,
-    pkg_captures,
-    test_captures,
-    node_text_mapping
-  )
-    _G.vim.treesitter.query.parse = function(_, query_str)
-      return {
-        captures = query_str:find("test_unit") and { "target_file" }
-          or query_str:find("unit") and { "source_file" }
-          or { "src", "tst" },
-        iter_captures = function()
-          local captures = query_str:find("test_unit") and (pkg_captures or {})
-            or query_str:find("unit") and (unit_captures or {})
-            or (test_captures or {})
-          local idx = 0
-          return function()
-            idx = idx + 1
-            if idx <= #captures then
-              return captures[idx].id, captures[idx].node
-            end
-          end
-        end,
-      }
-    end
-    _G.vim.treesitter.get_node_text = function(node)
-      return (node_text_mapping and node_text_mapping[node]) or tostring(node)
-    end
-    _G.vim.fn.readfile = function()
-      return { "<tests_mapping></tests_mapping>" }
-    end
-  end
-
   describe("XML parsing logic coverage tests", function()
     describe("core data structure population", function()
       it("populates source_files table from unit captures", function()
@@ -394,18 +429,18 @@ describe("gnattest.xml", function()
         assert.equals("file1", filename)
       end)
 
-      it("returns nil if test name not present", function()
-        xml = inject_xml_data({
-          file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
-        })
-        assert.is_nil(xml.get_test_by_name("pkg1", "missing"))
-      end)
+      it("returns nil when package or name missing", function()
+        local cases = {
+          { pkg = "pkg1", name = "missing" },
+          { pkg = "missing_pkg", name = "testA" },
+        }
 
-      it("returns nil if package not present", function()
-        xml = inject_xml_data({
-          file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
-        })
-        assert.is_nil(xml.get_test_by_name("missing_pkg", "testA"))
+        for _, case in ipairs(cases) do
+          xml = inject_xml_data({
+            file1 = { pkg1 = { { source = { name = "testA" }, test = {} } } },
+          })
+          assert.is_nil(xml.get_test_by_name(case.pkg, case.name))
+        end
       end)
 
       it("handles multiple tests and packages", function()
@@ -505,6 +540,38 @@ describe("gnattest.xml", function()
         assert.equals("my_package.ads", file)
         assert.equals("Package1", pkg)
         assert.equals("My_Function", info.source.name)
+      end)
+
+      it("populates xml_info when empty", function()
+        for k in pairs(xml._xml_info) do
+          xml._xml_info[k] = nil
+        end
+
+        local parse_calls = 0
+        _G.vim.treesitter.get_parser = function()
+          parse_calls = parse_calls + 1
+          return {
+            parse = function()
+              return {
+                {
+                  root = function()
+                    return "root"
+                  end,
+                },
+              }
+            end,
+          }
+        end
+
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_flag" }, { id = 1, node = "unit_file" } },
+          {},
+          {},
+          { unit_flag = "source_file", unit_file = "my_file.ads" }
+        )
+
+        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 10))
+        assert.equals(1, parse_calls)
       end)
 
       it("returns nil when no match", function()
@@ -627,6 +694,26 @@ describe("gnattest.xml", function()
         assert.equals("Package1", pkg)
         assert.equals("Test_My_Function", info.test.name)
       end)
+
+      it("returns nil when no matches", function()
+        xml = inject_xml_data({
+          ["my_package.ads"] = {
+            Package1 = {
+              {
+                source = { name = "Other_Function", line = "10", column = "2" },
+                test = {
+                  name = "Test_Other_Function",
+                  file = "test_file.adb",
+                  line = "20",
+                  column = "4",
+                },
+              },
+            },
+          },
+        })
+
+        assert.is_nil(xml.get_gnattest_info_on_line(99))
+      end)
     end)
 
     describe("get_gnattest_info_on_cursor", function()
@@ -701,16 +788,16 @@ describe("gnattest.xml", function()
       end)
     end)
 
-    describe("xml_info internal state tests", function()
-      local function set_xml_info(data)
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        for k, v in pairs(data) do
-          xml._xml_info[k] = v
-        end
+    local function set_xml_info(data)
+      for k in pairs(xml._xml_info) do
+        xml._xml_info[k] = nil
       end
+      for k, v in pairs(data) do
+        xml._xml_info[k] = v
+      end
+    end
 
+    describe("xml_info internal state tests", function()
       it("get_xml_info returns cached results on second call", function()
         set_xml_info({
           ["src/my_package.ads"] = {
@@ -722,6 +809,43 @@ describe("gnattest.xml", function()
         local result1 = xml.get_xml_info()
         local result2 = xml.get_xml_info()
         assert.equals(result1, result2)
+      end)
+
+      it("get_xml_info refreshes when requested", function()
+        set_xml_info({
+          ["src/my_package.ads"] = {
+            ["gnattest_prefix_my_package.ads"] = {
+              { name = "test_add", line = 50 },
+            },
+          },
+        })
+
+        local parse_calls = 0
+        _G.vim.treesitter.get_parser = function()
+          parse_calls = parse_calls + 1
+          return {
+            parse = function()
+              return {
+                {
+                  root = function()
+                    return "root"
+                  end,
+                },
+              }
+            end,
+          }
+        end
+
+        setup_xml_parsing_mocks(
+          { { id = 1, node = "unit_flag" }, { id = 1, node = "unit_file" } },
+          {},
+          {},
+          { unit_flag = "source_file", unit_file = "my_file.ads" }
+        )
+
+        xml.get_xml_info(true)
+
+        assert.equals(1, parse_calls)
       end)
 
       it("structure contains source files and test packages", function()
@@ -762,15 +886,6 @@ describe("gnattest.xml", function()
     end)
 
     describe("xml_info structure validation", function()
-      local function set_xml_info(data)
-        for k in pairs(xml._xml_info) do
-          xml._xml_info[k] = nil
-        end
-        for k, v in pairs(data) do
-          xml._xml_info[k] = v
-        end
-      end
-
       it("src_info contains name, line, column, and test fields", function()
         set_xml_info({
           ["src/my_package.ads"] = {

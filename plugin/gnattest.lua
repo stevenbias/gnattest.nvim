@@ -15,11 +15,36 @@ end
 
 local function generate_tests()
   local ada_ls = require("gnattest.ada_ls").get_ada_ls()
+  local utils = require("gnattest.utils")
+
   if ada_ls ~= nil then
     local json_file = ada_ls.config.root_dir .. "/.als.json"
     local config = vim.fn.json_decode(vim.fn.readfile(json_file))
 
-    vim.cmd("!gnattest -P " .. config.projectFile)
+    local ro_config = require("gnattest.config").get().read_only
+    local is_read_only_enabled = ro_config.enabled
+    local disable_ro = is_read_only_enabled and utils.is_gnattest_file()
+    if disable_ro then
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = false } })
+    end
+
+    local obj = vim
+      .system({ "gnattest", "-P" .. config.projectFile }, { text = true })
+      :wait()
+    if obj.code ~= 0 then
+      print("Error generating tests: Process exited with code " .. obj.code)
+    else
+      print("Tests generated successfully")
+    end
+
+    if disable_ro then
+      require("gnattest.read_only").reset()
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = true } })
+    end
+
+    require("gnattest.xml").get_xml_info(true) -- Refresh XML info after generating tests
   end
 end
 

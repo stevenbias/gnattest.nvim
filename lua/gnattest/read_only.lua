@@ -34,6 +34,24 @@ local function parse_comment(comment)
   return nil
 end
 
+local function clear_extmarks()
+  local bufid = require("gnattest.utils").get_bufid()
+  vim.api.nvim_buf_clear_namespace(
+    require("gnattest.utils").get_bufid(),
+    M.namespace,
+    bufid,
+    -1
+  )
+  M.extmark = {}
+end
+
+local function clear()
+  clear_extmarks()
+  comments = {}
+  protect_flag = false
+  M.backup = nil
+end
+
 -- Use mark_id to update an extmark
 local function set_extmark(start_row, end_row, mark_id)
   local opt = {
@@ -97,6 +115,12 @@ local function protected_region_notif()
 end
 
 local function prepare_gnattest()
+  M.opt = require("gnattest.config").get().read_only
+  if M.opt.enabled == false then
+    clear()
+    return
+  end
+
   comments = require("gnattest.utils").get_all_comments("ada")
   get_regions(set_extmark)
   require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
@@ -112,6 +136,12 @@ local function fix_ro_regions()
   end
 
   vim.schedule(function()
+    M.opt = require("gnattest.config").get().read_only
+    if M.opt.enabled == false then
+      clear()
+      return
+    end
+
     local cursor_pos = vim.fn.getpos(".")
     local lnum = cursor_pos[2]
     local cnum = cursor_pos[3]
@@ -161,6 +191,45 @@ local function fix_ro_regions()
   end)
 end
 
+local function refresh()
+  clear()
+  prepare_gnattest()
+end
+
+local function conform_workaround()
+  local is_ro_enabled = require("gnattest.config").get().read_only.enabled
+  if is_ro_enabled == false then
+    return
+  end
+
+  vim.api.nvim_create_autocmd("User", {
+    group = M.ro_group,
+    pattern = "ConformFormatPre",
+    callback = function()
+      is_ro_enabled = require("gnattest.config").get().read_only.enabled
+      -- This is a workaround for conform.nvim, which doesn't trigger TextChanged events during formatting.
+      -- By refreshing the read-only regions before formatting, we ensure that any changes made by the formatter
+      -- are correctly handled and that the read-only regions are properly protected.
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = false } })
+    end,
+  })
+  vim.api.nvim_create_autocmd("User", {
+    group = M.ro_group,
+    pattern = "ConformFormatPost",
+    callback = function()
+      if is_ro_enabled == false then
+        return
+      end
+      -- After formatting is done, we need to fix the read-only regions again to ensure that any changes made by the formatter
+      -- are correctly handled and that the read-only regions are properly protected.
+      ---@diagnostic disable-next-line: missing-fields
+      require("gnattest.config").set({ read_only = { enabled = true } })
+      vim.schedule(refresh)
+    end,
+  })
+end
+
 function M.setup()
   M.opt = require("gnattest.config").get().read_only
 
@@ -177,11 +246,11 @@ function M.setup()
     end,
   })
 
-  vim.api.nvim_create_autocmd("BufReadPost", {
+  vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter", "BufEnter" }, {
     group = M.ro_group,
     pattern = gnattest_pattern,
     callback = function()
-      prepare_gnattest()
+      refresh()
     end,
   })
 
@@ -197,6 +266,13 @@ function M.setup()
       fix_ro_regions()
     end,
   })
+
+  conform_workaround()
+end
+
+function M.reset()
+  refresh()
+  M.setup()
 end
 
 -- Test-specific exports - only exposed in test mode
