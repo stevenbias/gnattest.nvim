@@ -1,21 +1,10 @@
-# GNATtest.nvim
+# gnattest.nvim
 
 [![CI](https://github.com/StevenBias/gnattest.nvim/workflows/CI/badge.svg)](https://github.com/StevenBias/gnattest.nvim/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Neovim](https://img.shields.io/badge/Neovim-0.10+-green.svg)](https://neovim.io)
 
-> Neovim plugin providing GNATtest workflow integration: generate, build, run, clean tests and navigate between source and test files
-
-## Features
-
-- **Read-only Protection** - Automatically protect auto-generated test regions
-- **Navigation** - Jump between source and test files with LSP integration
-- **XML Metadata** - Parse `gnattest.xml` for test locations and completion
-- **Command Integration** - Run GNATtest directly from Neovim
-- **Quickfix Results** - Test run output is summarized in the quickfix list
-- **Syntax Highlighting** - Visual indicators for protected code regions
-- **Ada Language Server support** - update ALS project context when switching files (source <-> test)
-- **Tab Completion** - Command and argument autocompletion
+Neovim plugin providing [GNATtest](https://github.com/AdaCore/gnattest) workflow integration: generate, build, run, clean tests and navigate between source and test files
 
 ## Demo
 ### Command Integration
@@ -33,6 +22,31 @@
 ![Build and Run](media/gnattest_build_and_run.gif)
 *Example of building the test project and running a specific test using `:Gnattest run` with package:subprogram syntax.*
 
+## Quick Start
+
+1. Open an Ada file in a project
+2. Configure Ada Language Server with the correct GPR file
+>*Example of `.als.json` configuration:*
+`
+{
+    "projectFile": "/path/to/your/project.gpr"
+}
+`
+3. Generate tests: `:Gnattest generate`
+4. Run tests: `:Gnattest run`
+>*Tests are built before every run*
+5. Review results in the quickfix list
+>*Results are sorted with failed tests first and then by filenames and
+subprogram line numbers.*
+
+### Requirements
+
+- **Neovim** >= 0.10
+- **Ada Language Server** - Must be configured and running ([setup guide](https://github.com/AdaCore/ada_language_server))
+- **GNAT** - Must be availabe in the $PATH
+- **GNAT Project File** - Only Ada projects using GPR files are supported (GNATtest must be configured in the GPR file)
+- **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide) and [Github repo](https://github.com/AdaCore/gnattest))
+- **Treesitter parsers**: `ada`, `xml` (`:TSInstall ada xml`)
 
 ## Installation
 
@@ -56,15 +70,6 @@ lua << EOF
 require("gnattest").setup()
 EOF
 ```
-
-## Requirements
-
-- **Neovim** >= 0.10
-- **Ada Language Server** - Must be configured and running ([setup guide](https://github.com/AdaCore/ada_language_server))
-- **GNAT Project File** - Only Ada projects using GPR files are supported (GNATtest must be configured in the GPR file)
-- **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide) and [Github repo](https://github.com/AdaCore/gnattest))
-- **Treesitter parsers**: `ada`, `xml` (`:TSInstall ada xml`)
-
 ### Health Check
 
 Verify your setup is correct with `:checkhealth gnattest`.
@@ -72,23 +77,6 @@ You can switch to `:help gnattest` to get an understanding of
 how to use gnattest.nvim and how to configure it.
 
 ## Usage
-
-### Quick Start
-
-1. Open an Ada file in a project
-2. Configure Ada Language Server with the correct GPR file\
->*Example of `.als.json` configuration:*
-`
-{
-    "projectFile": "/path/to/your/project.gpr"
-}
-`
-3. Generate tests: `:Gnattest generate`
-4. Run tests: `:Gnattest run`
->*Tests are built before every run*
-5. Review results in the quickfix list
->*Results are sorted with failed tests first and then by filenames and
-subprogram line numbers.*
 
 ### Commands
 
@@ -131,6 +119,15 @@ The plugin automatically:
 - Shows notifications when you attempt to modify protected code
 - Prevents editing in these regions (changes are automatically reverted)
 
+The read-only feature can be disabled in the configuration
+if you encounter issues with it. To disable read-only protection:
+```lua
+require("gnattest").setup({
+  read_only = {
+    enabled = false,
+  },
+})
+```
 ### Troubleshooting
 
 - Run `:checkhealth gnattest` for a full environment check
@@ -163,16 +160,23 @@ require("gnattest").setup({
 
 ## About This Project
 
-This is my first public Neovim plugin. I created it to:
+This is my first public Neovim plugin and part of my learning journey; tests and documentation were generated with AI assistance. Feedback and contributions are welcome.
+
+I created it to:
 - Learn modern Neovim plugin development practices
 - Improve my Ada development workflow
 - Explore LSP integration, Treesitter parsing, and extmarks
 
-### Development Notes
+### Features
 
-Tests and documentation were generated with AI assistance.\
-While functional and well-tested, this plugin reflects my learning journey.\
-Feedback and contributions are welcome.
+- **Read-only Protection** - Automatically protect auto-generated test regions
+- **Navigation** - Jump between source and test files with LSP integration
+- **XML Metadata** - Parse `gnattest.xml` for test locations and completion
+- **Command Integration** - Run GNATtest directly from Neovim
+- **Quickfix Results** - Test run output is summarized in the quickfix list
+- **Syntax Highlighting** - Visual indicators for protected code regions
+- **Ada Language Server support** - update ALS project context when switching files (source <-> test)
+- **Tab Completion** - Command and argument autocompletion
 
 ## Contributing
 

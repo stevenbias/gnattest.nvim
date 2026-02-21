@@ -40,6 +40,7 @@ REQUIREMENTS                                          *gnattest-requirements*
 - Neovim >= 0.10
 - Ada Language Server (configured and running)
 - GNAT project file (GPR) - GNATtest must be configured in the GPR file
+- GNAT toolchain
 - GNATtest (separate testing framework for Ada)
 - Treesitter parsers: `ada`, `xml`
 
@@ -56,7 +57,10 @@ Before installing GNATtest.nvim, ensure you have:
    Repository: https://github.com/AdaCore/ada_language_server
    Must be configured and running
 
-2. nvim-treesitter with 'ada' and 'xml' parsers
+2. GNAT toolchain
+   Must be installed and available on PATH
+
+3. nvim-treesitter with 'ada' and 'xml' parsers
    Install parsers: >
        :TSInstall ada xml
 <
