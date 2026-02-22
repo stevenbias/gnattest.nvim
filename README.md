@@ -7,20 +7,7 @@
 Neovim plugin providing [GNATtest](https://github.com/AdaCore/gnattest) workflow integration: generate, build, run, clean tests and navigate between source and test files
 
 ## Demo
-### Command Integration
-
-![GNATtest Commands](media/gnattest_cmds.gif)
-*Demonstrates available GNATtest commands with tab completion.*
-
-### Navigation & Read-only Protection
-
-![Switch and Protection](media/gnattest_switch_and_protect.gif)
-*Shows `:Gnattest switch` to navigate between source and test files, plus read-only region protection in action.*
-
-### Build and Run Specific Test
-
-![Build and Run](media/gnattest_build_and_run.gif)
-*Example of building the test project and running a specific test using `:Gnattest run` with package:subprogram syntax.*
+![GNATtest Demo](media/gnattest_demo.gif)
 
 ## Quick Start
 
