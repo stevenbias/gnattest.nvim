@@ -4,10 +4,12 @@
 :Gnattest-generate	gnattest.txt	/*:Gnattest-generate*
 :Gnattest-run	gnattest.txt	/*:Gnattest-run*
 :Gnattest-run_all	gnattest.txt	/*:Gnattest-run_all*
+:Gnattest-run_cursor	gnattest.txt	/*:Gnattest-run_cursor*
 :Gnattest-switch	gnattest.txt	/*:Gnattest-switch*
+GnattestConfig	gnattest.txt	/*GnattestConfig*
+gnattest	gnattest.txt	/*gnattest*
 gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
-gnattest-completion	gnattest.txt	/*gnattest-completion*
 gnattest-configuration	gnattest.txt	/*gnattest-configuration*
 gnattest-contents	gnattest.txt	/*gnattest-contents*
 gnattest-contributing	gnattest.txt	/*gnattest-contributing*
@@ -18,11 +20,12 @@ gnattest-introduction	gnattest.txt	/*gnattest-introduction*
 gnattest-license	gnattest.txt	/*gnattest-license*
 gnattest-limitations	gnattest.txt	/*gnattest-limitations*
 gnattest-navigation	gnattest.txt	/*gnattest-navigation*
+gnattest-quickfix	gnattest.txt	/*gnattest-quickfix*
 gnattest-quickstart	gnattest.txt	/*gnattest-quickstart*
 gnattest-read-only	gnattest.txt	/*gnattest-read-only*
 gnattest-read-only-disclaimer	gnattest.txt	/*gnattest-read-only-disclaimer*
 gnattest-requirements	gnattest.txt	/*gnattest-requirements*
 gnattest-troubleshooting	gnattest.txt	/*gnattest-troubleshooting*
 gnattest-xml	gnattest.txt	/*gnattest-xml*
+gnattest.nvim	gnattest.txt	/*gnattest.nvim*
 gnattest.setup()	gnattest.txt	/*gnattest.setup()*
-gnattest.txt	gnattest.txt	/*gnattest.txt*

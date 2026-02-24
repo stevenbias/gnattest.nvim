@@ -53,12 +53,22 @@ function M.get_bufdir()
   return vim.fs.dirname(M.get_bufpath())
 end
 
+function M.split_filename(filename)
+  local name, ext = filename:match("(.+)%.(%w+)$")
+  if not name then
+    -- No extension found; return the original filename as name and nil as extension
+    return filename, nil
+  end
+  return name, ext
+end
+
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
+  local bufdir = M.get_bufdir()
 
-  return string.find(M.get_bufdir(), "gnattest") ~= nil
-    or string.find(M.get_bufdir(), als.get_harness_dir()) ~= nil
-    or string.find(M.get_bufdir(), als.get_tests_dir()) ~= nil
+  return string.find(bufdir, "gnattest") ~= nil
+    or string.find(bufdir, als.get_harness_dir()) ~= nil
+    or string.find(bufdir, als.get_tests_dir()) ~= nil
 end
 
 function M.get_gnattest_project()
@@ -77,7 +87,8 @@ function M.set_gnattest_pattern()
 end
 
 function M.get_lines(start_row, end_row)
-  return vim.api.nvim_buf_get_lines(0, start_row, end_row + 1, true)
+  local bufid = M.get_bufid()
+  return vim.api.nvim_buf_get_lines(bufid, start_row, end_row + 1, true)
 end
 
 function M.find_file(filename, path)
@@ -131,10 +142,17 @@ function M.get_all_comments(language)
     return {}
   end
 
-  for id, node in query:iter_captures(root, 0) do
+  local bufid = require("gnattest.utils").get_bufid()
+
+  for id, node in query:iter_captures(root, bufid) do
     if query.captures[id] == "comment" then
       local start_row = node:range()
-      local text = vim.treesitter.get_node_text(node, 0)
+      local text
+      ok, text = pcall(vim.treesitter.get_node_text, node, bufid)
+      if not ok or text == "" then
+        return {}
+      end
+
       table.insert(cmts, {
         node = node,
         text = text:gsub("^%s*", ""):gsub("%s*$", ""), -- Trim whitespace

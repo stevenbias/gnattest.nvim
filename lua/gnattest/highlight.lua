@@ -50,7 +50,8 @@ function M.set_highlight(namespace, hl_group)
   local hl = get_hl()
   local new_bg = DEFAULT_HIGHLIGHT_COLOR
 
-  local percent = M.opts.percent
+  local opts = require("gnattest.config").get().highlight
+  local percent = opts.percent
 
   if vim.o.background == "light" then
     percent = -percent
@@ -62,10 +63,6 @@ function M.set_highlight(namespace, hl_group)
 
   vim.api.nvim_set_hl(namespace, hl_group, { bg = new_bg, force = true })
   vim.api.nvim_set_hl_ns(namespace)
-end
-
-function M.setup()
-  M.opts = require("gnattest.config").get().highlight
 end
 
 -- Test-specific exports - only exposed in test mode

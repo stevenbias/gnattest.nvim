@@ -3,7 +3,6 @@ local common = require("spec.helpers.common")
 
 describe("gnattest.ada_ls", function()
   local ada_ls
-  local autocmd_callbacks = {}
 
   -- Test data builders for LSP responses
   local function create_lsp_result(data)
@@ -43,13 +42,8 @@ describe("gnattest.ada_ls", function()
   end
 
   before_each(function()
-    autocmd_callbacks = {}
-
     common.setup_vim_globals(
       {
-        nvim_create_autocmd = stub.new().invokes(function(event, opts)
-          table.insert(autocmd_callbacks, { event = event, opts = opts })
-        end),
         nvim__get_runtime = function()
           return {}
         end,
@@ -58,7 +52,6 @@ describe("gnattest.ada_ls", function()
       {
         lsp = {
           get_clients = stub.new().returns({}),
-          get_client_by_id = stub.new().returns(nil),
           util = {
             make_position_params = stub.new().returns({
               textDocument = { uri = "file:///test.adb" },
@@ -139,109 +132,80 @@ describe("gnattest.ada_ls", function()
   end)
 
   describe("setup()", function()
-    it("should create LspAttach autocmd with Ada file pattern", function()
-      ada_ls.setup()
+    it("initializes module state on first setup", function()
+      local utils = require("gnattest.utils")
+      local original_is_gnattest_file = utils.is_gnattest_file
+      local set_pattern_stub = stub(utils, "set_gnattest_pattern")
 
-      assert.stub(_G.vim.api.nvim_create_autocmd).was_called()
-      local first_call = autocmd_callbacks[1]
-      assert.is_equal("LspAttach", first_call.event)
-      assert.is_table(first_call.opts.pattern)
-      assert.is_equal("*.ad[bs]", first_call.opts.pattern[1])
-      assert.is_function(first_call.opts.callback)
-    end)
+      utils.is_gnattest_file = stub.new().returns(false)
 
-    describe("LspAttach callback", function()
-      it("should configure Ada client with workspace settings", function()
-        ada_ls.setup()
-        local mock_client = {
-          name = "ada",
-          notify = stub.new(),
-          root_dir = "/home/user/project",
-          request_sync = stub.new().returns(nil),
-        }
-        _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
-        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
-
-        autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
-
-        assert.stub(mock_client.notify).was_called()
-        local call_args = mock_client.notify.calls[1]
-        assert.is_equal("workspace/didChangeConfiguration", call_args.vals[2])
-        local settings = call_args.vals[3]
-        assert.is_table(settings.settings.ada)
-        assert.is_string(settings.settings.ada.projectFile)
-        assert.is_true(
-          settings.settings.ada.projectFile:find("gnattest") ~= nil
-        )
-        assert.is_true(
-          settings.settings.ada.projectFile:find("test_driver.gpr") ~= nil
-        )
-      end)
-
-      local error_notification_cases = {
-        {
-          name = "should notify when client is nil",
-          client_return = nil,
-        },
-        {
-          name = "should notify when client is not Ada",
-          client_return = { name = "rust_analyzer" },
-        },
+      local stubs = {
+        get_root_dir = stub(ada_ls, "get_root_dir").returns("/root"),
+        get_prj_file = stub(ada_ls, "get_prj_file").returns(
+          "/project/main.gpr"
+        ),
+        get_src_dirs = stub(ada_ls, "get_src_dirs").returns({ "/src" }),
+        get_obj_dir = stub(ada_ls, "get_obj_dir").returns("/project/obj"),
+        get_harness_dir = stub(ada_ls, "get_harness_dir").returns(
+          "/project/obj/harness"
+        ),
+        get_tests_dir = stub(ada_ls, "get_tests_dir").returns(
+          "/project/obj/tests"
+        ),
       }
 
-      for _, case in ipairs(error_notification_cases) do
-        it(case.name, function()
-          ada_ls.setup()
-          local utils = require("gnattest.utils")
-          _G.vim.lsp.get_client_by_id = stub.new().returns(case.client_return)
+      ada_ls.is_init = false
 
-          autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
+      ada_ls.setup()
 
-          assert
-            .stub(utils.notify)
-            .was_called_with("Ada LSP client not found", _G.vim.log.levels.WARN)
-        end)
+      assert.is_true(ada_ls.is_init)
+      assert.equals("/root", ada_ls.root_dir)
+      assert.equals("/project/main.gpr", ada_ls.prj_file)
+      assert.same({ "/src" }, ada_ls.src_dirs)
+      assert.equals("/project/obj", ada_ls.obj_dir)
+      assert.equals("/project/obj/harness", ada_ls.harness_dir)
+      assert.equals("/project/obj/tests", ada_ls.tests_dir)
+      assert.stub(set_pattern_stub).was_called()
+
+      set_pattern_stub:revert()
+      utils.is_gnattest_file = original_is_gnattest_file
+      for _, stubbed in pairs(stubs) do
+        stubbed:revert()
       end
+    end)
 
-      it("should get client by event data client_id", function()
-        ada_ls.setup()
-        _G.vim.lsp.get_client_by_id = stub.new().returns({
-          name = "ada",
-          notify = stub.new(),
-        })
+    it("switches to tests when current file is gnattest", function()
+      setup_module_state({
+        is_init = true,
+        harness_dir = "/project/obj/gnattest/harness",
+      })
+      local client = common.create_lsp_client()
+      common.setup_lsp_client(client)
 
-        autocmd_callbacks[1].opts.callback({ data = { client_id = 456 } })
+      ada_ls.setup()
 
-        assert.stub(_G.vim.lsp.get_client_by_id).was_called_with(456)
-      end)
+      assert.stub(client.notify).was_called()
+      local call_args = client.notify.calls[1]
+      assert.equals("workspace/didChangeConfiguration", call_args.vals[2])
+      assert.equals(
+        "/project/obj/gnattest/harness/test_driver.gpr",
+        call_args.vals[3].settings.ada.projectFile
+      )
+    end)
 
-      it("should extract gnattest directory from buffer path", function()
-        local utils_module = require("gnattest.utils")
-        local original_get_bufdir = utils_module.get_bufdir
-        utils_module.get_bufdir = function()
-          return "/home/user/my_project/gnattest/harness/test_src"
-        end
+    it("does not switch when current file is not gnattest", function()
+      local utils = require("gnattest.utils")
+      utils.is_gnattest_file = stub.new().returns(false)
+      setup_module_state({
+        is_init = true,
+        harness_dir = "/project/obj/gnattest/harness",
+      })
+      local client = common.create_lsp_client()
+      common.setup_lsp_client(client)
 
-        ada_ls.setup()
-        local mock_client = {
-          name = "ada",
-          notify = stub.new(),
-          root_dir = "/home/user/my_project",
-          request_sync = stub.new().returns(nil),
-        }
-        _G.vim.lsp.get_client_by_id = stub.new().returns(mock_client)
-        _G.vim.lsp.get_clients = stub.new().returns({ mock_client })
+      ada_ls.setup()
 
-        autocmd_callbacks[1].opts.callback({ data = { client_id = 123 } })
-
-        local settings = mock_client.notify.calls[1].vals[3]
-        assert.string_matches(
-          settings.settings.ada.projectFile,
-          "/home/user/my_project/gnattest/harness/test_driver.gpr"
-        )
-
-        utils_module.get_bufdir = original_get_bufdir
-      end)
+      assert.stub(client.notify).was_not_called()
     end)
   end)
 
@@ -258,6 +222,11 @@ describe("gnattest.ada_ls", function()
 
       assert.equals("/cached/root", result)
       assert.equals(call_count_before, #_G.vim.lsp.get_clients.calls)
+    end)
+
+    it("returns empty string when no client", function()
+      _G.vim.lsp.get_clients = stub.new().returns({})
+      assert.equals("", ada_ls.get_root_dir())
     end)
   end)
 
@@ -330,6 +299,23 @@ describe("gnattest.ada_ls", function()
         assert_lsp_command(client)
       end
     )
+
+    it("returns cached project file when in gnattest file", function()
+      common.mock_gnattest_file(true)
+      setup_module_state({ prj_file = "/project/cached.gpr" })
+
+      assert.equals("/project/cached.gpr", ada_ls.get_prj_file())
+    end)
+
+    it("returns empty string when LSP command fails", function()
+      common.mock_gnattest_file(false)
+      local client = common.create_lsp_client({
+        request_sync = stub.new().returns({ result = nil }),
+      })
+      common.setup_lsp_client(client)
+
+      assert.equals("", ada_ls.get_prj_file())
+    end)
   end)
 
   describe("get_src_dirs()", function()
@@ -349,6 +335,11 @@ describe("gnattest.ada_ls", function()
       assert.equals("/project/src", ada_ls.get_src_dirs()[1])
       assert.equals(call_count, #client.request_sync.calls)
     end)
+
+    it("returns nil when source dirs command fails", function()
+      _G.vim.lsp.get_clients = stub.new().returns({})
+      assert.is_nil(ada_ls.get_src_dirs())
+    end)
   end)
 
   describe("get_obj_dir()", function()
@@ -366,6 +357,11 @@ describe("gnattest.ada_ls", function()
       assert.equals("/project/obj", ada_ls.get_obj_dir())
       assert.equals(call_count, #client.request_sync.calls)
     end)
+
+    it("returns empty string when obj dir command fails", function()
+      _G.vim.lsp.get_clients = stub.new().returns({})
+      assert.equals("", ada_ls.get_obj_dir())
+    end)
   end)
 
   describe("get_harness_dir()", function()
@@ -382,6 +378,13 @@ describe("gnattest.ada_ls", function()
       local result = ada_ls.get_harness_dir()
 
       assert.equals("/project/obj/custom_harness", result)
+    end)
+
+    it("falls back to default harness dir when command fails", function()
+      setup_module_state({ obj_dir = "/project/obj" })
+      _G.vim.lsp.get_clients = stub.new().returns({})
+
+      assert.equals("/project/obj/gnattest/harness", ada_ls.get_harness_dir())
     end)
   end)
 
@@ -401,6 +404,13 @@ describe("gnattest.ada_ls", function()
       local call_count = #client.request_sync.calls
       assert.equals("/project/obj/custom_tests", ada_ls.get_tests_dir())
       assert.equals(call_count, #client.request_sync.calls)
+    end)
+
+    it("falls back to default tests dir when command fails", function()
+      setup_module_state({ obj_dir = "/project/obj" })
+      _G.vim.lsp.get_clients = stub.new().returns({})
+
+      assert.equals("/project/obj/gnattest/tests", ada_ls.get_tests_dir())
     end)
   end)
 
@@ -422,14 +432,30 @@ describe("gnattest.ada_ls", function()
       )
     end)
 
-    it("should not switch when not in gnattest file", function()
+    it("should switch even when not in gnattest file", function()
       common.mock_gnattest_file(false)
+      setup_module_state({ prj_file = "/project/source.gpr" })
       local client = common.create_lsp_client()
       common.setup_lsp_client(client)
 
       ada_ls.switch_to_source()
 
-      assert.stub(client.notify).was_not_called()
+      assert.stub(client.notify).was_called()
+      local call_args = client.notify.calls[1]
+      assert.equals(
+        "/project/source.gpr",
+        call_args.vals[3].settings.ada.projectFile
+      )
+    end)
+
+    it("notifies when no ada client is available", function()
+      setup_module_state({ prj_file = "/project/source.gpr" })
+      _G.vim.lsp.get_clients = stub.new().returns({})
+      local utils = require("gnattest.utils")
+
+      ada_ls.switch_to_source()
+
+      assert.stub(utils.notify).was_called()
     end)
   end)
 
@@ -442,6 +468,58 @@ describe("gnattest.ada_ls", function()
       common.setup_lsp_client(client)
 
       assert.is_not_nil(ada_ls.get_prj_file())
+    end)
+  end)
+
+  describe("get_subprogram_name_from_line()", function()
+    local function symbol(name, start_line, end_line, start_char)
+      return {
+        name = name,
+        range = {
+          start = { line = start_line, character = start_char or 0 },
+          ["end"] = { line = end_line, character = 0 },
+        },
+        selectionRange = {
+          start = { line = start_line, character = start_char or 0 },
+          ["end"] = { line = end_line, character = 0 },
+        },
+      }
+    end
+
+    it("returns nil when symbols are missing", function()
+      stub(ada_ls, "get_symbols").returns(nil)
+      assert.is_nil(ada_ls.get_subprogram_name_from_line(3))
+      ada_ls.get_symbols:revert()
+    end)
+
+    it("matches exact start line", function()
+      stub(ada_ls, "get_symbols").returns({
+        { children = { symbol("My_Function", 2, 5, 1) } },
+      })
+
+      assert.equals("My_Function", ada_ls.get_subprogram_name_from_line(3))
+      ada_ls.get_symbols:revert()
+    end)
+
+    it("matches within range and returns position", function()
+      stub(ada_ls, "get_symbols").returns({
+        { children = { symbol("My_Procedure", 1, 6, 4) } },
+      })
+
+      local name, pos = ada_ls.get_subprogram_name_from_line(4)
+
+      assert.equals("My_Procedure", name)
+      assert.same({ 2, 5 }, pos)
+      ada_ls.get_symbols:revert()
+    end)
+
+    it("returns nil when no symbols match line", function()
+      stub(ada_ls, "get_symbols").returns({
+        { children = { symbol("Other_Function", 10, 12, 0) } },
+      })
+
+      assert.is_nil(ada_ls.get_subprogram_name_from_line(3))
+      ada_ls.get_symbols:revert()
     end)
   end)
 end)

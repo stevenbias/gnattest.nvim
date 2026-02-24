@@ -5,20 +5,22 @@ describe("gnattest.read_only", function()
   local ro
   local autocmd_callbacks = {}
 
-  -- Helper function to mock the config module with custom read_only options
-  -- This reduces duplication and makes tests more maintainable
   local function mock_config(read_only_opts)
     package.loaded["gnattest.config"] = nil
+    local config_mock = {
+      set = stub.new(),
+    }
     package.preload["gnattest.config"] = function()
       return {
         get = function()
           return { read_only = read_only_opts }
         end,
+        set = config_mock.set,
       }
     end
+    return config_mock
   end
 
-  -- Helper to setup default config (used by most tests)
   local function setup_default_config()
     mock_config({
       enabled = true,
@@ -27,6 +29,10 @@ describe("gnattest.read_only", function()
         ending = "end read only",
       },
     })
+  end
+
+  local function get_callback(index)
+    return autocmd_callbacks[index].opts.callback
   end
 
   before_each(function()
@@ -42,6 +48,7 @@ describe("gnattest.read_only", function()
       nvim_create_autocmd = stub.new().invokes(function(event, opts)
         table.insert(autocmd_callbacks, { event = event, opts = opts })
       end),
+      nvim_buf_clear_namespace = stub.new(),
       nvim_buf_set_extmark = stub.new().returns(42),
       nvim_get_current_buf = function()
         return 0
@@ -86,8 +93,10 @@ describe("gnattest.read_only", function()
     _G.vim.schedule = function(cb)
       cb()
     end
+    _G.vim.deep_equal = function()
+      return true
+    end
 
-    -- Mock utils with read_only-specific methods
     common.mock_utils({
       get_lines = function(start_row, end_row)
         if start_row == 1 and end_row == 2 then
@@ -110,7 +119,6 @@ describe("gnattest.read_only", function()
       }
     end
 
-    -- Setup default config for most tests
     setup_default_config()
 
     ro = require("gnattest.read_only")
@@ -123,416 +131,114 @@ describe("gnattest.read_only", function()
     package.preload["gnattest.config"] = nil
   end)
 
-  it("should retrieve config from centralized config module", function()
-    ro.setup()
-    assert.is_table(ro.opt)
-    assert.is_equal(true, ro.opt.enabled)
-    assert.is_equal("begin read only", ro.opt.region_text.start)
-    assert.is_equal("end read only", ro.opt.region_text.ending)
-  end)
-
-  it("should not create autocommands when read_only is disabled", function()
-    mock_config({
-      enabled = false,
-      region_text = {
-        start = "begin read only",
-        ending = "end read only",
-      },
-    })
-    autocmd_callbacks = {}
-    ro.setup()
-    assert.is_equal(0, #autocmd_callbacks)
-  end)
-
-  describe("setup autocommands", function()
-    it("should create autocommands", function()
+  describe("setup", function()
+    it("loads config and registers autocmds", function()
       ro.setup()
-      assert.stub(_G.vim.api.nvim_create_autocmd).was_called()
-    end)
 
-    it("should create three autocommand groups", function()
-      ro.setup()
-      assert.is_equal(3, #autocmd_callbacks)
-    end)
+      assert.is_table(ro.opt)
+      assert.is_true(ro.opt.enabled)
+      assert.equals("begin read only", ro.opt.region_text.start)
+      assert.equals("end read only", ro.opt.region_text.ending)
 
-    it("should create ColorScheme autocommand", function()
-      ro.setup()
-      assert.is_equal("ColorScheme", autocmd_callbacks[1].event)
-    end)
+      assert.equals(5, #autocmd_callbacks)
+      assert.equals("ColorScheme", autocmd_callbacks[1].event)
 
-    it("should create BufReadPost autocommand", function()
-      ro.setup()
-      assert.is_equal("BufReadPost", autocmd_callbacks[2].event)
-    end)
+      assert.is_table(autocmd_callbacks[2].event)
+      assert.equals("BufReadPost", autocmd_callbacks[2].event[1])
+      assert.equals("BufWinEnter", autocmd_callbacks[2].event[2])
+      assert.equals("BufEnter", autocmd_callbacks[2].event[3])
 
-    it("should create TextChanged autocommand", function()
-      ro.setup()
-      local text_changed = autocmd_callbacks[3]
-      assert.is_table(text_changed.event)
-      assert.is_equal("TextChanged", text_changed.event[1])
-      assert.is_equal("TextChangedI", text_changed.event[2])
-    end)
+      assert.is_table(autocmd_callbacks[3].event)
+      assert.equals("TextChanged", autocmd_callbacks[3].event[1])
+      assert.equals("TextChangedI", autocmd_callbacks[3].event[2])
 
-    it("should set group for all autocommands", function()
-      ro.setup()
+      assert.equals("User", autocmd_callbacks[4].event)
+      assert.equals("ConformFormatPre", autocmd_callbacks[4].opts.pattern)
+      assert.equals("User", autocmd_callbacks[5].event)
+      assert.equals("ConformFormatPost", autocmd_callbacks[5].opts.pattern)
+
       for _, callback in ipairs(autocmd_callbacks) do
-        assert.is_equal("autest", callback.opts.group)
+        assert.equals("autest", callback.opts.group)
       end
-    end)
 
-    it("should set pattern for file-specific autocommands", function()
-      ro.setup()
       assert.is_table(autocmd_callbacks[2].opts.pattern)
-      assert.is_string(autocmd_callbacks[2].opts.pattern[1])
-    end)
-  end)
-
-  describe("extmark storage", function()
-    it("should initialize extmark table", function()
-      assert.is_table(ro.extmark)
+      assert.is_table(autocmd_callbacks[3].opts.pattern)
     end)
 
-    it("should store options from config after setup", function()
+    it("skips setup when read_only is disabled", function()
+      mock_config({
+        enabled = false,
+        region_text = {
+          start = "begin read only",
+          ending = "end read only",
+        },
+      })
+
       ro.setup()
-      assert.is_equal("begin read only", ro.opt.region_text.start)
-      assert.is_equal("end read only", ro.opt.region_text.ending)
-    end)
-  end)
 
-  describe("namespace and augroup", function()
-    it("should have valid namespace, augroup, and highlight group", function()
-      assert.is_equal("test", ro.namespace)
-      assert.is_equal("autest", ro.ro_group)
-      assert.is_equal("hl_ro", ro.hl_group)
-    end)
-  end)
-
-  describe("error handling", function()
-    it("should handle empty options", function()
-      assert.has_no_error(function()
-        ro.setup()
-      end)
+      assert.equals(0, #autocmd_callbacks)
     end)
 
-    it("should handle multiple setups with different configs", function()
+    it("updates options on subsequent setups", function()
       ro.setup()
-      -- Update config to different values
       mock_config({
         enabled = true,
         region_text = { start = "start", ending = "finish" },
       })
-      ro.setup()
-      assert.is_equal("start", ro.opt.region_text.start)
-    end)
-  end)
 
-  describe("callback execution", function()
-    it("should invoke ColorScheme callback", function()
       ro.setup()
-      local colorscheme_callback = autocmd_callbacks[1].opts.callback
-      assert.is_not_nil(colorscheme_callback)
-      assert.has_no_error(function()
-        colorscheme_callback()
-      end)
+
+      assert.equals("start", ro.opt.region_text.start)
+      assert.equals("finish", ro.opt.region_text.ending)
     end)
 
-    it("should invoke BufReadPost callback", function()
-      ro.setup()
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      assert.is_not_nil(bufread_callback)
-      assert.has_no_error(function()
-        bufread_callback()
-      end)
-    end)
-
-    it("should call highlight.set_highlight on ColorScheme event", function()
+    it("ColorScheme callback applies highlight", function()
       ro.setup()
       local hl = require("gnattest.highlight")
-      local colorscheme_callback = autocmd_callbacks[1].opts.callback
+      local colorscheme_callback = get_callback(1)
+
       colorscheme_callback()
+
       assert.stub(hl.set_highlight).was_called()
     end)
+  end)
 
-    it("should call notify when protected region is changed", function()
+  describe("callbacks", function()
+    before_each(function()
       ro.setup()
+    end)
+
+    it("BufReadPost refreshes extmarks", function()
+      local bufread_callback = get_callback(2)
+
+      bufread_callback()
+
+      assert.stub(_G.vim.api.nvim_buf_set_extmark).was_called()
+      assert.is_not_nil(ro.backup)
+    end)
+
+    it("TextChanged protects modified lines and skips diff mode", function()
       local utils = require("gnattest.utils")
-      assert.is_not_nil(utils.notify)
-    end)
-  end)
+      local bufread_callback = get_callback(2)
+      bufread_callback()
 
-  describe("region marker recognition", function()
-    it("should accept custom start marker", function()
-      mock_config({
-        enabled = true,
-        region_text = { start = "LOCK", ending = "UNLOCK" },
-      })
-      ro.setup()
-      assert.is_equal("LOCK", ro.opt.region_text.start)
-    end)
-
-    it("should accept custom end marker", function()
-      mock_config({
-        enabled = true,
-        region_text = { start = "LOCK", ending = "UNLOCK" },
-      })
-      ro.setup()
-      assert.is_equal("UNLOCK", ro.opt.region_text.ending)
-    end)
-
-    it("should handle default markers", function()
-      ro.setup()
-      assert.is_equal("begin read only", ro.opt.region_text.start)
-    end)
-  end)
-
-  describe("diff mode detection", function()
-    it("should handle diff mode states correctly", function()
-      ro.setup()
-
-      -- Default diff mode should be false
-      assert.is_false(_G.vim.opt.diff:get())
-
-      -- Should detect when diff mode is enabled
-      _G.vim.opt.diff.get = function()
-        return true
-      end
-      assert.is_true(_G.vim.opt.diff:get())
-
-      -- Should detect when diff mode is disabled
       _G.vim.opt.diff.get = function()
         return false
       end
-      assert.is_false(_G.vim.opt.diff:get())
-    end)
-  end)
-
-  describe("highlight integration", function()
-    it("should set hl_group on highlight namespace", function()
-      ro.setup()
-      assert.is_equal("hl_ro", ro.hl_group)
-    end)
-
-    it("should call set_highlight on ColorScheme event", function()
-      ro.setup()
-      local hl = require("gnattest.highlight")
-      local colorscheme_cb = autocmd_callbacks[1].opts.callback
-      colorscheme_cb()
-      assert.stub(hl.set_highlight).was_called()
-    end)
-  end)
-
-  describe("extmark data structure", function()
-    it("should store line data in extmark table", function()
-      ro.setup()
-      assert.is_table(ro.extmark)
-    end)
-
-    it("should preserve extmark across operations", function()
-      ro.setup()
-
-      ro.setup()
-      -- Extmark table should be preserved (same reference or new table)
-      assert.is_table(ro.extmark)
-    end)
-  end)
-
-  describe("region detection", function()
-    it("should get comments from utils", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-      local comments = utils.get_all_comments()
-      assert.is_table(comments)
-      assert.is_equal(2, #comments)
-    end)
-
-    it("should parse region markers from comments", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-      local comments = utils.get_all_comments()
-      assert.is_equal("--begin read only", comments[1].text)
-      assert.is_equal("--end read only", comments[2].text)
-    end)
-  end)
-
-  describe("state consistency", function()
-    it("should maintain consistent state after setup operations", function()
-      ro.setup()
-      assert.is_not_nil(ro.namespace)
-      assert.is_not_nil(ro.ro_group)
-      assert.is_not_nil(ro.hl_group)
-      assert.is_table(ro.extmark)
-
-      -- Namespace and augroup should remain stable across setups
-      local ns_before = ro.namespace
-      local group_before = ro.ro_group
-      ro.setup()
-      ro.setup()
-
-      assert.is_equal(ns_before, ro.namespace)
-      assert.is_equal(group_before, ro.ro_group)
-    end)
-  end)
-
-  describe("vim API integration", function()
-    it("should use required vim API functions and log levels", function()
-      ro.setup()
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      bufread_callback()
-
-      assert.stub(_G.vim.api.nvim_create_autocmd).was_called()
-      assert.stub(_G.vim.api.nvim_buf_set_extmark).was_called()
-      assert.is_not_nil(_G.vim.api.nvim_buf_set_lines)
-      assert.is_not_nil(_G.vim.log.levels.ERROR)
-    end)
-  end)
-
-  describe("pattern configuration", function()
-    it("should use correct gnattest patterns for file matching", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-
-      assert.is_table(utils.gnattest_pattern)
-    end)
-  end)
-
-  describe("comment parsing edge cases", function()
-    it("should handle comments with and without region markers", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-      local comments = utils.get_all_comments()
-      assert.is_table(comments)
-      assert.is_not_nil(comments)
-    end)
-  end)
-
-  describe("region protection notifications", function()
-    it("should use notification system with ERROR log level", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-      assert.is_not_nil(utils.notify)
-      assert.is_equal(4, _G.vim.log.levels.ERROR)
-    end)
-  end)
-
-  describe("fix_ro_regions logic", function()
-    it("should have required vim APIs for region processing", function()
-      ro.setup()
-
-      assert.is_not_nil(_G.vim.schedule)
-      assert.is_not_nil(_G.vim.api.nvim_buf_get_extmarks)
-
-      local pos = _G.vim.fn.getpos(".")
-      assert.is_table(pos)
-      assert.is_equal(5, pos[2])
-    end)
-  end)
-
-  describe("protection workflow mechanisms", function()
-    it(
-      "should handle backup, change detection, protection, and mark restoration",
-      function()
-        ro.setup()
-
-        -- Backup mechanism: Trigger BufReadPost to create backup
-        local bufread_callback = autocmd_callbacks[2].opts.callback
-        bufread_callback()
-        assert.is_true(true) -- Verify no error occurs
-
-        -- Change detection: Compare buffer content with stored lines
-        local utils = require("gnattest.utils")
-        local lines = utils.get_lines(1, 2)
-        assert.is_equal(2, #lines)
-        assert.is_not_nil(_G.vim.api.nvim_buf_set_lines)
-
-        -- TextChanged protection mechanism
-        local text_changed_callback = autocmd_callbacks[3].opts.callback
-        assert.is_not_nil(text_changed_callback)
-        assert.is_not_nil(_G.vim.schedule)
-
-        -- Mark restoration
-        assert.is_not_nil(_G.vim.api.nvim_win_set_cursor)
-        assert.stub(_G.vim.api.nvim_buf_set_extmark).was_called()
+      _G.vim.deep_equal = function()
+        return false
       end
-    )
-  end)
-
-  describe("full workflow simulation", function()
-    it("should handle BufReadPost callback operations correctly", function()
-      ro.setup()
-
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-
-      -- Should handle single BufReadPost without error
-      assert.has_no_error(function()
-        bufread_callback()
-      end)
-      assert.stub(_G.vim.api.nvim_buf_set_extmark).was_called()
-
-      -- Should handle multiple BufReadPost events without error
-      assert.has_no_error(function()
-        bufread_callback()
-      end)
-    end)
-  end)
-
-  describe("configuration persistence", function()
-    it("should maintain and update options correctly", function()
-      mock_config({
-        enabled = true,
-        region_text = { start = "TEST_START", ending = "TEST_END" },
-      })
-      ro.setup()
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      bufread_callback()
-      assert.is_equal("TEST_START", ro.opt.region_text.start)
-
-      mock_config({
-        enabled = true,
-        region_text = { start = "NEW", ending = "NEW_END" },
-      })
-      ro.setup()
-      assert.is_equal("NEW", ro.opt.region_text.start)
-    end)
-  end)
-
-  describe("region modification detection and protection", function()
-    it("should handle region protection scenarios correctly", function()
-      ro.setup()
-      local utils = require("gnattest.utils")
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      bufread_callback()
-
-      -- Verify extmark was populated
-      assert.is_not_nil(ro.extmark[42])
-
       _G.vim.api.nvim_buf_get_extmarks = stub.new().returns({
         { 42, 1, 0, { end_row = 2 } },
       })
-      _G.vim.schedule = function(cb)
-        cb()
-      end
-      local text_changed_callback = autocmd_callbacks[3].opts.callback
-
-      -- Test 1: Should trigger protection when lines are modified
-      _G.vim.deep_equal = function()
-        return false
-      end
       _G.vim.api.nvim_buf_get_lines =
         stub.new().returns({ "modified_A", "modified_B" })
+
+      local text_changed_callback = get_callback(3)
       text_changed_callback()
+
       assert.stub(utils.notify).was_called()
 
-      -- Test 2: Should not trigger protection when lines are unchanged
-      _G.vim.deep_equal = function()
-        return true
-      end
-      _G.vim.api.nvim_buf_get_lines = stub.new().returns({ "lineA", "lineB" })
-      local notify_count_before = #utils.notify.calls
-      text_changed_callback()
-      local notify_count_after = #utils.notify.calls
-      assert.is_equal(notify_count_before, notify_count_after)
-
-      -- Test 3: Should skip processing when in diff mode
       _G.vim.opt.diff.get = function()
         return true
       end
@@ -540,41 +246,149 @@ describe("gnattest.read_only", function()
       _G.vim.schedule = function()
         schedule_called = true
       end
+
       text_changed_callback()
+
       assert.is_false(schedule_called)
     end)
 
-    it("exercises extmarks with details and overlap options", function()
-      ro.setup()
+    it("uses protect_flag to refresh only once", function()
+      local bufread_callback = get_callback(2)
+      bufread_callback()
+
       _G.vim.opt.diff.get = function()
         return false
       end
-
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      bufread_callback()
-
-      -- This should trigger the specific get_extmarks call with details/overlap
-      local text_changed_callback = autocmd_callbacks[3].opts.callback
-      text_changed_callback()
-
-      assert.is_true(true) -- Test completed without error
-    end)
-
-    it("uses extmarks with details and overlap options", function()
-      ro.setup()
-      local bufread_callback = autocmd_callbacks[2].opts.callback
-      bufread_callback()
-
-      _G.vim.opt.diff.get = function()
+      _G.vim.deep_equal = function()
         return false
       end
       local get_extmarks_spy = stub(_G.vim.api, "nvim_buf_get_extmarks")
       get_extmarks_spy.returns({ { 42, 1, 0, { end_row = 2 } } })
 
-      local text_changed_callback = autocmd_callbacks[3].opts.callback
+      local text_changed_callback = get_callback(3)
+      text_changed_callback()
+      local call_count = #get_extmarks_spy.calls
+
       text_changed_callback()
 
-      assert.stub(get_extmarks_spy).was_called()
+      assert.equals(call_count, #get_extmarks_spy.calls)
+    end)
+
+    it("returns early when diff mode enabled", function()
+      ro.setup()
+      _G.vim.opt.diff.get = function()
+        return true
+      end
+
+      get_callback(3)()
+    end)
+  end)
+
+  describe("conform workaround", function()
+    it("skips conform workaround when read_only is disabled", function()
+      autocmd_callbacks = {}
+      local config = require("gnattest.config")
+      local calls = 0
+      config.get = function()
+        calls = calls + 1
+        if calls == 1 then
+          return { read_only = { enabled = true } }
+        end
+        return { read_only = { enabled = false } }
+      end
+
+      ro.setup()
+
+      assert.equals(3, #autocmd_callbacks)
+    end)
+
+    it("disables read_only during ConformFormatPre", function()
+      ro.setup()
+      local pre_callback = get_callback(4)
+
+      pre_callback()
+
+      assert.is_false(ro.opt.enabled)
+    end)
+
+    it("re-enables read_only during ConformFormatPost", function()
+      ro.setup()
+      local pre_callback = get_callback(4)
+      local post_callback = get_callback(5)
+      local schedule_spy = stub.new().invokes(function(cb)
+        cb()
+      end)
+      _G.vim.schedule = schedule_spy
+
+      pre_callback()
+      post_callback()
+
+      assert.is_true(ro.opt.enabled)
+      assert.stub(schedule_spy).was_called()
+    end)
+
+    it("skips ConformFormatPost when read_only disabled", function()
+      ro.setup()
+      local pre_callback = get_callback(4)
+      local post_callback = get_callback(5)
+      local schedule_spy = stub.new()
+      _G.vim.schedule = schedule_spy
+
+      local config = require("gnattest.config")
+      config.get = function()
+        return { read_only = { enabled = false } }
+      end
+
+      pre_callback()
+      post_callback()
+
+      assert.is_false(ro.opt.enabled)
+      assert.stub(schedule_spy).was_not_called()
+    end)
+  end)
+
+  describe("refresh and reset", function()
+    it("refresh clears state when read_only is disabled", function()
+      ro.setup()
+      ro.extmark[42] = { lines = { "lineA" } }
+
+      local config = require("gnattest.config")
+      config.get = function()
+        return { read_only = { enabled = false } }
+      end
+
+      local bufread_callback = get_callback(2)
+      bufread_callback()
+
+      assert.stub(_G.vim.api.nvim_buf_clear_namespace).was_called()
+      assert.is_nil(ro.backup)
+      assert.is_true(next(ro.extmark) == nil)
+    end)
+
+    it("refresh clears namespace with end_row -1", function()
+      ro.setup()
+      ro.extmark[42] = { lines = { "lineA" } }
+      local config = require("gnattest.config")
+      config.get = function()
+        return { read_only = { enabled = false } }
+      end
+
+      local bufread_callback = get_callback(2)
+      bufread_callback()
+
+      assert
+        .stub(_G.vim.api.nvim_buf_clear_namespace)
+        .was_called_with(1, ro.namespace, 0, -1)
+    end)
+
+    it("reset clears and reinitializes state", function()
+      ro.setup()
+      ro.extmark[1] = { lines = { "lineA" } }
+
+      ro.reset()
+
+      assert.stub(_G.vim.api.nvim_buf_clear_namespace).was_called()
+      assert.is_table(ro.extmark)
     end)
   end)
 
@@ -611,35 +425,99 @@ describe("gnattest.read_only", function()
         assert.is_nil(result)
       end)
 
+      it("_get_regions creates backup and invokes callback", function()
+        ro.setup()
+        local bufread_callback = get_callback(2)
+        bufread_callback()
+
+        ro.backup = nil
+        local cb_calls = {}
+
+        ro._get_regions(function(start_line, end_line, index)
+          table.insert(cb_calls, { start_line, end_line, index })
+        end)
+
+        assert.is_not_nil(ro.backup)
+        assert.is_equal(1, #cb_calls)
+        assert.is_equal(1, cb_calls[1][1])
+        assert.is_equal(2, cb_calls[1][2])
+        assert.is_equal(1, cb_calls[1][3])
+      end)
+
+      it("_set_extmark updates an existing mark id", function()
+        ro._set_extmark(1, 2, 0)
+        ro._set_extmark(1, 2, 99)
+
+        local last_call =
+          _G.vim.api.nvim_buf_set_extmark.calls[#_G.vim.api.nvim_buf_set_extmark.calls]
+        assert.is_table(last_call)
+        assert.is_table(last_call.vals)
+        assert.is_table(last_call.vals[5])
+        assert.is_equal(99, last_call.vals[5].id)
+      end)
+
+      it("_fix_ro_regions restores modified lines", function()
+        ro.setup()
+        local bufread_callback = get_callback(2)
+        bufread_callback()
+
+        _G.vim.opt.diff.get = function()
+          return false
+        end
+        _G.vim.deep_equal = function()
+          return false
+        end
+        _G.vim.api.nvim_buf_get_extmarks = stub.new().returns({
+          { 42, 1, 0, { end_row = 2 } },
+        })
+        _G.vim.api.nvim_buf_get_lines = stub.new().returns({ "changed" })
+
+        ro._fix_ro_regions()
+
+        assert.stub(_G.vim.api.nvim_buf_set_lines).was_called()
+        assert.stub(_G.vim.api.nvim_win_set_cursor).was_called()
+        assert.stub(_G.vim.cmd).was_called_with([[stopinsert]])
+      end)
+
+      it("_fix_ro_regions clears state when read_only disabled", function()
+        ro.setup()
+        local bufread_callback = get_callback(2)
+        bufread_callback()
+
+        local config = require("gnattest.config")
+        config.get = function()
+          return { read_only = { enabled = false } }
+        end
+
+        ro._fix_ro_regions()
+
+        assert.stub(_G.vim.api.nvim_buf_clear_namespace).was_called()
+      end)
+
       it(
-        "_fix_ro_regions calls vim.api.nvim_buf_get_extmarks with details and overlap",
+        "_fix_ro_regions calls get_extmarks with details and overlap",
         function()
           ro.setup()
-          local bufread_callback = autocmd_callbacks[2].opts.callback
+          local bufread_callback = get_callback(2)
           bufread_callback()
 
-          -- Verify extmark was populated
-          assert.is_not_nil(ro.extmark[42])
-
-          -- Ensure diff mode is off (required for fix_ro_regions to execute)
           _G.vim.opt.diff.get = function()
             return false
           end
 
-          -- Track the arguments passed to nvim_buf_get_extmarks
           local get_extmarks_args = nil
           _G.vim.api.nvim_buf_get_extmarks = stub.new().invokes(function(...)
             get_extmarks_args = { ... }
             return {}
           end)
 
-          -- Call _fix_ro_regions directly
           ro._fix_ro_regions()
 
-          -- Verify get_extmarks was called with correct parameters
           assert.stub(_G.vim.api.nvim_buf_get_extmarks).was_called()
-          -- The last argument should be the options table with details and overlap
           assert.is_not_nil(get_extmarks_args)
+          assert.is_table(get_extmarks_args[5])
+          assert.is_true(get_extmarks_args[5].details)
+          assert.is_true(get_extmarks_args[5].overlap)
         end
       )
     end)

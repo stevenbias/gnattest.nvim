@@ -9,7 +9,6 @@ describe("gnattest.highlight", function()
   local function reload_highlight()
     package.loaded["gnattest.highlight"] = nil
     highlight = require("gnattest.highlight")
-    highlight.setup()
   end
 
   before_each(function()
@@ -44,6 +43,7 @@ describe("gnattest.highlight", function()
 
   after_each(function()
     package.loaded["gnattest.highlight"] = nil
+    package.preload["gnattest.config"] = nil
   end)
 
   it("sets hl_group via set_highlight", function()

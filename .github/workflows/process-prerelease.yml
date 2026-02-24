@@ -2,91 +2,83 @@ name: Process Pre-Release
 on:
   release:
     types: [published]
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   process-prerelease:
     name: Process Pre-Release and Create PR
     runs-on: ubuntu-latest
     if: github.event.release.prerelease == true
-    
     steps:
       - name: Validate pre-release conditions
         run: |
-          if [[ ! "${{ github.event.release.tag_name }}" =~ -test$ ]]; then
-            echo "ERROR: Pre-release tag must end with -test"
+          if [[ ! "${{ github.event.release.tag_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-pre$ ]]; then
+            echo "ERROR: Pre-release tag must match vX.Y.Z-pre"
             exit 1
           fi
-      
       - uses: actions/checkout@v4
         with:
           ref: dev
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install vimcats
-        run: cargo install vimcats --features=cli
-      
-      - name: Generate API docs
+      - name: Validate tag is on dev
         run: |
-          vimcats lua/gnattest/init.lua \
-                   lua/gnattest/config.lua \
-                   plugin/gnattest.lua > api-docs.txt
-      
-      - name: Integrate into main doc
-        run: |
-          grep -q "<!-- CI/CD: API DOCS BEGIN -->" doc/gnattest.txt || \
-            { echo "ERROR: CI/CD BEGIN marker not found"; exit 1; }
-          grep -q "<!-- CI/CD: API DOCS END -->" doc/gnattest.txt || \
-            { echo "ERROR: CI/CD END marker not found"; exit 1; }
-          
-          awk '
-            /<!-- CI\/CD: API DOCS BEGIN -->/ { 
-              print; print ""; system("cat api-docs.txt"); print ""; skip=1; next 
-            }
-            /<!-- CI\/CD: API DOCS END -->/ { skip=0; print; next }
-            !skip
-          ' doc/gnattest.txt > doc/gnattest-new.txt
-          
-          grep -q "FEATURES" doc/gnattest-new.txt || \
-            { echo "ERROR: FEATURES section lost"; exit 1; }
-          
-          mv doc/gnattest-new.txt doc/gnattest.txt
-      
-      - name: Commit updated docs to dev
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "docs: auto-update API reference for ${{ github.event.release.tag_name }} [skip ci]"
-          file_pattern: doc/gnattest.txt
-          skip_dirty_check: false
-          branch: dev
-      
+          TAG="${{ github.event.release.tag_name }}"
+
+          if ! git merge-base --is-ancestor "$TAG" dev; then
+            echo "ERROR: Pre-release tag $TAG is not reachable from dev"
+            exit 1
+          fi
       - name: Extract production version
         id: version
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG%-test}"
+          VERSION="${TAG%-pre}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Production version: $VERSION"
-      
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          CHANGELOG_VERSION="${TAG#v}"
+          CHANGELOG_FILE="CHANGELOG.md"
+          START_LINE=$(grep -nF "## [$CHANGELOG_VERSION]" "$CHANGELOG_FILE" | head -n 1 | cut -d: -f1)
+
+          if [ -z "$START_LINE" ]; then
+            echo "changelog=No changelog section found for $CHANGELOG_VERSION." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          END_LINE=$(tail -n +$((START_LINE + 1)) "$CHANGELOG_FILE" | grep -nF "## [" | head -n 1 | cut -d: -f1)
+
+          if [ -z "$END_LINE" ]; then
+            END_LINE=$(wc -l < "$CHANGELOG_FILE")
+          else
+            END_LINE=$((START_LINE + END_LINE - 2))
+          fi
+
+          CHANGELOG_CONTENT=$(sed -n "$((START_LINE + 1)),${END_LINE}p" "$CHANGELOG_FILE")
+
+          if [ -z "$CHANGELOG_CONTENT" ]; then
+            CHANGELOG_CONTENT="No changelog entries found for $CHANGELOG_VERSION."
+          fi
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Create Pull Request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
             --title "Release ${{ steps.version.outputs.version }}" \
-            --body "$(cat <<'EOF'
+            --body "$(cat <<EOF
           ## 🚀 Production Release: ${{ steps.version.outputs.version }}
 
           This PR was automatically created from pre-release \`${{ github.event.release.tag_name }}\`.
 
           ### Changes
-          - 📝 API documentation updated and integrated
           - 🏷️ Pre-release tag \`${{ github.event.release.tag_name }}\` created on dev branch
 
           ### What Happens After Merge
@@ -98,8 +90,8 @@ jobs:
           ### Pre-Release
           - 🔗 View pre-release: [${{ github.event.release.tag_name }}](${{ github.event.release.html_url }})
 
-          ### Files Changed
-          - \`doc/gnattest.txt\` - API documentation updated
+          ### Changelog
+          ${{ steps.changelog.outputs.changelog }}
 
           ---
           *🤖 Automated release PR • Review and merge when ready*
