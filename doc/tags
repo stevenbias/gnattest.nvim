@@ -10,7 +10,6 @@ GnattestConfig	gnattest.txt	/*GnattestConfig*
 gnattest	gnattest.txt	/*gnattest*
 gnattest-checkhealth	gnattest.txt	/*gnattest-checkhealth*
 gnattest-commands	gnattest.txt	/*gnattest-commands*
-gnattest-completion	gnattest.txt	/*gnattest-completion*
 gnattest-configuration	gnattest.txt	/*gnattest-configuration*
 gnattest-contents	gnattest.txt	/*gnattest-contents*
 gnattest-contributing	gnattest.txt	/*gnattest-contributing*

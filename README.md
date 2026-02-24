@@ -81,12 +81,12 @@ All commands are subcommands of `:Gnattest`:
 Suggested mappings (prefix `<leader>t`):
 
 ```lua
-vim.keymap.set("n", "<leader>tg", "<cmd>Gnattest generate<cr>", { desc = "GNATtest: generate" })
-vim.keymap.set("n", "<leader>tb", "<cmd>Gnattest build<cr>", { desc = "GNATtest: build" })
-vim.keymap.set("n", "<leader>ta", "<cmd>Gnattest run<cr>", { desc = "GNATtest: run all" })
-vim.keymap.set("n", "<leader>tr", "<cmd>Gnattest run_cursor<cr>", { desc = "GNATtest: run cursor" })
-vim.keymap.set("n", "<leader>ts", "<cmd>Gnattest switch<cr>", { desc = "GNATtest: switch source/test" })
-vim.keymap.set("n", "<leader>tc", "<cmd>Gnattest clean<cr>", { desc = "GNATtest: clean" })
+vim.keymap.set("n", "<leader>tg", "<cmd>Gnattest generate<cr>", { desc = "GNATtest generate" })
+vim.keymap.set("n", "<leader>tb", "<cmd>Gnattest build<cr>", { desc = "GNATtest build" })
+vim.keymap.set("n", "<leader>ta", "<cmd>Gnattest run<cr>", { desc = "GNATtest run all tests" })
+vim.keymap.set("n", "<leader>tr", "<cmd>Gnattest run_cursor<cr>", { desc = "GNATtest run corresp. subp. under cursor" })
+vim.keymap.set("n", "<leader>ts", "<cmd>Gnattest switch<cr>", { desc = "GNATtest switch source/test" })
+vim.keymap.set("n", "<leader>tc", "<cmd>Gnattest clean<cr>", { desc = "GNATtest clean" })
 ```
 
 ### Read-only Protection
