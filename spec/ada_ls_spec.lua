@@ -105,7 +105,7 @@ describe("gnattest.ada_ls", function()
 
       assert.stub(utils.notify).was_called()
       local call_args = utils.notify.calls[1]
-      assert.is_equal("Ada LSP client not found", call_args.vals[1])
+      assert.is_equal("Ada Language Server not found", call_args.vals[1])
       assert.is_equal(_G.vim.log.levels.WARN, call_args.vals[2])
     end)
 
@@ -247,11 +247,11 @@ describe("gnattest.ada_ls", function()
       assert_lsp_request(client, "textDocument/documentSymbol")
     end)
 
-    it("should return nil when Ada LSP client not found", function()
+    it("should return nil when Ada Language Server not found", function()
       _G.vim.lsp.get_clients = stub.new().returns({})
       local result, err = ada_ls.get_symbols()
       assert.is_nil(result)
-      assert.equals("Ada LSP client not found", err)
+      assert.equals("Ada Language Server not found", err)
     end)
   end)
 

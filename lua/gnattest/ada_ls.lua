@@ -29,7 +29,7 @@ function M.get_ada_ls()
   local clients = vim.lsp.get_clients({ name = "ada" })
   if not clients or #clients == 0 then
     require("gnattest.utils").notify(
-      "Ada LSP client not found",
+      "Ada Language Server not found",
       vim.log.levels.WARN
     )
     return nil
@@ -52,7 +52,7 @@ end
 local function lsp_request(req)
   local client = M.get_ada_ls()
   if not client then
-    return nil, "Ada LSP client not found"
+    return nil, "Ada Language Server not found"
   end
 
   local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
@@ -68,7 +68,7 @@ end
 local function lsp_command(cmd, args)
   local client = M.get_ada_ls()
   if not client then
-    return nil, "Ada LSP client not found"
+    return nil, "Ada Language Server not found"
   end
 
   local params = {
@@ -175,7 +175,7 @@ end
 local function switch_prj(prj)
   local client = M.get_ada_ls()
   if not client then
-    return nil, "Ada LSP client not found"
+    return nil, "Ada Language Server not found"
   end
   local config = {
     ada = {

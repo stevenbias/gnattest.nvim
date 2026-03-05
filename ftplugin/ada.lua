@@ -9,7 +9,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       require("gnattest.read_only").setup()
     else
       require("gnattest.utils").notify(
-        "Ada LSP client not found",
+        "Ada Language Server not found",
         vim.log.levels.WARN
       )
     end
