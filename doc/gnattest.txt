@@ -3,7 +3,7 @@ GNATtest integration for Neovim                    *gnattest* *gnattest.nvim*
 
 Author:  Steven Bias
 License: MIT
-Repository: https://github.com/StevenBias/gnattest.nvim
+Repository: https://github.com/stevenbias/gnattest.nvim
 
 ==============================================================================
 CONTENTS                                                  *gnattest-contents*
@@ -73,7 +73,7 @@ See |gnattest-dependencies| for required plugins.
 
 Using lazy.nvim: >lua
     {
-      "StevenBias/gnattest.nvim",
+      "stevenbias/gnattest.nvim",
       dependencies = { "nvim-treesitter/nvim-treesitter" },
       ft = { "ada" },
     }
@@ -81,7 +81,7 @@ Using lazy.nvim: >lua
 
 Using vim-plug: >vim
     Plug 'nvim-treesitter/nvim-treesitter'
-    Plug 'StevenBias/gnattest.nvim'
+    Plug 'stevenbias/gnattest.nvim'
 
     lua << EOF
     require("gnattest").setup()
@@ -359,7 +359,7 @@ CONTRIBUTING                                          *gnattest-contributing*
 
 Contributions are welcome! See CONTRIBUTING.md in the repository.
 
-Repository: https://github.com/StevenBias/gnattest.nvim
+Repository: https://github.com/stevenbias/gnattest.nvim
 
 Areas of interest:
 - Bug reports and fixes

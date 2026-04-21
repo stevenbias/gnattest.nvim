@@ -1,6 +1,6 @@
 # gnattest.nvim
 
-[![CI](https://github.com/StevenBias/gnattest.nvim/workflows/CI/badge.svg)](https://github.com/StevenBias/gnattest.nvim/actions)
+[![CI](https://github.com/stevenbias/gnattest.nvim/workflows/CI/badge.svg)](https://github.com/stevenbias/gnattest.nvim/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Neovim](https://img.shields.io/badge/Neovim-0.10+-green.svg)](https://neovim.io)
 
@@ -41,7 +41,7 @@ subprogram line numbers.*
 
 ```lua
 {
-  "StevenBias/gnattest.nvim",
+  "stevenbias/gnattest.nvim",
   dependencies = { "nvim-treesitter/nvim-treesitter" },
   ft = { "ada" },
 }
@@ -51,7 +51,7 @@ subprogram line numbers.*
 
 ```vim
 Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'StevenBias/gnattest.nvim'
+Plug 'stevenbias/gnattest.nvim'
 
 lua << EOF
 require("gnattest").setup()
