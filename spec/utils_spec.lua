@@ -92,7 +92,7 @@ describe("gnattest.utils", function()
 
   it("does not use vim.notify when notify module is loaded", function()
     local s = spy.on(vim, "notify")
-    utils.is_loaded = function()
+    utils.try_require = function()
       return true
     end
     utils.notify("foo", "warn")
@@ -101,22 +101,22 @@ describe("gnattest.utils", function()
 
   it("notifies using vim.notify when notify module is not present", function()
     local s = spy.on(vim, "notify")
-    utils.is_loaded = function()
+    utils.try_require = function()
       return false
     end
     utils.notify("bar", "info")
     assert.spy(s).was.called(1)
   end)
 
-  it("is_loaded returns true for existing modules", function()
+  it("try_require returns true for existing modules", function()
     -- luassert is a test dependency that should be loaded
-    local result = utils.is_loaded("luassert")
+    local result = utils.try_require("luassert")
     assert.is_true(result)
   end)
 
-  it("is_loaded returns false for non-existent modules", function()
+  it("try_require returns false for non-existent modules", function()
     -- This module should not exist
-    local result = utils.is_loaded("nonexistent_module_that_does_not_exist")
+    local result = utils.try_require("nonexistent_module_that_does_not_exist")
     assert.is_false(result)
   end)
 

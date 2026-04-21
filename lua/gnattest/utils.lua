@@ -26,14 +26,14 @@ end
 
 function M.notify(msg, lvl)
   local title = M.plugin_name .. " " .. log_lvl_tostring(lvl) .. " message"
-  if M.is_loaded("notify") then
+  if M.try_require("notify") then
     require("notify")(msg, lvl, { title = title })
   else
     vim.notify(title .. ": " .. msg, lvl)
   end
 end
 
-function M.is_loaded(plugin_name)
+function M.try_require(plugin_name)
   return pcall(require, plugin_name) -- will also load the package if it isn't loaded already
 end
 
