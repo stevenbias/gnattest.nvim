@@ -1,11 +1,9 @@
-local utils = require("gnattest.utils")
-
 local M = {
   is_init = false,
   root_dir = "",
   prj_file = "",
   src_dirs = {},
-  obj_dir = "",
+  obj_dir = nil,
   harness_dir = "",
   tests_dir = "",
 }
@@ -16,13 +14,6 @@ local function init_module()
   end
 
   M.is_init = true
-  M.root_dir = M.get_root_dir()
-  M.prj_file = M.get_prj_file()
-  M.src_dirs = M.get_src_dirs()
-  M.obj_dir = M.get_obj_dir()
-  M.harness_dir = M.get_harness_dir()
-  M.tests_dir = M.get_tests_dir()
-  utils.set_gnattest_pattern()
 end
 
 function M.get_ada_ls()
@@ -76,12 +67,13 @@ function M.get_src_dirs()
 end
 
 function M.get_obj_dir()
-  if M.obj_dir ~= "" then
+  if M.obj_dir ~= nil then
     return M.obj_dir
   end
   local obj_dir = require("ada_ls.lsp_cmd").get_obj_dir()
   if obj_dir ~= nil then
-    return obj_dir[1]
+    M.obj_dir = obj_dir
+    return M.obj_dir
   else
     return nil
   end
@@ -98,7 +90,8 @@ function M.get_harness_dir()
   )
 
   if harness_dir == nil then
-    return M.get_obj_dir() .. "/gnattest/harness"
+    M.harness_dir = M.get_obj_dir() .. "/gnattest/harness"
+    return M.harness_dir
   else
     M.harness_dir = M.get_obj_dir() .. "/" .. harness_dir[1]
     return M.harness_dir
@@ -120,7 +113,8 @@ function M.get_tests_dir()
     M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir[1]
     return M.tests_dir
   else
-    return M.get_obj_dir() .. "/" .. "gnattest/tests"
+    M.tests_dir = M.get_obj_dir() .. "/" .. "gnattest/tests"
+    return M.tests_dir
   end
 end
 
@@ -134,7 +128,10 @@ local function switch_prj(prj)
       projectFile = prj,
     },
   }
-  client:notify("workspace/didChangeConfiguration", { settings = config })
+  return require("ada_ls.utils").notify_server(
+    "workspace/didChangeConfiguration",
+    { settings = config }
+  )
 end
 
 function M.get_subprogram_name_from_line(lnum)
@@ -172,7 +169,7 @@ end
 
 function M.setup()
   init_module()
-  if utils.is_gnattest_file() then
+  if require("gnattest.utils").is_gnattest_file() then
     M.switch_to_tests()
   end
 end
