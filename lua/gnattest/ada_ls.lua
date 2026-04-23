@@ -1,11 +1,9 @@
-local utils = require("gnattest.utils")
-
 local M = {
   is_init = false,
   root_dir = "",
   prj_file = "",
   src_dirs = {},
-  obj_dir = "",
+  obj_dir = nil,
   harness_dir = "",
   tests_dir = "",
 }
@@ -16,26 +14,10 @@ local function init_module()
   end
 
   M.is_init = true
-  M.root_dir = M.get_root_dir()
-  M.prj_file = M.get_prj_file()
-  M.src_dirs = M.get_src_dirs()
-  M.obj_dir = M.get_obj_dir()
-  M.harness_dir = M.get_harness_dir()
-  M.tests_dir = M.get_tests_dir()
-  utils.set_gnattest_pattern()
 end
 
 function M.get_ada_ls()
-  local clients = vim.lsp.get_clients({ name = "ada" })
-  if not clients or #clients == 0 then
-    require("gnattest.utils").notify(
-      "Ada Language Server not found",
-      vim.log.levels.WARN
-    )
-    return nil
-  else
-    return clients[1]
-  end
+  return require("ada_ls.utils").get_ada_ls()
 end
 
 function M.get_root_dir()
@@ -43,54 +25,15 @@ function M.get_root_dir()
     return M.root_dir
   end
 
-  if M.get_ada_ls() ~= nil then
-    M.root_dir = M.get_ada_ls().root_dir
-  end
-  return M.root_dir
-end
-
-local function lsp_request(req)
-  local client = M.get_ada_ls()
-  if not client then
-    return nil, "Ada Language Server not found"
-  end
-
-  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-  local result, err = client:request_sync(req, params, 1000)
-
-  if err or not result or not result.result then
-    return nil, err or ("Request '" .. req .. "' failed")
-  end
-
-  return vim.islist(result.result) and result.result or { result.result }
-end
-
-local function lsp_command(cmd, args)
-  local client = M.get_ada_ls()
-  if not client then
-    return nil, "Ada Language Server not found"
-  end
-
-  local params = {
-    command = cmd,
-    arguments = args,
-  }
-  local result, err =
-    client:request_sync("workspace/executeCommand", params, 1000)
-
-  if err or not result or not result.result then
-    return nil, err or ("Command '" .. cmd .. "' failed")
-  end
-
-  return vim.islist(result.result) and result.result or { result.result }
+  return require("ada_ls.lsp_cmd").get_root_dir()
 end
 
 function M.get_symbols()
-  return lsp_request("textDocument/documentSymbol")
+  return require("ada_ls.lsp_cmd").get_symbols()
 end
 
 function M.get_declarations()
-  return lsp_request("textDocument/declaration")
+  return require("ada_ls.lsp_cmd").get_declarations()
 end
 
 function M.get_prj_file()
@@ -98,9 +41,9 @@ function M.get_prj_file()
     return M.prj_file
   end
 
-  local cmd = lsp_command("als-project-file")
-  if cmd ~= nil and next(cmd) ~= nil then
-    M.prj_file = vim.uri_to_fname(cmd[1])
+  local cmd = require("ada_ls.lsp_cmd").get_prj_file()
+  if cmd ~= nil then
+    M.prj_file = vim.uri_to_fname(cmd)
   end
   return M.prj_file
 end
@@ -110,7 +53,7 @@ function M.get_src_dirs()
     return M.src_dirs
   end
 
-  local src_dirs = lsp_command("als-source-dirs")
+  local src_dirs = require("ada_ls.lsp_cmd").get_src_dirs()
   if src_dirs == nil then
     return nil
   end
@@ -124,15 +67,16 @@ function M.get_src_dirs()
 end
 
 function M.get_obj_dir()
-  if M.obj_dir ~= "" then
+  if M.obj_dir ~= nil then
     return M.obj_dir
   end
-
-  local cmd = lsp_command("als-object-dir")
-  if cmd ~= nil and next(cmd) ~= nil then
-    M.obj_dir = cmd[1]
+  local obj_dir = require("ada_ls.lsp_cmd").get_obj_dir()
+  if obj_dir ~= nil then
+    M.obj_dir = obj_dir
+    return M.obj_dir
+  else
+    return nil
   end
-  return M.obj_dir
 end
 
 function M.get_harness_dir()
@@ -140,13 +84,14 @@ function M.get_harness_dir()
     return M.harness_dir
   end
 
-  local harness_dir = lsp_command(
+  local harness_dir = require("ada_ls.lsp_cmd").send_command(
     "als-get-project-attribute-value",
     { { attribute = "Harness_Dir", pkg = "Gnattest", index = "" } }
   )
 
   if harness_dir == nil then
-    return M.get_obj_dir() .. "/gnattest/harness"
+    M.harness_dir = M.get_obj_dir() .. "/gnattest/harness"
+    return M.harness_dir
   else
     M.harness_dir = M.get_obj_dir() .. "/" .. harness_dir[1]
     return M.harness_dir
@@ -159,7 +104,7 @@ function M.get_tests_dir()
     return M.tests_dir
   end
 
-  local tests_dir = lsp_command(
+  local tests_dir = require("ada_ls.lsp_cmd").send_command(
     "als-get-project-attribute-value",
     { { attribute = "Tests_Dir", pkg = "Gnattest", index = "" } }
   )
@@ -168,7 +113,8 @@ function M.get_tests_dir()
     M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir[1]
     return M.tests_dir
   else
-    return M.get_obj_dir() .. "/" .. "gnattest/tests"
+    M.tests_dir = M.get_obj_dir() .. "/" .. "gnattest/tests"
+    return M.tests_dir
   end
 end
 
@@ -182,7 +128,10 @@ local function switch_prj(prj)
       projectFile = prj,
     },
   }
-  client:notify("workspace/didChangeConfiguration", { settings = config })
+  return require("ada_ls.utils").notify_server(
+    "workspace/didChangeConfiguration",
+    { settings = config }
+  )
 end
 
 function M.get_subprogram_name_from_line(lnum)
@@ -220,7 +169,7 @@ end
 
 function M.setup()
   init_module()
-  if utils.is_gnattest_file() then
+  if require("gnattest.utils").is_gnattest_file() then
     M.switch_to_tests()
   end
 end

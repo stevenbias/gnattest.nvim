@@ -146,15 +146,6 @@ function M.get_xml_info(refresh)
   end
   xml_info = vim.deepcopy(source_files)
 
-  -- -- Check the correct number of tests are detected, just for debugging
-  -- local count = 0
-  -- for _, files in pairs(xml_info) do
-  --   for _, t in pairs(files) do
-  --     count = count + #t
-  --   end
-  -- end
-  -- print(vim.inspect(count))
-
   return xml_info
 end
 
