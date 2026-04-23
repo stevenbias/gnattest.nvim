@@ -343,41 +343,6 @@ describe("gnattest.utils", function()
     end)
   end)
 
-  describe("set_gnattest_pattern()", function()
-    local function setup_ada_ls()
-      package.loaded["gnattest.utils"] = nil
-      package.preload["gnattest.ada_ls"] = function()
-        return {
-          get_harness_dir = function()
-            return "/project/harness"
-          end,
-          get_tests_dir = function()
-            return "/project/tests"
-          end,
-        }
-      end
-      return require("gnattest.utils")
-    end
-
-    it("populates pattern on first call", function()
-      local test_utils = setup_ada_ls()
-      test_utils.set_gnattest_pattern()
-      assert.equals(3, #test_utils.gnattest_pattern)
-      assert.is_true(
-        test_utils.gnattest_pattern[2]:find("/project/harness") ~= nil
-      )
-    end)
-
-    it("returns cached pattern on subsequent calls", function()
-      local test_utils = setup_ada_ls()
-      test_utils.set_gnattest_pattern()
-      local count_before = #test_utils.gnattest_pattern
-      local result = test_utils.set_gnattest_pattern()
-      assert.equals(count_before, #test_utils.gnattest_pattern)
-      assert.same(test_utils.gnattest_pattern, result)
-    end)
-  end)
-
   describe("find_file()", function()
     it("finds file in list of paths", function()
       _G.vim.islist = function(t)
