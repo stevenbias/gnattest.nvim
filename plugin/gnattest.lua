@@ -6,8 +6,6 @@ end
 vim.g.loaded_gnattest = true
 
 local cmd_name = "Gnattest"
-local qf_items = {}
-local pending_runs = 0
 
 local function clean_tests()
   vim.cmd("!gprclean -P " .. require("gnattest.utils").get_gnattest_project())
@@ -49,140 +47,6 @@ local function generate_tests()
   end
 end
 
-local function build_tests()
-  local obj = vim
-    .system(
-      { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
-      { text = true }
-    )
-    :wait()
-
-  if obj.stderr and obj.stderr ~= "" then
-    print("Error building tests: " .. obj.stderr)
-    return false
-  else
-    print("Tests built successfully")
-    return true
-  end
-end
-
-local function prepare_run()
-  if pending_runs == 0 and build_tests() then
-    qf_items = {} -- Clear previous quickfix items
-    vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
-    return true
-  end
-  return false
-end
-
-local function type_test_result(res)
-  if res:find("PASSED") then
-    return "I"
-  else
-    return "E"
-  end
-end
-
-local function prepare_qf_item(pkg, test_info, line, type)
-  local als = require("gnattest.ada_ls")
-  local utils = require("gnattest.utils")
-
-  local test_dir = als.get_tests_dir()
-  local lnum = tonumber(test_info.test.line)
-  local col = tonumber(test_info.test.column)
-  local file = utils.find_file(test_info.test.file, test_dir)
-
-  if not file then
-    file = test_info.test.file
-    utils.notify(
-      file .. " not found in " .. test_dir .. " directory",
-      vim.log.levels.WARN
-    )
-  end
-
-  -- Replace "corresponding" in the line with the actual package and test name
-  line = line:gsub("corresponding", pkg .. ":" .. test_info.source.name)
-
-  return {
-    bufnr = 0,
-    filename = file,
-    lnum = lnum,
-    col = col,
-    text = line,
-    type = type or "E",
-  }
-end
-
-local function open_qf_list()
-  table.sort(qf_items, function(a, b)
-    if a.type ~= b.type then
-      return a.type == "E" -- Errors come before info
-    else
-      return a.text < b.text
-    end
-  end)
-
-  vim.fn.setqflist({}, "a", { title = "Gnattest run", items = qf_items })
-  vim.cmd("copen")
-end
-
-local function on_exit_tests(obj)
-  if obj.stderr and obj.stderr ~= "" then
-    pending_runs = pending_runs - 1
-    print("Error running tests: " .. obj.stderr)
-    return
-  end
-
-  local stdout = obj.stdout or ""
-  if stdout == "" then
-    pending_runs = pending_runs - 1
-    print("No tests were run")
-    return
-  end
-
-  vim.schedule(function()
-    local lines = vim.split(stdout, "\n")
-
-    for _, line in ipairs(lines) do
-      local _, pkg, test_info =
-        require("gnattest.xml").get_test_from_src_file_line(
-          vim.split(line, ":")[1], -- filename
-          tonumber(vim.split(line, ":")[2]) -- line number
-        )
-      if test_info ~= nil and pkg ~= nil then
-        table.insert(
-          qf_items,
-          prepare_qf_item(
-            pkg,
-            test_info,
-            tostring(line),
-            type_test_result(line)
-          )
-        )
-      end
-    end
-    pending_runs = pending_runs - 1
-    if pending_runs == 0 then
-      open_qf_list()
-    end
-  end)
-end
-
-local function run_test(filename, lnum)
-  local arg = ""
-  if filename ~= nil and lnum ~= nil then
-    arg = "--routines=" .. filename .. ":" .. lnum
-  end
-
-  pending_runs = pending_runs + 1
-
-  local als = require("gnattest.ada_ls")
-  vim.system({
-    als.get_harness_dir() .. "/test_runner",
-    arg,
-  }, { text = true }, on_exit_tests)
-end
-
 local function get_test_info_on_cursor()
   local f, _, info = require("gnattest.xml").get_gnattest_info_on_cursor()
   if f == nil or info == nil then
@@ -200,12 +64,13 @@ local function switch_source_test()
 end
 
 local function impl_run(arg1, arg2)
-  if not prepare_run() then
+  local runner = require("gnattest.runner")
+  if not runner.prepare_run() then
     return
   end
 
   if not arg1 or type(arg1) == "table" and not next(arg1) then
-    run_test() -- Run all tests
+    runner.run_test() -- Run all tests
   elseif not arg2 then -- Run tests by package or package:test
     local str_args = vim.split(arg1[1], ":")
     local pkg = str_args[1]
@@ -226,12 +91,12 @@ local function impl_run(arg1, arg2)
       return
     end
     for _, info in pairs(pkg_info) do
-      run_test(filename, info.source.line)
+      runner.run_test(filename, info.source.line)
     end
   else -- Run tests by file and line
     local filename = arg1
     local lnum = tonumber(arg2)
-    run_test(filename, lnum)
+    runner.run_test(filename, lnum)
   end
 end
 
@@ -266,7 +131,7 @@ local subcommand_tbl = {
   },
   build = {
     impl = function()
-      build_tests()
+      require("gnattest.runner").build_tests()
     end,
   },
   generate = {
