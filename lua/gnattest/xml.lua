@@ -29,6 +29,11 @@ local function query_test_info()
                         )\
                         (content\
                             (element\
+                                (STag (Name) @t_tag\
+                                  (#eq? @t_tag "test_case")\
+                                  (Attribute (Name) @t_string\
+                                    (AttValue) @t_src)\
+                                )\
                               (content\
                                 (element\
                                   (EmptyElemTag (Name)\
@@ -103,12 +108,12 @@ function M.get_xml_info(refresh)
         if capture_id == "src" then
           if test_capture_flag == "name" then
             src_info.name = test_text
-          elseif test_capture_flag == "line" then
-            src_info.line = test_text
           elseif test_capture_flag == "column" then
             src_info.column = test_text
-            gnattest_info.source = src_info
-            src_info = {}
+          end
+        elseif capture_id == "t_src" then
+          if test_capture_flag == "line" then
+            src_info.line = test_text
           end
         elseif capture_id == "tst" then
           if test_capture_flag == "file" then
@@ -119,8 +124,10 @@ function M.get_xml_info(refresh)
             test_info.column = test_text
           elseif test_capture_flag == "name" then
             test_info.name = test_text
+            gnattest_info.source = src_info
             gnattest_info.test = test_info
             table.insert(pkg_info, gnattest_info)
+            src_info = {}
             gnattest_info = {}
             test_info = {}
           end
