@@ -53,10 +53,17 @@ local function create_xml_buf()
   local xml_file = vim.fs.find(function(name)
     return name == "gnattest.xml"
   end)[1]
-  xml_file = vim.fn.readfile(xml_file)
+  if not xml_file then
+    require("gnattest.utils").notify(
+      "Please, generate tests with `:Gnattest generate` command first",
+      vim.log.levels.ERROR
+    )
+    return nil
+  end
+  local xml_lines = vim.fn.readfile(xml_file)
 
   local buf_id = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_file)
+  vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_lines)
 
   return buf_id
 end
@@ -67,6 +74,10 @@ function M.get_xml_info(refresh)
   end
 
   local buf_id = create_xml_buf()
+  if buf_id == nil then
+    return nil
+  end
+
   local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
 
   local source_files = {}

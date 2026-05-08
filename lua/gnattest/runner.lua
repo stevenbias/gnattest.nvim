@@ -94,7 +94,7 @@ local function on_exit_tests(obj)
   end)
 end
 
-local function build_tests()
+function M.build_tests()
   local obj = vim
     .system(
       { "gprbuild", "-P" .. require("gnattest.utils").get_gnattest_project() },
@@ -111,8 +111,8 @@ local function build_tests()
   end
 end
 
-local function prepare_run()
-  if pending_runs == 0 and build_tests() then
+function M.prepare_run()
+  if pending_runs == 0 and M.build_tests() then
     qf_items = {} -- Clear previous quickfix items
     vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
     return true
@@ -120,7 +120,7 @@ local function prepare_run()
   return false
 end
 
-local function run_test(filename, lnum)
+function M.run_test(filename, lnum)
   local arg = ""
   if filename ~= nil and lnum ~= nil then
     arg = "--routines=" .. filename .. ":" .. lnum
@@ -134,8 +134,12 @@ local function run_test(filename, lnum)
   }, { text = true }, on_exit_tests)
 end
 
-M.build_tests = build_tests
-M.prepare_run = prepare_run
-M.run_test = run_test
+-- Test-specific exports - only exposed in test mode
+if os.getenv("GNATTEST_TEST_MODE") then
+  M.type_test_result = type_test_result
+  M.prepare_qf_item = prepare_qf_item
+  M.open_qf_list = open_qf_list
+  M.on_exit_tests = on_exit_tests
+end
 
 return M
