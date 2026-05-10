@@ -163,6 +163,11 @@ local subcommand_tbl = {
       end
     end,
   },
+  run_select = {
+    impl = function()
+      require("gnattest.picker").select_tests()
+    end,
+  },
   switch = {
     impl = function()
       switch_source_test()
