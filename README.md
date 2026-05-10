@@ -73,6 +73,7 @@ All commands are subcommands of `:Gnattest`:
 - `:Gnattest run [package[:subprogram]]` - Build tests, then run a specific test, a whole package, or the entire test suite. Results are sent to the quickfix list
 - `:Gnattest run_all` - Run entire test suite (deprecated; use `:Gnattest run` with no args). Results are sent to the quickfix list
 - `:Gnattest run_cursor` - Run the test corresponding to the current cursor. Results are sent to the quickfix list
+- `:Gnattest run_select` - Open a Telescope picker to multi-select and run tests
 - `:Gnattest clean` - Clean test build artifacts
 - `:Gnattest switch` - Place cursor on a subprogram and toggle between source and test file
 
@@ -86,6 +87,7 @@ vim.keymap.set("n", "<leader>tb", "<cmd>Gnattest build<cr>", { desc = "GNATtest 
 vim.keymap.set("n", "<leader>ta", "<cmd>Gnattest run<cr>", { desc = "GNATtest run all tests" })
 vim.keymap.set("n", "<leader>tr", "<cmd>Gnattest run_cursor<cr>", { desc = "GNATtest run corresp. subp. under cursor" })
 vim.keymap.set("n", "<leader>ts", "<cmd>Gnattest switch<cr>", { desc = "GNATtest switch source/test" })
+vim.keymap.set("n", "<leader>tp", "<cmd>Gnattest run_select<cr>", { desc = "GNATtest run selected tests via picker" })
 vim.keymap.set("n", "<leader>tc", "<cmd>Gnattest clean<cr>", { desc = "GNATtest clean" })
 ```
 

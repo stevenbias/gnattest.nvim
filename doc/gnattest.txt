@@ -149,6 +149,11 @@ All commands are subcommands of |:Gnattest|:
         Run the test corresponding to the current cursor position.
         Results are summarized in the quickfix list.
 
+    run_select                                    *:Gnattest-run_select*
+        Open a Telescope picker to multi-select and run tests.
+        Use <Tab> to toggle selection, <CR> to confirm.
+        Shows all project tests from gnattest.xml.
+
     clean                                              *:Gnattest-clean*
         Clean test build artifacts using gprclean.
 
