@@ -12,7 +12,7 @@ Follow these guidelines to keep changes consistent, safe, and reviewable.
 - **Tests**: `spec/*_spec.lua` (busted)
 
 ## Key modules
-- `lua/gnattest/ada_ls.lua`: Ada LS client discovery + project context.
+- `lua/gnattest/ada_ls.lua`: Wrapper around ada_ls.nvim for ALS integration + project context caching.
 - `lua/gnattest/xml.lua`: parse `gnattest.xml`, map source/tests.
 - `lua/gnattest/navigation.lua`: switch between source/test subprograms.
 - `lua/gnattest/read_only.lua`: read-only region protection + autocmds.

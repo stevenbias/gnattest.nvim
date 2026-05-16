@@ -16,8 +16,7 @@ local function generate_tests()
   local utils = require("gnattest.utils")
 
   if ada_ls ~= nil then
-    local json_file = ada_ls.config.root_dir .. "/.als.json"
-    local config = vim.fn.json_decode(vim.fn.readfile(json_file))
+    local prj_file = require("gnattest.ada_ls").get_prj_file()
 
     local ro_config = require("gnattest.config").get().read_only
     local is_read_only_enabled = ro_config.enabled
@@ -28,7 +27,7 @@ local function generate_tests()
     end
 
     local obj = vim
-      .system({ "gnattest", "-P", config.projectFile }, { text = true })
+      .system({ "gnattest", "-P", prj_file }, { text = true })
       :wait()
     if obj.code ~= 0 then
       print("Error generating tests: Process exited with code " .. obj.code)
