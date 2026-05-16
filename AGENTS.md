@@ -64,7 +64,6 @@ Run from repo root unless noted.
 
 ### Imports / module layout
 - Prefer `local M = {}` module pattern and `return M` at EOF.
-- Keep `require(...)` statements at the top of the file.
 - Use local functions for private helpers; expose only via `M`.
 - Avoid cyclic requires; factor helpers into `lua/gnattest/utils.lua`.
 - Keep side effects limited to module scope and autocmd setup.

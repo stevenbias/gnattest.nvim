@@ -63,6 +63,10 @@ local stub_vim_api = function()
   _G.vim.inspect = function(obj)
     return tostring(obj)
   end
+  _G.vim.notify = function() end
+  _G.vim.log = {
+    levels = { ERROR = 4, WARN = 3, INFO = 2, DEBUG = 1, TRACE = 0 },
+  }
 end
 
 -- Simplified XML parsing mock setup
