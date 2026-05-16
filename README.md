@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Neovim](https://img.shields.io/badge/Neovim-0.10+-green.svg)](https://neovim.io)
 
-Neovim plugin providing [GNATtest](https://github.com/AdaCore/gnattest) workflow integration: generate, build, run, clean tests and navigate between source and test files
+Neovim plugin providing [GNATtest](https://github.com/AdaCore/gnattest) workflow integration: generate, build, run, clean tests and navigate between source and test files.
 
 ## Demo
 ![GNATtest Demo](media/gnattest_demo.gif)

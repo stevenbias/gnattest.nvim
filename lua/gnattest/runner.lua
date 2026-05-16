@@ -55,14 +55,17 @@ end
 local function on_exit_tests(obj)
   if obj.stderr and obj.stderr ~= "" then
     pending_runs = pending_runs - 1
-    print("Error running tests: " .. obj.stderr)
+    require("gnattest.utils").notify(
+      "Error running tests: " .. obj.stderr,
+      vim.log.levels.ERROR
+    )
     return
   end
 
   local stdout = obj.stdout or ""
   if stdout == "" then
     pending_runs = pending_runs - 1
-    print("No tests were run")
+    require("gnattest.utils").notify("No tests were run", vim.log.levels.WARN)
     return
   end
 

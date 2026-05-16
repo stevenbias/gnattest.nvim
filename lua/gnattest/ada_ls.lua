@@ -13,6 +13,7 @@ local function init_module()
     return
   end
 
+  M.get_prj_file()
   M.is_init = true
 end
 

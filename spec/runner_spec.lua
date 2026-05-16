@@ -41,7 +41,7 @@ describe("gnattest.runner", function()
     }
     _G.vim.cmd = require("luassert.stub").new()
     _G.vim.log = {
-      levels = { WARN = 3 },
+      levels = { WARN = 3, ERROR = 4 },
     }
     _G.vim.split = function(str, delimiter)
       local parts = {}
@@ -230,24 +230,26 @@ describe("gnattest.runner", function()
     end)
 
     describe("on_exit_tests (private)", function()
-      it("prints error when stderr present", function()
+      it("notifies error when stderr present", function()
         mock_system_async()
         runner.run_test()
 
         runner.on_exit_tests({ stderr = "runtime error" })
 
         assert
-          .stub(_G.print)
-          .was_called_with("Error running tests: runtime error")
+          .stub(utils_mock.notify)
+          .was_called_with("Error running tests: runtime error", vim.log.levels.ERROR)
       end)
 
-      it("prints message when stdout is empty", function()
+      it("notifies warning when stdout is empty", function()
         mock_system_async()
         runner.run_test()
 
         runner.on_exit_tests({ stdout = "" })
 
-        assert.stub(_G.print).was_called_with("No tests were run")
+        assert
+          .stub(utils_mock.notify)
+          .was_called_with("No tests were run", vim.log.levels.WARN)
       end)
 
       it("processes valid test output and opens qf list", function()
