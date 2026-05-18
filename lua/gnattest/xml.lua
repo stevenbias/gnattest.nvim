@@ -29,6 +29,11 @@ local function query_test_info()
                         )\
                         (content\
                             (element\
+                                (STag (Name) @t_tag\
+                                  (#eq? @t_tag "test_case")\
+                                  (Attribute (Name) @t_string\
+                                    (AttValue) @t_src)\
+                                )\
                               (content\
                                 (element\
                                   (EmptyElemTag (Name)\
@@ -48,10 +53,17 @@ local function create_xml_buf()
   local xml_file = vim.fs.find(function(name)
     return name == "gnattest.xml"
   end)[1]
-  xml_file = vim.fn.readfile(xml_file)
+  if not xml_file then
+    require("gnattest.utils").notify(
+      "Please, generate tests with `:Gnattest generate` command first",
+      vim.log.levels.ERROR
+    )
+    return nil
+  end
+  local xml_lines = vim.fn.readfile(xml_file)
 
   local buf_id = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_file)
+  vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, xml_lines)
 
   return buf_id
 end
@@ -62,6 +74,10 @@ function M.get_xml_info(refresh)
   end
 
   local buf_id = create_xml_buf()
+  if buf_id == nil then
+    return nil
+  end
+
   local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
 
   local source_files = {}
@@ -103,12 +119,12 @@ function M.get_xml_info(refresh)
         if capture_id == "src" then
           if test_capture_flag == "name" then
             src_info.name = test_text
-          elseif test_capture_flag == "line" then
-            src_info.line = test_text
           elseif test_capture_flag == "column" then
             src_info.column = test_text
-            gnattest_info.source = src_info
-            src_info = {}
+          end
+        elseif capture_id == "t_src" then
+          if test_capture_flag == "line" then
+            src_info.line = test_text
           end
         elseif capture_id == "tst" then
           if test_capture_flag == "file" then
@@ -119,8 +135,10 @@ function M.get_xml_info(refresh)
             test_info.column = test_text
           elseif test_capture_flag == "name" then
             test_info.name = test_text
+            gnattest_info.source = src_info
             gnattest_info.test = test_info
             table.insert(pkg_info, gnattest_info)
+            src_info = {}
             gnattest_info = {}
             test_info = {}
           end
@@ -145,15 +163,6 @@ function M.get_xml_info(refresh)
     unit_capture_flag = unit_text
   end
   xml_info = vim.deepcopy(source_files)
-
-  -- -- Check the correct number of tests are detected, just for debugging
-  -- local count = 0
-  -- for _, files in pairs(xml_info) do
-  --   for _, t in pairs(files) do
-  --     count = count + #t
-  --   end
-  -- end
-  -- print(vim.inspect(count))
 
   return xml_info
 end

@@ -21,9 +21,6 @@ function M.mock_utils(overrides)
       return { "line1", "line2" }
     end,
   }
-  utils_mock.set_gnattest_pattern = function()
-    return utils_mock.gnattest_pattern
-  end
   if overrides then
     for k, v in pairs(overrides) do
       utils_mock[k] = v

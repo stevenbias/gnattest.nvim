@@ -92,7 +92,7 @@ describe("gnattest.utils", function()
 
   it("does not use vim.notify when notify module is loaded", function()
     local s = spy.on(vim, "notify")
-    utils.is_loaded = function()
+    utils.try_require = function()
       return true
     end
     utils.notify("foo", "warn")
@@ -101,22 +101,22 @@ describe("gnattest.utils", function()
 
   it("notifies using vim.notify when notify module is not present", function()
     local s = spy.on(vim, "notify")
-    utils.is_loaded = function()
+    utils.try_require = function()
       return false
     end
     utils.notify("bar", "info")
     assert.spy(s).was.called(1)
   end)
 
-  it("is_loaded returns true for existing modules", function()
+  it("try_require returns true for existing modules", function()
     -- luassert is a test dependency that should be loaded
-    local result = utils.is_loaded("luassert")
+    local result = utils.try_require("luassert")
     assert.is_true(result)
   end)
 
-  it("is_loaded returns false for non-existent modules", function()
+  it("try_require returns false for non-existent modules", function()
     -- This module should not exist
-    local result = utils.is_loaded("nonexistent_module_that_does_not_exist")
+    local result = utils.try_require("nonexistent_module_that_does_not_exist")
     assert.is_false(result)
   end)
 
@@ -340,41 +340,6 @@ describe("gnattest.utils", function()
       end
       local test_utils = require("gnattest.utils")
       assert.is_true(test_utils.is_gnattest_file())
-    end)
-  end)
-
-  describe("set_gnattest_pattern()", function()
-    local function setup_ada_ls()
-      package.loaded["gnattest.utils"] = nil
-      package.preload["gnattest.ada_ls"] = function()
-        return {
-          get_harness_dir = function()
-            return "/project/harness"
-          end,
-          get_tests_dir = function()
-            return "/project/tests"
-          end,
-        }
-      end
-      return require("gnattest.utils")
-    end
-
-    it("populates pattern on first call", function()
-      local test_utils = setup_ada_ls()
-      test_utils.set_gnattest_pattern()
-      assert.equals(3, #test_utils.gnattest_pattern)
-      assert.is_true(
-        test_utils.gnattest_pattern[2]:find("/project/harness") ~= nil
-      )
-    end)
-
-    it("returns cached pattern on subsequent calls", function()
-      local test_utils = setup_ada_ls()
-      test_utils.set_gnattest_pattern()
-      local count_before = #test_utils.gnattest_pattern
-      local result = test_utils.set_gnattest_pattern()
-      assert.equals(count_before, #test_utils.gnattest_pattern)
-      assert.same(test_utils.gnattest_pattern, result)
     end)
   end)
 

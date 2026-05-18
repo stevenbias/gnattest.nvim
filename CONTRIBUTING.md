@@ -6,7 +6,7 @@ Thank you for considering contributing to this project!
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/StevenBias/gnattest.nvim.git
+   git clone https://github.com/stevenbias/gnattest.nvim.git
    cd gnattest.nvim
    ```
 
