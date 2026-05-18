@@ -3,7 +3,7 @@ GNATtest integration for Neovim                    *gnattest* *gnattest.nvim*
 
 Author:  Steven Bias
 License: MIT
-Repository: https://github.com/StevenBias/gnattest.nvim
+Repository: https://github.com/stevenbias/gnattest.nvim
 
 ==============================================================================
 CONTENTS                                                  *gnattest-contents*
@@ -38,7 +38,7 @@ seamless testing experience within Neovim.
 REQUIREMENTS                                          *gnattest-requirements*
 
 - Neovim >= 0.10
-- Ada Language Server (configured and running)
+- ada_ls.nvim (handles Ada Language Server automatically)
 - GNAT project file (GPR) - GNATtest must be configured in the GPR file
 - GNAT toolchain
 - GNATtest (separate testing framework for Ada)
@@ -53,9 +53,9 @@ DEPENDENCIES                                          *gnattest-dependencies*
 
 Before installing GNATtest.nvim, ensure you have:
 
-1. Ada Language Server
-   Repository: https://github.com/AdaCore/ada_language_server
-   Must be configured and running
+1. ada_ls.nvim
+   Repository: https://github.com/stevenbias/ada_ls.nvim
+   Handles Ada Language Server configuration automatically
 
 2. GNAT toolchain
    Must be installed and available on PATH
@@ -73,15 +73,19 @@ See |gnattest-dependencies| for required plugins.
 
 Using lazy.nvim: >lua
     {
-      "StevenBias/gnattest.nvim",
-      dependencies = { "nvim-treesitter/nvim-treesitter" },
+      "stevenbias/gnattest.nvim",
+      dependencies = {
+        "stevenbias/ada_ls.nvim",
+        "nvim-treesitter/nvim-treesitter",
+      },
       ft = { "ada" },
     }
 <
 
 Using vim-plug: >vim
+    Plug 'stevenbias/ada_ls.nvim'
     Plug 'nvim-treesitter/nvim-treesitter'
-    Plug 'StevenBias/gnattest.nvim'
+    Plug 'stevenbias/gnattest.nvim'
 
     lua << EOF
     require("gnattest").setup()
@@ -96,23 +100,19 @@ After installation, add to your configuration: >lua
 <
 
 The plugin will automatically activate for Ada files in GNATtest projects.
+ada_ls.nvim handles Ada Language Server configuration automatically.
 
 Quick start: ~
 
 1. Open an Ada file in a project
-2. Configure Ada Language Server with the correct GPR file. Example `.als.json`: >json
-    {
-      "projectFile": "/path/to/your/project.gpr"
-    }
-<
-3. Generate tests: >
+2. Generate tests: >
     :Gnattest generate
 <
-4. Run tests: >
+3. Run tests: >
     :Gnattest run
 <
    Tests are built before every run.
-5. Review results in the quickfix list
+4. Review results in the quickfix list
 
 ==============================================================================
 COMMANDS                                                  *gnattest-commands*
@@ -148,6 +148,11 @@ All commands are subcommands of |:Gnattest|:
     run_cursor                                    *:Gnattest-run_cursor*
         Run the test corresponding to the current cursor position.
         Results are summarized in the quickfix list.
+
+    run_select                                    *:Gnattest-run_select*
+        Open a Telescope picker to multi-select and run tests.
+        Use <Tab> to toggle selection, <CR> to confirm.
+        Shows all project tests from gnattest.xml.
 
     clean                                              *:Gnattest-clean*
         Clean test build artifacts using gprclean.
@@ -282,7 +287,7 @@ After running tests, the plugin opens the quickfix list with:
 LIMITATIONS                                            *gnattest-limitations*
 
 REQUIREMENTS ~
-- Ada Language Server must be configured before plugin activation
+- ada_ls.nvim must be installed and configured
 - GNAT project file (GPR) with GNATtest configured
 - GNATtest tool must be installed separately
 - Treesitter parsers (ada, xml) required
@@ -310,7 +315,7 @@ Verify your installation and configuration: >
 This will check:
 - Neovim version compatibility
 - Required external tools (gnattest, gprbuild, gprclean)
-- Ada Language Server status
+- ada_ls.nvim status
 - Treesitter parsers (ada, xml)
 - Project structure and configuration
 - Plugin activation status
@@ -320,8 +325,8 @@ PLUGIN NOT ACTIVATING ~
 1. Run health check first: >
     :checkhealth gnattest
 <
-2. Check Ada Language Server is running: >
-    :checkhealth vim.lsp
+2. Check ada_ls.nvim is configured correctly: >
+    :checkhealth ada_ls
 <
 3. Verify Treesitter parsers are installed: >
     :TSInstallInfo
@@ -359,7 +364,7 @@ CONTRIBUTING                                          *gnattest-contributing*
 
 Contributions are welcome! See CONTRIBUTING.md in the repository.
 
-Repository: https://github.com/StevenBias/gnattest.nvim
+Repository: https://github.com/stevenbias/gnattest.nvim
 
 Areas of interest:
 - Bug reports and fixes

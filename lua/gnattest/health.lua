@@ -38,6 +38,20 @@ local function check_treesitter_parser(lang)
   end
 end
 
+local function check_ada_ls_nvim()
+  local ok, _ = pcall(require, "ada_ls")
+  if ok then
+    vim.health.ok("ada_ls.nvim is installed")
+    return true
+  else
+    vim.health.error("ada_ls.nvim is not installed", {
+      "Install ada_ls.nvim: https://github.com/stevenbias/ada_ls.nvim",
+      "Required for Ada Language Server integration",
+    })
+    return false
+  end
+end
+
 local function check_lsp_client()
   local clients = vim.lsp.get_clients({ name = "ada" })
 
@@ -50,8 +64,8 @@ local function check_lsp_client()
     return true, client
   else
     vim.health.error("Ada Language Server not running", {
-      "Configure Ada Language Server first",
-      "See: https://github.com/AdaCore/ada_language_server",
+      "Ensure ada_ls.nvim is properly configured",
+      "Run :checkhealth ada_ls for diagnostics",
     })
     return false, nil
   end
@@ -82,24 +96,16 @@ local function check_project_structure()
   end
 
   local project_file = nil
-  if client and client.config.root_dir then
-    local json_file = client.config.root_dir .. "/.als.json"
-    local ok, content = pcall(vim.fn.readfile, json_file)
-    if ok then
-      local json = vim.fn.json_decode(content)
-      if json and json.projectFile then
-        project_file = json.projectFile
-        vim.health.ok(
-          string.format("GNAT project file found (%s)", project_file)
-        )
-      end
-    end
+  local ok, prj_uri = pcall(require("ada_ls.lsp_cmd").get_prj_file)
+  if ok and prj_uri then
+    project_file = vim.uri_to_fname(prj_uri)
+    vim.health.ok(string.format("GNAT project file found (%s)", project_file))
   end
 
   if not project_file then
     vim.health.warn("GNAT project file (.gpr) not detected", {
-      "GNATtest requires a GNAT project file",
-      "Ensure your project has a .gpr file configured",
+      "Use ada_ls.nvim to configure the project file",
+      "Run :checkhealth ada_ls for setup help",
     })
   end
 
@@ -190,6 +196,9 @@ function M.check()
   vim.health.start("gnattest.nvim: Treesitter parsers")
   check_treesitter_parser("ada")
   check_treesitter_parser("xml")
+
+  vim.health.start("gnattest.nvim: ada_ls.nvim")
+  check_ada_ls_nvim()
 
   vim.health.start("gnattest.nvim: Configuration")
   check_config()

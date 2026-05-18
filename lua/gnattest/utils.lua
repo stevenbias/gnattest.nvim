@@ -1,4 +1,5 @@
 local default_pattern = "**/gnattest/*"
+local gnattest_file_cache = {}
 
 local M = {
   gnattest_pattern = { default_pattern },
@@ -26,14 +27,14 @@ end
 
 function M.notify(msg, lvl)
   local title = M.plugin_name .. " " .. log_lvl_tostring(lvl) .. " message"
-  if M.is_loaded("notify") then
+  if M.try_require("notify") then
     require("notify")(msg, lvl, { title = title })
   else
     vim.notify(title .. ": " .. msg, lvl)
   end
 end
 
-function M.is_loaded(plugin_name)
+function M.try_require(plugin_name)
   return pcall(require, plugin_name) -- will also load the package if it isn't loaded already
 end
 
@@ -64,26 +65,22 @@ end
 
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
-  local bufdir = M.get_bufdir()
+  local bufid = M.get_bufid()
+  if gnattest_file_cache[bufid] ~= nil then
+    return gnattest_file_cache[bufid]
+  end
 
-  return string.find(bufdir, "gnattest") ~= nil
+  local bufdir = M.get_bufdir()
+  local result = string.find(bufdir, "gnattest") ~= nil
     or string.find(bufdir, als.get_harness_dir()) ~= nil
     or string.find(bufdir, als.get_tests_dir()) ~= nil
+  gnattest_file_cache[bufid] = result
+  return result
 end
 
 function M.get_gnattest_project()
   local als = require("gnattest.ada_ls")
   return als.get_harness_dir() .. "/test_driver.gpr"
-end
-
-function M.set_gnattest_pattern()
-  local als = require("gnattest.ada_ls")
-  if #M.gnattest_pattern > 1 then
-    return M.gnattest_pattern
-  end
-
-  table.insert(M.gnattest_pattern, als.get_harness_dir() .. "/*")
-  table.insert(M.gnattest_pattern, als.get_tests_dir() .. "/*")
 end
 
 function M.get_lines(start_row, end_row)
@@ -149,7 +146,7 @@ function M.get_all_comments(language)
       local start_row = node:range()
       local text
       ok, text = pcall(vim.treesitter.get_node_text, node, bufid)
-      if not ok or text == "" then
+      if not ok or text == nil or text == "" then
         return {}
       end
 
