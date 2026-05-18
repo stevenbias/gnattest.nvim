@@ -30,9 +30,12 @@ local function generate_tests()
       .system({ "gnattest", "-P", prj_file }, { text = true })
       :wait()
     if obj.code ~= 0 then
-      print("Error generating tests: Process exited with code " .. obj.code)
+      utils.notify(
+        "Error generating tests: Process exited with code " .. obj.code,
+        vim.log.levels.ERROR
+      )
     else
-      print("Tests generated successfully")
+      utils.notify("Tests generated successfully", vim.log.levels.INFO)
     end
 
     if disable_ro then
