@@ -28,6 +28,7 @@ subprogram line numbers.*
 - **GNAT Project File** - Only Ada projects using GPR files are supported (GNATtest must be configured in the GPR file)
 - **GNATtest** - Unit testing framework for Ada ([user's guide](https://docs.adacore.com/gnatcoverage-docs/html/gnattest/gnattest_part.html#gnattest-user-s-guide) and [Github repo](https://github.com/AdaCore/gnattest))
 - **Treesitter parsers**: `ada`, `xml` (`:TSInstall ada xml`)
+- **telescope.nvim** (optional) - Required for `:Gnattest run_select` command
 
 ## Installation
 
@@ -39,6 +40,7 @@ subprogram line numbers.*
   dependencies = {
     "stevenbias/ada_ls.nvim",
     "nvim-treesitter/nvim-treesitter",
+    "nvim-telescope/telescope.nvim", -- optional, for run_select
   },
   ft = { "ada" },
 }
@@ -49,6 +51,7 @@ subprogram line numbers.*
 ```vim
 Plug 'stevenbias/ada_ls.nvim'
 Plug 'nvim-treesitter/nvim-treesitter'
+Plug 'nvim-telescope/telescope.nvim' " optional, for run_select
 Plug 'stevenbias/gnattest.nvim'
 
 lua << EOF
