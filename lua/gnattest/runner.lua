@@ -1,7 +1,7 @@
-local M = {}
-
-local qf_items = {}
-local pending_runs = 0
+local M = {
+  qf_items = {},
+  pending_runs = 0,
+}
 
 local function type_test_result(res)
   if res:find("PASSED") then
@@ -40,7 +40,7 @@ local function prepare_qf_item(pkg, test_info, line, type)
 end
 
 local function open_qf_list()
-  table.sort(qf_items, function(a, b)
+  table.sort(M.qf_items, function(a, b)
     if a.type ~= b.type then
       return a.type == "E" -- Errors come before info
     else
@@ -48,13 +48,13 @@ local function open_qf_list()
     end
   end)
 
-  vim.fn.setqflist({}, "a", { title = "Gnattest run", items = qf_items })
+  vim.fn.setqflist({}, "a", { title = "Gnattest run", items = M.qf_items })
   vim.cmd("copen")
 end
 
 local function on_exit_tests(obj)
   if obj.stderr and obj.stderr ~= "" then
-    pending_runs = pending_runs - 1
+    M.pending_runs = M.pending_runs - 1
     require("gnattest.utils").notify(
       "Error running tests: " .. obj.stderr,
       vim.log.levels.ERROR
@@ -64,7 +64,7 @@ local function on_exit_tests(obj)
 
   local stdout = obj.stdout or ""
   if stdout == "" then
-    pending_runs = pending_runs - 1
+    M.pending_runs = M.pending_runs - 1
     require("gnattest.utils").notify("No tests were run", vim.log.levels.WARN)
     return
   end
@@ -80,7 +80,7 @@ local function on_exit_tests(obj)
         )
       if test_info ~= nil and pkg ~= nil then
         table.insert(
-          qf_items,
+          M.qf_items,
           prepare_qf_item(
             pkg,
             test_info,
@@ -90,8 +90,8 @@ local function on_exit_tests(obj)
         )
       end
     end
-    pending_runs = pending_runs - 1
-    if pending_runs == 0 then
+    M.pending_runs = M.pending_runs - 1
+    if M.pending_runs == 0 then
       open_qf_list()
     end
   end)
@@ -115,8 +115,8 @@ function M.build_tests()
 end
 
 function M.prepare_run()
-  if pending_runs == 0 and M.build_tests() then
-    qf_items = {} -- Clear previous quickfix items
+  if M.pending_runs == 0 and M.build_tests() then
+    M.qf_items = {} -- Clear previous quickfix items
     vim.fn.setqflist({}, "r") -- Clear the quickfix list before adding new items
     return true
   end
@@ -129,7 +129,7 @@ function M.run_test(filename, lnum)
     arg = "--routines=" .. filename .. ":" .. lnum
   end
 
-  pending_runs = pending_runs + 1
+  M.pending_runs = M.pending_runs + 1
 
   vim.system({
     require("gnattest.ada_ls").get_harness_dir() .. "/test_runner",
