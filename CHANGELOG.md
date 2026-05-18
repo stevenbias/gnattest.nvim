@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0-rc.0 (2026-05-18)
+
+### Feat
+
+- Add a command to select several tests
+
+### Fix
+
+- Use correct source line info from xml file for overridden subprogram
+
+### Refactor
+
+- Modif after code review
+- Fix project file name at setup and use notification instead of print in reunner module
+- Modif runner module before writting tests and xml to notify missing tests
+- Move run test logic in a new file
+- Use get_subprogram_name_from_line function from ada_ls.nvim plugin
+- Speed up start and improve compatibility with ada_ls.nvim
+- Start to depend on the ada_ls.nvim plugin to manage language server
+
 ## v0.2.0 (2026-02-24)
 
 ### Feat
