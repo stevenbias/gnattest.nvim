@@ -70,6 +70,13 @@ function M.is_gnattest_file()
     return gnattest_file_cache[bufid]
   end
 
+  if als.get_tests_dir() ~= nil then
+    table.insert(M.gnattest_pattern, als.get_tests_dir() .. "/*")
+  end
+  if als.get_harness_dir() ~= nil then
+    table.insert(M.gnattest_pattern, als.get_harness_dir() .. "/*")
+  end
+
   local bufdir = M.get_bufdir()
   local result = string.find(bufdir, "gnattest") ~= nil
     or string.find(bufdir, als.get_harness_dir()) ~= nil

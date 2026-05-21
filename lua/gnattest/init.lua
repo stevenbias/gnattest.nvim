@@ -10,7 +10,6 @@ function M.setup(opts)
   local utils = require("gnattest.utils")
 
   require("gnattest.config").setup(opts)
-  require("gnattest.read_only").setup()
 
   vim.api.nvim_create_autocmd("LspAttach", {
     group = vim.api.nvim_create_augroup("AdaLSPAttach", { clear = true }),
@@ -33,6 +32,7 @@ function M.setup(opts)
         end
 
         require("gnattest.ada_ls").setup()
+        require("gnattest.read_only").setup()
       end, 100)
     end,
   })

@@ -87,14 +87,14 @@ function M.get_harness_dir()
 
   local harness_dir = require("ada_ls.lsp_cmd").send_command(
     "als-get-project-attribute-value",
-    { { attribute = "Harness_Dir", pkg = "Gnattest", index = "" } }
+    { attribute = "Harness_Dir", pkg = "Gnattest", index = "" }
   )
 
   if harness_dir == nil then
     M.harness_dir = M.get_obj_dir() .. "/gnattest/harness"
     return M.harness_dir
   else
-    M.harness_dir = M.get_obj_dir() .. "/" .. harness_dir[1]
+    M.harness_dir = M.get_obj_dir() .. "/" .. harness_dir
     return M.harness_dir
   end
 end
@@ -107,11 +107,11 @@ function M.get_tests_dir()
 
   local tests_dir = require("ada_ls.lsp_cmd").send_command(
     "als-get-project-attribute-value",
-    { { attribute = "Tests_Dir", pkg = "Gnattest", index = "" } }
+    { attribute = "Tests_Dir", pkg = "Gnattest", index = "" }
   )
 
   if tests_dir ~= nil then
-    M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir[1]
+    M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir
     return M.tests_dir
   else
     M.tests_dir = M.get_obj_dir() .. "/" .. "gnattest/tests"
