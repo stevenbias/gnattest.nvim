@@ -120,7 +120,7 @@ describe("gnattest.xml", function()
       assert.is_function(xml.get_test_by_name)
       assert.is_function(xml.get_xml_info)
       assert.is_function(xml.get_pkg_tests)
-      assert.is_function(xml.get_test_from_src_file_line)
+      assert.is_function(xml.get_test_from_src_case_line)
       assert.is_function(xml.get_gnattest_info_on_line)
       assert.is_function(xml.get_gnattest_info_on_cursor)
     end)
@@ -525,13 +525,13 @@ describe("gnattest.xml", function()
       end)
     end)
 
-    describe("get_test_from_src_file_line", function()
+    describe("get_test_from_src_case_line", function()
       it("finds test by filename and line", function()
         xml = inject_xml_data({
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", line = "10", column = "2" },
+                source = { name = "My_Function", case = { line = "10" } },
                 test = { name = "Test_My_Function", file = "test.adb" },
               },
             },
@@ -539,7 +539,7 @@ describe("gnattest.xml", function()
         })
 
         local file, pkg, info =
-          xml.get_test_from_src_file_line("my_package.ads", 10)
+          xml.get_test_from_src_case_line("my_package.ads", 10)
 
         assert.equals("my_package.ads", file)
         assert.equals("Package1", pkg)
@@ -574,7 +574,7 @@ describe("gnattest.xml", function()
           { unit_flag = "source_file", unit_file = "my_file.ads" }
         )
 
-        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 10))
+        assert.is_nil(xml.get_test_from_src_case_line("my_package.ads", 10))
         assert.equals(1, parse_calls)
       end)
 
@@ -583,14 +583,14 @@ describe("gnattest.xml", function()
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", line = "10", column = "2" },
+                source = { name = "My_Function", case = { line = "10" } },
                 test = { name = "Test_My_Function", file = "test.adb" },
               },
             },
           },
         })
 
-        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 11))
+        assert.is_nil(xml.get_test_from_src_case_line("my_package.ads", 11))
       end)
     end)
 
@@ -604,7 +604,11 @@ describe("gnattest.xml", function()
         original_get_subprogram =
           require("gnattest.ada_ls").get_subprogram_name_from_line
         require("gnattest.ada_ls").get_subprogram_name_from_line = function()
-          return "My_Function"
+          return "My_Function",
+            {
+              start = { line = 0, character = 0 },
+              end_ = { line = 999, character = 999 },
+            }
         end
 
         local utils = require("gnattest.utils")

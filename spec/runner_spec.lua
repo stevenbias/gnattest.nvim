@@ -68,7 +68,7 @@ describe("gnattest.runner", function()
     package.loaded["gnattest.ada_ls"] = ada_ls_mock
 
     xml_mock = {
-      get_test_from_src_file_line = require("luassert.stub")
+      get_test_from_src_case_line = require("luassert.stub")
         .new()
         .returns(nil, nil, nil),
     }
@@ -256,7 +256,7 @@ describe("gnattest.runner", function()
         mock_system_async()
         runner.run_test()
 
-        xml_mock.get_test_from_src_file_line.returns("source.ads", "Pkg", {
+        xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
           test = { line = "10", column = "5", file = "test.adb" },
         })
@@ -276,7 +276,7 @@ describe("gnattest.runner", function()
         runner.run_test()
         runner.run_test() -- pending = 2
 
-        xml_mock.get_test_from_src_file_line.returns("source.ads", "Pkg", {
+        xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
           test = { line = "10", column = "5", file = "test.adb" },
         })

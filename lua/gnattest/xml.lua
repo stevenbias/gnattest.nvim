@@ -103,6 +103,7 @@ function M.get_xml_info(refresh)
   local test_capture_flag = ""
   local gnattest_info = {}
   local src_info = {}
+  local test_cases = {}
   local test_info = {}
   local test_query = query_test_info()
 
@@ -121,10 +122,16 @@ function M.get_xml_info(refresh)
             src_info.name = test_text
           elseif test_capture_flag == "column" then
             src_info.column = test_text
+          elseif test_capture_flag == "line" then
+            src_info.line = test_text
           end
         elseif capture_id == "t_src" then
-          if test_capture_flag == "line" then
-            src_info.line = test_text
+          if test_capture_flag == "name" then
+            test_cases.name = test_text
+          elseif test_capture_flag == "line" then
+            test_cases.line = test_text
+          elseif test_capture_flag == "column" then
+            test_cases.column = test_text
           end
         elseif capture_id == "tst" then
           if test_capture_flag == "file" then
@@ -136,10 +143,12 @@ function M.get_xml_info(refresh)
           elseif test_capture_flag == "name" then
             test_info.name = test_text
             gnattest_info.source = src_info
+            gnattest_info.source.case = test_cases
             gnattest_info.test = test_info
             table.insert(pkg_info, gnattest_info)
             src_info = {}
             gnattest_info = {}
+            test_cases = {}
             test_info = {}
           end
         end
@@ -183,7 +192,7 @@ function M.get_pkg_tests(pkg)
   return nil
 end
 
-function M.get_test_from_src_file_line(filename, line)
+function M.get_test_from_src_case_line(filename, line)
   if next(xml_info) == nil then
     M.get_xml_info()
   end
@@ -191,7 +200,7 @@ function M.get_test_from_src_file_line(filename, line)
   for f, files in pairs(xml_info) do
     for p, pkg_info in pairs(files) do
       for _, test_info in pairs(pkg_info) do
-        if f == filename and tonumber(test_info.source.line) == line then
+        if f == filename and tonumber(test_info.source.case.line) == line then
           return f, p, test_info
         end
       end
@@ -228,9 +237,19 @@ function M.get_gnattest_info_on_line(lnum)
   local utils = require("gnattest.utils")
   local als = require("gnattest.ada_ls")
 
-  local subr_name = als.get_subprogram_name_from_line(lnum)
+  local subr_name, range = als.get_subprogram_name_from_line(lnum)
+  local start_line = 0
+  local end_line = 0
+
   if subr_name == nil then
     return nil
+  end
+
+  if range and range.start and range.start.line then
+    start_line = range.start.line
+  end
+  if range and range.end_ and range.end_.line then
+    end_line = range.end_.line
   end
 
   local filename = utils.split_filename(utils.get_filename())
@@ -244,14 +263,14 @@ function M.get_gnattest_info_on_line(lnum)
             and vim.fn.match(info.source.name, subr_name) ~= -1
           or utils.is_gnattest_file()
             and vim.fn.match(info.test.file, filename) == 0
-            and vim.fn.match(info.test.name, subr_name) ~= -1
+            and start_line <= lnum
+            and end_line >= lnum
         then
           return f, p, info
         end
       end
     end
   end
-
   return nil
 end
 

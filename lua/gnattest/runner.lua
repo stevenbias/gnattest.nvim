@@ -74,7 +74,7 @@ local function on_exit_tests(obj)
 
     for _, line in ipairs(lines) do
       local _, pkg, test_info =
-        require("gnattest.xml").get_test_from_src_file_line(
+        require("gnattest.xml").get_test_from_src_case_line(
           vim.split(line, ":")[1], -- filename
           tonumber(vim.split(line, ":")[2]) -- line number
         )
