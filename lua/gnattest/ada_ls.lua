@@ -90,7 +90,7 @@ function M.get_harness_dir()
     { attribute = "Harness_Dir", pkg = "Gnattest", index = "" }
   )
 
-  if harness_dir == nil then
+  if harness_dir == nil and harness_dir ~= "" then
     M.harness_dir = M.get_obj_dir() .. "/gnattest/harness"
     return M.harness_dir
   else
@@ -110,7 +110,7 @@ function M.get_tests_dir()
     { attribute = "Tests_Dir", pkg = "Gnattest", index = "" }
   )
 
-  if tests_dir ~= nil then
+  if tests_dir ~= nil and tests_dir ~= "" then
     M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir
     return M.tests_dir
   else

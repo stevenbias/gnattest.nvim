@@ -80,6 +80,18 @@ describe("gnattest.utils", function()
       return stub.new()
     end
 
+    -- Mock gnattest.ada_ls so is_gnattest_file() doesn't require ada_ls.lsp_cmd
+    package.preload["gnattest.ada_ls"] = function()
+      return {
+        get_harness_dir = function()
+          return "/project/obj/gnattest/harness"
+        end,
+        get_tests_dir = function()
+          return "/project/obj/gnattest/tests"
+        end,
+      }
+    end
+
     utils = require("gnattest.utils")
   end)
 

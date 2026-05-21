@@ -289,7 +289,7 @@ describe("gnattest.ada_ls", function()
   describe("get_harness_dir()", function()
     it("should use custom harness_dir from LSP attribute", function()
       setup_module_state({ obj_dir = "/project/obj" })
-      lsp_cmd_mock.send_command = stub.new().returns({ "custom_harness" })
+      lsp_cmd_mock.send_command = stub.new().returns("custom_harness")
 
       local result = ada_ls.get_harness_dir()
 
@@ -317,7 +317,7 @@ describe("gnattest.ada_ls", function()
   describe("get_tests_dir()", function()
     it("should use custom tests_dir from LSP attribute", function()
       setup_module_state({ obj_dir = "/project/obj" })
-      lsp_cmd_mock.send_command = stub.new().returns({ "custom_tests" })
+      lsp_cmd_mock.send_command = stub.new().returns("custom_tests")
 
       local result = ada_ls.get_tests_dir()
 

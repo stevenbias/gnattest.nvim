@@ -105,10 +105,20 @@ describe("gnattest.init", function()
       assert.stub(config_mock.setup).was_called_with(opts)
     end)
 
-    it("should call read_only.setup()", function()
-      gnattest_init.setup()
-      assert.stub(read_only_mock.setup).was_called()
-    end)
+    it(
+      "should call read_only.setup() when LspAttach fires with ada_ls client",
+      function()
+        gnattest_init.setup()
+        local utils = require("gnattest.utils")
+        utils.try_require = function()
+          return true
+        end
+        local ada = { name = "ada_ls", id = 1 }
+        _G.vim.lsp.get_client_by_id = stub_new().returns(ada)
+        captured_callback({ data = { client_id = 1 } })
+        assert.stub(read_only_mock.setup).was_called()
+      end
+    )
 
     it("should create LspAttach autocmd for ada files", function()
       gnattest_init.setup()
