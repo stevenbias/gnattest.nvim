@@ -286,8 +286,8 @@ function M.get_gnattest_info_on_line(lnum)
           for _, test in ipairs(info.tests) do
             if
               vim.fn.match(test.file, filename) == 0
-              and start_line <= lnum
-              and end_line >= lnum
+              and start_line <= tonumber(test.line)
+              and end_line >= tonumber(test.line)
             then
               return f, p, info
             end
