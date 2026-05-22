@@ -189,7 +189,7 @@ describe("gnattest.runner", function()
         function()
           local test_info = {
             source = { name = "My_Proc" },
-            test = { line = "10", column = "5", file = "test.adb" },
+            tests = { line = "10", column = "5", file = "test.adb" },
           }
 
           local item = runner.prepare_qf_item(
@@ -211,7 +211,7 @@ describe("gnattest.runner", function()
         utils_mock.find_file.returns(nil)
         local test_info = {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "missing.adb" },
+          tests = { line = "10", column = "5", file = "missing.adb" },
         }
 
         runner.prepare_qf_item("Pkg", test_info, "corresponding test")
@@ -258,7 +258,7 @@ describe("gnattest.runner", function()
 
         xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "test.adb" },
+          tests = { line = "10", column = "5", file = "test.adb" },
         })
         utils_mock.find_file.returns("/found/test.adb")
 
@@ -278,7 +278,7 @@ describe("gnattest.runner", function()
 
         xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "test.adb" },
+          tests = { line = "10", column = "5", file = "test.adb" },
         })
 
         runner.on_exit_tests({

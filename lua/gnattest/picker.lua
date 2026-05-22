@@ -33,8 +33,8 @@ function M.select_tests()
           display = pkg .. ":" .. info.source.name,
           ordinal = pkg .. ":" .. info.source.name,
           filename = source_file,
-          path = (test_dir or ".") .. "/" .. info.test.file,
-          lnum = tonumber(info.test.line) + 5, -- Adjust line number to point to the test body
+          path = (test_dir or ".") .. "/" .. info.tests[1].file,
+          lnum = tonumber(info.tests[1].line) + 5, -- Adjust line number to point to the test body
           source_line = info.source.line,
         })
       end

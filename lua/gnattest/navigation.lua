@@ -49,9 +49,9 @@ function M.switch_subprogram()
     column = tonumber(info.source.column)
     als.switch_to_source()
   else
-    file = als.get_tests_dir() .. "/" .. info.test.file
-    line = tonumber(info.test.line)
-    column = tonumber(info.test.column)
+    file = als.get_tests_dir() .. "/" .. info.tests[1].file
+    line = tonumber(info.tests[1].line)
+    column = tonumber(info.tests[1].column)
     als.switch_to_tests()
   end
 

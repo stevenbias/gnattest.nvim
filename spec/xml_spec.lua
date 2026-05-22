@@ -472,14 +472,14 @@ describe("gnattest.xml", function()
             pkg1 = {
               {
                 source = { name = "test1", line = "10", column = "2" },
-                test = { name = "test_test1", file = "test.ads" },
+                tests = { { name = "test_test1", file = "test.ads" } },
               },
             },
           },
         })
         local result, filename = xml.get_test_by_name("pkg1", "test1")
         assert.equals("test1", result.source.name)
-        assert.equals("test.ads", result.test.file)
+        assert.equals("test.ads", result.tests[1].file)
         assert.equals("10", result.source.line)
         assert.equals("2", result.source.column)
         assert.equals("file1", filename)
@@ -531,8 +531,8 @@ describe("gnattest.xml", function()
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", case = { line = "10" } },
-                test = { name = "Test_My_Function", file = "test.adb" },
+                source = { name = "My_Function", case = { { line = "10" } } },
+                tests = { { name = "Test_My_Function", file = "test.adb" } },
               },
             },
           },
@@ -583,8 +583,8 @@ describe("gnattest.xml", function()
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", case = { line = "10" } },
-                test = { name = "Test_My_Function", file = "test.adb" },
+                source = { name = "My_Function", case = { { line = "10" } } },
+                tests = { { name = "Test_My_Function", file = "test.adb" } },
               },
             },
           },
@@ -653,11 +653,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "My_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_My_Function",
-                  file = "test.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_My_Function",
+                    file = "test.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -685,11 +687,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "My_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_My_Function",
-                  file = "test_file.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_My_Function",
+                    file = "test_file.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -700,7 +704,7 @@ describe("gnattest.xml", function()
 
         assert.equals("my_package.ads", file)
         assert.equals("Package1", pkg)
-        assert.equals("Test_My_Function", info.test.name)
+        assert.equals("Test_My_Function", info.tests[1].name)
       end)
 
       it("returns nil when no matches", function()
@@ -709,11 +713,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "Other_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_Other_Function",
-                  file = "test_file.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_Other_Function",
+                    file = "test_file.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -904,11 +910,13 @@ describe("gnattest.xml", function()
                   line = "10",
                   column = "5",
                 },
-                test = {
-                  name = "test_add_positive",
-                  file = "test.ads",
-                  line = "50",
-                  column = "3",
+                tests = {
+                  {
+                    name = "test_add_positive",
+                    file = "test.ads",
+                    line = "50",
+                    column = "3",
+                  },
                 },
               },
             },
@@ -927,22 +935,24 @@ describe("gnattest.xml", function()
             ["test_pkg"] = {
               {
                 source = { name = "proc" },
-                test = {
-                  name = "test_proc",
-                  file = "test.ads",
-                  line = "100",
-                  column = "3",
+                tests = {
+                  {
+                    name = "test_proc",
+                    file = "test.ads",
+                    line = "100",
+                    column = "3",
+                  },
                 },
               },
             },
           },
         })
         local test =
-          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].test
-        assert.equals("test_proc", test.name)
-        assert.equals("test.ads", test.file)
-        assert.equals("100", test.line)
-        assert.equals("3", test.column)
+          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].tests
+        assert.equals("test_proc", test[1].name)
+        assert.equals("test.ads", test[1].file)
+        assert.equals("100", test[1].line)
+        assert.equals("3", test[1].column)
       end)
 
       it("handles multiple test packages in same file", function()
