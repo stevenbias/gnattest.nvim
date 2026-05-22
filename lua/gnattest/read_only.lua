@@ -240,6 +240,7 @@ function M.setup()
 
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = M.ro_group,
+    pattern = gnattest_pattern,
     callback = function()
       require("gnattest.highlight").set_highlight(M.namespace, M.hl_group)
     end,
