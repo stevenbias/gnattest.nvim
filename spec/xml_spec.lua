@@ -120,7 +120,7 @@ describe("gnattest.xml", function()
       assert.is_function(xml.get_test_by_name)
       assert.is_function(xml.get_xml_info)
       assert.is_function(xml.get_pkg_tests)
-      assert.is_function(xml.get_test_from_src_file_line)
+      assert.is_function(xml.get_test_from_src_case_line)
       assert.is_function(xml.get_gnattest_info_on_line)
       assert.is_function(xml.get_gnattest_info_on_cursor)
     end)
@@ -340,6 +340,167 @@ describe("gnattest.xml", function()
     end)
   end)
 
+  describe("tag and t_src parsing branches", function()
+    it(
+      "exercises tag push, t_src assignment, and pkg-level leftover push",
+      function()
+        _G.vim.fs.find = function()
+          return { "gnattest.xml" }
+        end
+        _G.vim.fn.readfile = function()
+          return { "<tests></tests>" }
+        end
+        _G.vim.treesitter.get_parser = function()
+          return {
+            parse = function()
+              return {
+                {
+                  root = function()
+                    return "root"
+                  end,
+                },
+              }
+            end,
+          }
+        end
+
+        _G.vim.treesitter.query.parse = function(_, query_str)
+          if query_str:find("test_unit") then
+            return {
+              captures = { "ptext" },
+              iter_captures = function()
+                local captures = { { 1, "pkg_tgt" }, { 1, "pkg_name" } }
+                local i = 0
+                return function()
+                  i = i + 1
+                  if i <= #captures then
+                    return captures[i][1], captures[i][2]
+                  end
+                end
+              end,
+            }
+          elseif query_str:find("unit") then
+            return {
+              captures = { "source_file" },
+              iter_captures = function()
+                local captures = { { 1, "unit_src" }, { 1, "unit_file" } }
+                local i = 0
+                return function()
+                  i = i + 1
+                  if i <= #captures then
+                    return captures[i][1], captures[i][2]
+                  end
+                end
+              end,
+            }
+          else
+            local pkg_n = 0
+            return {
+              captures = {
+                "tag",
+                "string",
+                "src",
+                "t_tag",
+                "t_string",
+                "t_src",
+                "string",
+                "tst",
+              },
+              iter_captures = function()
+                pkg_n = pkg_n + 1
+                local seq
+                if pkg_n == 1 then
+                  seq = {
+                    -- First <tested>: tag with no pending info → just reset
+                    { 1, "tag1" },
+                    { 2, "f_name" },
+                    { 3, "src_name" },
+                    { 2, "f_line" },
+                    { 3, "src_line" },
+                    { 2, "f_col" },
+                    { 3, "src_col" },
+                    -- test_case with t_src branch
+                    { 4, "t_tag1" },
+                    { 5, "tc_name" },
+                    { 6, "ts_name" },
+                    { 5, "tc_line" },
+                    { 6, "ts_line" },
+                    { 5, "tc_col" },
+                    { 6, "ts_col" },
+                    -- test entry
+                    { 7, "f_file" },
+                    { 8, "tst_file" },
+                    { 7, "f_line" },
+                    { 8, "tst_line" },
+                    { 7, "f_col" },
+                    { 8, "tst_col" },
+                    { 7, "f_name" },
+                    { 8, "tst_name" },
+                    -- Second <tested>: tag WITH pending gnattest_info → push
+                    { 1, "tag2" },
+                  }
+                else
+                  seq = {
+                    -- Single <tested>: populate gnattest_info for pkg-level push
+                    { 1, "tag1" },
+                    { 2, "f_name" },
+                    { 3, "src_name2" },
+                    { 7, "f_name" },
+                    { 8, "tst_name2" },
+                  }
+                end
+                local i = 0
+                return function()
+                  i = i + 1
+                  if i <= #seq then
+                    return seq[i][1], seq[i][2]
+                  end
+                end
+              end,
+            }
+          end
+        end
+
+        _G.vim.treesitter.get_node_text = function(node)
+          local map = {
+            unit_src = "source_file",
+            unit_file = "file.ads",
+            pkg_tgt = "target_file",
+            pkg_name = "Pkg1",
+            tag1 = "tag1",
+            tag2 = "tag2",
+            f_name = "name",
+            f_line = "line",
+            f_col = "column",
+            f_file = "file",
+            src_name = "Fn1",
+            src_line = "10",
+            src_col = "5",
+            src_name2 = "Fn2",
+            t_tag1 = "t_tag",
+            tc_name = "name",
+            tc_line = "line",
+            tc_col = "column",
+            ts_name = "My_Case",
+            ts_line = "50",
+            ts_col = "3",
+            tst_file = "test.adb",
+            tst_line = "15",
+            tst_col = "3",
+            tst_name = "Test_Fn1",
+            tst_name2 = "Test_Fn2",
+          }
+          return map[node] or node
+        end
+
+        local result = xml.get_xml_info()
+        assert.is_table(result)
+        assert.is_not_nil(result["file.ads"])
+        assert.is_not_nil(result["file.ads"]["Pkg1"])
+      end
+    )
+  end)
+
   describe("XML parsing logic coverage tests", function()
     describe("core data structure population", function()
       it("populates source_files table from unit captures", function()
@@ -392,6 +553,14 @@ describe("gnattest.xml", function()
         local result = xml.get_xml_info()
         assert.is_not_nil(result["package_a.ads"])
         assert.is_not_nil(result["package_b.ads"])
+      end)
+
+      it("returns nil when gnattest.xml not found", function()
+        _G.vim.fs.find = function()
+          return {}
+        end
+
+        assert.is_nil(xml.get_xml_info())
       end)
     end)
 
@@ -472,14 +641,14 @@ describe("gnattest.xml", function()
             pkg1 = {
               {
                 source = { name = "test1", line = "10", column = "2" },
-                test = { name = "test_test1", file = "test.ads" },
+                tests = { { name = "test_test1", file = "test.ads" } },
               },
             },
           },
         })
         local result, filename = xml.get_test_by_name("pkg1", "test1")
         assert.equals("test1", result.source.name)
-        assert.equals("test.ads", result.test.file)
+        assert.equals("test.ads", result.tests[1].file)
         assert.equals("10", result.source.line)
         assert.equals("2", result.source.column)
         assert.equals("file1", filename)
@@ -525,21 +694,21 @@ describe("gnattest.xml", function()
       end)
     end)
 
-    describe("get_test_from_src_file_line", function()
+    describe("get_test_from_src_case_line", function()
       it("finds test by filename and line", function()
         xml = inject_xml_data({
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", line = "10", column = "2" },
-                test = { name = "Test_My_Function", file = "test.adb" },
+                source = { name = "My_Function", case = { { line = "10" } } },
+                tests = { { name = "Test_My_Function", file = "test.adb" } },
               },
             },
           },
         })
 
         local file, pkg, info =
-          xml.get_test_from_src_file_line("my_package.ads", 10)
+          xml.get_test_from_src_case_line("my_package.ads", 10)
 
         assert.equals("my_package.ads", file)
         assert.equals("Package1", pkg)
@@ -574,7 +743,7 @@ describe("gnattest.xml", function()
           { unit_flag = "source_file", unit_file = "my_file.ads" }
         )
 
-        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 10))
+        assert.is_nil(xml.get_test_from_src_case_line("my_package.ads", 10))
         assert.equals(1, parse_calls)
       end)
 
@@ -583,14 +752,14 @@ describe("gnattest.xml", function()
           ["my_package.ads"] = {
             Package1 = {
               {
-                source = { name = "My_Function", line = "10", column = "2" },
-                test = { name = "Test_My_Function", file = "test.adb" },
+                source = { name = "My_Function", case = { { line = "10" } } },
+                tests = { { name = "Test_My_Function", file = "test.adb" } },
               },
             },
           },
         })
 
-        assert.is_nil(xml.get_test_from_src_file_line("my_package.ads", 11))
+        assert.is_nil(xml.get_test_from_src_case_line("my_package.ads", 11))
       end)
     end)
 
@@ -604,7 +773,11 @@ describe("gnattest.xml", function()
         original_get_subprogram =
           require("gnattest.ada_ls").get_subprogram_name_from_line
         require("gnattest.ada_ls").get_subprogram_name_from_line = function()
-          return "My_Function"
+          return "My_Function",
+            {
+              start = { line = 0, character = 0 },
+              end_ = { line = 999, character = 999 },
+            }
         end
 
         local utils = require("gnattest.utils")
@@ -649,11 +822,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "My_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_My_Function",
-                  file = "test.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_My_Function",
+                    file = "test.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -681,11 +856,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "My_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_My_Function",
-                  file = "test_file.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_My_Function",
+                    file = "test_file.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -696,7 +873,7 @@ describe("gnattest.xml", function()
 
         assert.equals("my_package.ads", file)
         assert.equals("Package1", pkg)
-        assert.equals("Test_My_Function", info.test.name)
+        assert.equals("Test_My_Function", info.tests[1].name)
       end)
 
       it("returns nil when no matches", function()
@@ -705,11 +882,13 @@ describe("gnattest.xml", function()
             Package1 = {
               {
                 source = { name = "Other_Function", line = "10", column = "2" },
-                test = {
-                  name = "Test_Other_Function",
-                  file = "test_file.adb",
-                  line = "20",
-                  column = "4",
+                tests = {
+                  {
+                    name = "Test_Other_Function",
+                    file = "test_file.adb",
+                    line = "20",
+                    column = "4",
+                  },
                 },
               },
             },
@@ -900,11 +1079,13 @@ describe("gnattest.xml", function()
                   line = "10",
                   column = "5",
                 },
-                test = {
-                  name = "test_add_positive",
-                  file = "test.ads",
-                  line = "50",
-                  column = "3",
+                tests = {
+                  {
+                    name = "test_add_positive",
+                    file = "test.ads",
+                    line = "50",
+                    column = "3",
+                  },
                 },
               },
             },
@@ -923,22 +1104,24 @@ describe("gnattest.xml", function()
             ["test_pkg"] = {
               {
                 source = { name = "proc" },
-                test = {
-                  name = "test_proc",
-                  file = "test.ads",
-                  line = "100",
-                  column = "3",
+                tests = {
+                  {
+                    name = "test_proc",
+                    file = "test.ads",
+                    line = "100",
+                    column = "3",
+                  },
                 },
               },
             },
           },
         })
         local test =
-          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].test
-        assert.equals("test_proc", test.name)
-        assert.equals("test.ads", test.file)
-        assert.equals("100", test.line)
-        assert.equals("3", test.column)
+          xml.get_xml_info()["src/my_package.ads"]["test_pkg"][1].tests
+        assert.equals("test_proc", test[1].name)
+        assert.equals("test.ads", test[1].file)
+        assert.equals("100", test[1].line)
+        assert.equals("3", test[1].column)
       end)
 
       it("handles multiple test packages in same file", function()
@@ -995,6 +1178,28 @@ describe("gnattest.xml", function()
         local buf_id = xml._create_xml_buf()
         assert.equals(1, buf_id)
       end)
+
+      it(
+        "_create_xml_buf returns nil and notifies when gnattest.xml not found",
+        function()
+          _G.vim.fs.find = function()
+            return {}
+          end
+          local notified = false
+          local utils = require("gnattest.utils")
+          local orig_notify = utils.notify
+          utils.notify = function(_, lvl)
+            notified = true
+            assert.equals(vim.log.levels.ERROR, lvl)
+          end
+
+          local result = xml._create_xml_buf()
+          assert.is_nil(result)
+          assert.is_true(notified)
+
+          utils.notify = orig_notify
+        end
+      )
 
       it(
         "_create_xml_buf executes file pattern matching in vim.fs.find callback",

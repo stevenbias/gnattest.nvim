@@ -79,8 +79,8 @@ function M.is_gnattest_file()
 
   local bufdir = M.get_bufdir()
   local result = string.find(bufdir, "gnattest") ~= nil
-    or string.find(bufdir, als.get_harness_dir()) ~= nil
-    or string.find(bufdir, als.get_tests_dir()) ~= nil
+    or string.find(als.get_harness_dir(), bufdir) ~= nil
+    or string.find(als.get_tests_dir(), bufdir) ~= nil
   gnattest_file_cache[bufid] = result
   return result
 end

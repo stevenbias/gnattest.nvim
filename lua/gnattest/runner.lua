@@ -14,12 +14,12 @@ end
 local function prepare_qf_item(pkg, test_info, line, type)
   local utils = require("gnattest.utils")
   local test_dir = require("gnattest.ada_ls").get_tests_dir()
-  local lnum = tonumber(test_info.test.line)
-  local col = tonumber(test_info.test.column)
-  local file = utils.find_file(test_info.test.file, test_dir)
+  local lnum = tonumber(test_info.tests.line)
+  local col = tonumber(test_info.tests.column)
+  local file = utils.find_file(test_info.tests.file, test_dir)
 
   if not file then
-    file = test_info.test.file
+    file = test_info.tests.file
     utils.notify(
       file .. " not found in " .. test_dir .. " directory",
       vim.log.levels.WARN
@@ -74,7 +74,7 @@ local function on_exit_tests(obj)
 
     for _, line in ipairs(lines) do
       local _, pkg, test_info =
-        require("gnattest.xml").get_test_from_src_file_line(
+        require("gnattest.xml").get_test_from_src_case_line(
           vim.split(line, ":")[1], -- filename
           tonumber(vim.split(line, ":")[2]) -- line number
         )

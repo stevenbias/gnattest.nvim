@@ -81,17 +81,17 @@ describe("gnattest.picker", function()
           PkgA = {
             {
               source = { name = "Init", line = "10", column = "5" },
-              test = { file = "test_a.adb", line = "15", column = "3" },
+              tests = { { file = "test_a.adb", line = "15", column = "3" } },
             },
             {
               source = { name = "Read", line = "20", column = "5" },
-              test = { file = "test_a.adb", line = "25", column = "3" },
+              tests = { { file = "test_a.adb", line = "25", column = "3" } },
             },
           },
           PkgB = {
             {
               source = { name = "Write", line = "30", column = "5" },
-              test = { file = "test_b.adb", line = "35", column = "3" },
+              tests = { { file = "test_b.adb", line = "35", column = "3" } },
             },
           },
         },

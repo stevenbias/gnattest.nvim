@@ -68,7 +68,7 @@ describe("gnattest.runner", function()
     package.loaded["gnattest.ada_ls"] = ada_ls_mock
 
     xml_mock = {
-      get_test_from_src_file_line = require("luassert.stub")
+      get_test_from_src_case_line = require("luassert.stub")
         .new()
         .returns(nil, nil, nil),
     }
@@ -189,7 +189,7 @@ describe("gnattest.runner", function()
         function()
           local test_info = {
             source = { name = "My_Proc" },
-            test = { line = "10", column = "5", file = "test.adb" },
+            tests = { line = "10", column = "5", file = "test.adb" },
           }
 
           local item = runner.prepare_qf_item(
@@ -211,7 +211,7 @@ describe("gnattest.runner", function()
         utils_mock.find_file.returns(nil)
         local test_info = {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "missing.adb" },
+          tests = { line = "10", column = "5", file = "missing.adb" },
         }
 
         runner.prepare_qf_item("Pkg", test_info, "corresponding test")
@@ -256,9 +256,9 @@ describe("gnattest.runner", function()
         mock_system_async()
         runner.run_test()
 
-        xml_mock.get_test_from_src_file_line.returns("source.ads", "Pkg", {
+        xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "test.adb" },
+          tests = { line = "10", column = "5", file = "test.adb" },
         })
         utils_mock.find_file.returns("/found/test.adb")
 
@@ -276,9 +276,9 @@ describe("gnattest.runner", function()
         runner.run_test()
         runner.run_test() -- pending = 2
 
-        xml_mock.get_test_from_src_file_line.returns("source.ads", "Pkg", {
+        xml_mock.get_test_from_src_case_line.returns("source.ads", "Pkg", {
           source = { name = "My_Proc" },
-          test = { line = "10", column = "5", file = "test.adb" },
+          tests = { line = "10", column = "5", file = "test.adb" },
         })
 
         runner.on_exit_tests({

@@ -32,11 +32,13 @@ describe("gnattest.navigation", function()
         line = opts.source_line or 10,
         column = opts.source_column or 5,
       },
-      test = {
-        name = test_name,
-        file = opts.test_file or "test_file.adb",
-        line = opts.test_line or 20,
-        column = opts.test_column or 10,
+      tests = {
+        {
+          name = test_name,
+          file = opts.test_file or "test_file.adb",
+          line = opts.test_line or 20,
+          column = opts.test_column or 10,
+        },
       },
     }
   end
