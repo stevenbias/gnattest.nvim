@@ -76,7 +76,8 @@ function M.get_obj_dir()
     M.obj_dir = obj_dir
     return M.obj_dir
   else
-    return nil
+    -- Fallback to default obj folder...
+    return "obj"
   end
 end
 

@@ -282,7 +282,7 @@ describe("gnattest.ada_ls", function()
     it("returns nil when lsp_cmd returns nil", function()
       ada_ls.obj_dir = nil
       lsp_cmd_mock.get_obj_dir = stub.new().returns(nil)
-      assert.is_nil(ada_ls.get_obj_dir())
+      assert.equals("obj", ada_ls.get_obj_dir())
     end)
   end)
 
