@@ -163,7 +163,10 @@ local function fix_ro_regions()
       if end_row ~= nil then
         local lines =
           require("gnattest.utils").get_lines(start_row, end_row - 1)
-        if not vim.deep_equal(lines, M.extmark[mark_id].lines) then
+        if
+          M.extmark[mark_id] ~= nil
+          and not vim.deep_equal(lines, M.extmark[mark_id].lines)
+        then
           table.insert(marks_to_restore, {
             start_row = start_row,
             end_row = end_row,
