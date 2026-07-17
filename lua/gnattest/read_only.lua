@@ -272,9 +272,13 @@ function M.setup()
   conform_workaround()
 end
 
-function M.reset()
+function M.clear()
   M.ro_group = vim.api.nvim_create_augroup("read_only", { clear = true })
   refresh()
+end
+
+function M.reset()
+  M.clear()
   M.setup()
 end
 

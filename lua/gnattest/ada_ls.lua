@@ -17,6 +17,16 @@ local function init_module()
   M.is_init = true
 end
 
+local function reset_module()
+  M.is_init = false
+  M.root_dir = ""
+  M.prj_file = ""
+  M.src_dirs = {}
+  M.obj_dir = nil
+  M.harness_dir = ""
+  M.tests_dir = ""
+end
+
 function M.get_ada_ls()
   return require("ada_ls.utils").get_ada_ls()
 end
@@ -187,6 +197,10 @@ function M.setup()
   if require("gnattest.utils").is_gnattest_file() then
     M.switch_to_tests()
   end
+end
+
+function M.clear()
+  reset_module()
 end
 
 return M
