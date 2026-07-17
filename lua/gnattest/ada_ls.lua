@@ -100,24 +100,58 @@ function M.get_harness_dir()
   end
 end
 
--- TODO: 'Tests_Root' attribute is not supported!
-function M.get_tests_dir()
+-- TODO: 'Tests_Root' attribute is not fully supported!
+local function get_tests_dir_att(attribute)
   if M.tests_dir ~= "" then
-    return M.tests_dir
+    return ""
   end
-
   local tests_dir = require("ada_ls.lsp_cmd").send_command(
     "als-get-project-attribute-value",
-    { attribute = "Tests_Dir", pkg = "Gnattest", index = "" }
+    { attribute = attribute, pkg = "Gnattest", index = "" },
+    1500
   )
+  return tests_dir or ""
+end
 
-  if tests_dir ~= nil and tests_dir ~= "" then
-    M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir
-    return M.tests_dir
-  else
-    M.tests_dir = M.get_obj_dir() .. "/" .. "gnattest/tests"
-    return M.tests_dir
+function M.get_tests_dir()
+  local tests_dir = ""
+  local tests_root
+  local subdir = ""
+
+  -- Check for 'Tests_Root' attribute first, if it exists, use it to construct
+  -- the tests directory path
+  tests_root = get_tests_dir_att("Tests_Root")
+  if tests_root ~= "" then
+    M.tests_dir = M.get_obj_dir() .. "/" .. tests_root
   end
+
+  -- If 'Tests_Root' is not set, check for 'Subdir' attribute to construct the
+  -- tests directory path
+  if M.tests_dir == "" then
+    subdir = get_tests_dir_att("Subdir")
+  end
+  if subdir ~= "" then
+    local src_dirs = M.get_src_dirs()
+    if src_dirs and src_dirs[2] then
+      M.tests_dir = src_dirs[2] .. subdir
+    end
+  end
+
+  -- If neither 'Tests_Root' nor 'Subdir' is set, check for 'Tests_Dir'
+  -- attribute
+  if M.tests_dir == "" then
+    tests_dir = get_tests_dir_att("Tests_Dir")
+  end
+  if tests_dir ~= "" then
+    M.tests_dir = M.get_obj_dir() .. "/" .. tests_dir
+  end
+
+  -- If none of the attributes are set, fallback to default tests directory
+  if M.tests_dir == "" then
+    M.tests_dir = M.get_obj_dir() .. "/" .. "gnattest/tests"
+  end
+
+  return M.tests_dir
 end
 
 local function switch_prj(prj)
