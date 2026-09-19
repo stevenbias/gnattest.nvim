@@ -1,8 +1,7 @@
-local default_pattern = "**/gnattest/*"
 local gnattest_file_cache = {}
 
 local M = {
-  gnattest_pattern = { default_pattern },
+  gnattest_pattern = {},
 }
 
 M.plugin_name = "GNATtest"
@@ -42,16 +41,23 @@ function M.get_bufid()
   return vim.api.nvim_get_current_buf()
 end
 
-function M.get_bufpath()
-  return vim.fn.expand("%")
+function M.get_bufpath(absolute)
+  local path
+
+  if absolute == true then
+    path = vim.fn.expand("%:p")
+  else
+    path = vim.fn.expand("%")
+  end
+  return path
 end
 
-function M.get_filename()
-  return vim.fs.basename(M.get_bufpath())
+function M.get_filename(absolute)
+  return vim.fs.basename(M.get_bufpath(absolute))
 end
 
-function M.get_bufdir()
-  return vim.fs.dirname(M.get_bufpath())
+function M.get_bufdir(absolute)
+  return vim.fs.dirname(M.get_bufpath(absolute))
 end
 
 function M.split_filename(filename)
@@ -63,24 +69,38 @@ function M.split_filename(filename)
   return name, ext
 end
 
+function M.set_gnattest_pattern(pattern)
+  M.gnattest_pattern = pattern
+end
+
 function M.is_gnattest_file()
   local als = require("gnattest.ada_ls")
   local bufid = M.get_bufid()
   if gnattest_file_cache[bufid] ~= nil then
     return gnattest_file_cache[bufid]
   end
+  local pattern = {}
 
   if als.get_tests_dir() ~= nil then
-    table.insert(M.gnattest_pattern, als.get_tests_dir() .. "/*")
+    table.insert(pattern, vim.fs.normalize(als.get_tests_dir()))
   end
   if als.get_harness_dir() ~= nil then
-    table.insert(M.gnattest_pattern, als.get_harness_dir() .. "/*")
+    table.insert(pattern, vim.fs.normalize(als.get_harness_dir()))
   end
 
-  local bufdir = M.get_bufdir()
-  local result = string.find(bufdir, "gnattest") ~= nil
-    or string.find(als.get_harness_dir(), bufdir) ~= nil
-    or string.find(als.get_tests_dir(), bufdir) ~= nil
+  if #M.gnattest_pattern == 0 and #pattern ~= 0 then
+    for _, p in ipairs(pattern) do
+      table.insert(M.gnattest_pattern, p .. "/*")
+    end
+  end
+
+  local bufdir = M.get_bufdir(true)
+  local result = false
+
+  if vim.list_contains(pattern, bufdir) then
+    result = true
+  end
+
   gnattest_file_cache[bufid] = result
   return result
 end

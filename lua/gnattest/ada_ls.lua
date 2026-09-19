@@ -101,7 +101,7 @@ function M.get_harness_dir()
     { attribute = "Harness_Dir", pkg = "Gnattest", index = "" }
   )
 
-  if harness_dir == nil and harness_dir ~= "" then
+  if harness_dir == nil or harness_dir == "" then
     M.harness_dir = M.get_obj_dir() .. "/gnattest/harness"
     return M.harness_dir
   else
@@ -197,6 +197,8 @@ function M.setup()
   if require("gnattest.utils").is_gnattest_file() then
     M.switch_to_tests()
   end
+  -- Populate gnattest_pattern for read_only autocmds
+  require("gnattest.utils").is_gnattest_file()
 end
 
 function M.clear()
