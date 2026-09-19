@@ -1,5 +1,23 @@
 local M = {}
 
+local function clear()
+  require("gnattest.ada_ls").clear()
+  require("gnattest.read_only").clear()
+
+  vim.g.loaded_gnattest = nil
+  for name, _ in pairs(package.loaded) do
+    if name:match("^gnattest") then
+      package.loaded[name] = nil
+    end
+  end
+end
+
+local function on_notif_conf_change()
+  clear()
+  require("gnattest.ada_ls").setup()
+  require("gnattest.read_only").setup()
+end
+
 ---@class GnattestConfig : table
 ---@field highlight {percent: number}
 ---@field read_only {enabled: boolean}
@@ -34,6 +52,35 @@ function M.setup(opts)
         require("gnattest.ada_ls").setup()
         require("gnattest.read_only").setup()
       end, 100)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("LspNotify", {
+    group = vim.api.nvim_create_augroup("AdaLSPNotify", { clear = true }),
+    pattern = {
+      "*.ad[bs]",
+    },
+    callback = function(ev)
+      local method = ev.data.method
+
+      -- do something with the notification
+      if method == "workspace/didChangeConfiguration" then
+        local project_file = ev.data
+          and ev.data.params
+          and ev.data.params.settings
+          and ev.data.params.settings.ada
+          and ev.data.params.settings.ada.projectFile
+
+        if not project_file then
+          return
+        elseif project_file:match("test_driver.gpr") then
+          return -- ignore notifications from the test project
+        else
+          -- clear and re-setup gnattest when ada_ls sends a
+          -- workspace/didChangeConfiguration notification
+          on_notif_conf_change()
+        end
+      end
     end,
   })
 end
