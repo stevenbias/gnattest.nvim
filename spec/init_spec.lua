@@ -7,7 +7,7 @@ describe("gnattest.init", function()
   local config_mock
   local read_only_mock
   local ada_ls_mock
-  local captured_callback
+  local captured_callbacks
 
   local function make_autocmd_stub()
     local autocmd_stubbed = stub.new()
@@ -17,7 +17,10 @@ describe("gnattest.init", function()
     end
     local mt = {
       __call = function(self, event, opts)
-        captured_callback = opts and opts.callback
+        table.insert(captured_callbacks, {
+          event = event,
+          callback = opts and opts.callback,
+        })
         if self._fn then
           self._fn(event, opts)
         end
@@ -28,7 +31,7 @@ describe("gnattest.init", function()
   end
 
   before_each(function()
-    captured_callback = nil
+    captured_callbacks = {}
 
     common.setup_vim_globals(
       {
@@ -115,14 +118,27 @@ describe("gnattest.init", function()
         end
         local ada = { name = "ada_ls", id = 1 }
         _G.vim.lsp.get_client_by_id = stub_new().returns(ada)
-        captured_callback({ data = { client_id = 1 } })
+        -- Find and call the LspAttach callback
+        for _, cb_info in ipairs(captured_callbacks) do
+          if cb_info.event == "LspAttach" then
+            cb_info.callback({ data = { client_id = 1 } })
+            break
+          end
+        end
         assert.stub(read_only_mock.setup).was_called()
       end
     )
 
     it("should create LspAttach autocmd for ada files", function()
       gnattest_init.setup()
-      assert.is_not_nil(captured_callback)
+      local found_lsp_attach = false
+      for _, cb_info in ipairs(captured_callbacks) do
+        if cb_info.event == "LspAttach" then
+          found_lsp_attach = true
+          break
+        end
+      end
+      assert.is_true(found_lsp_attach, "LspAttach autocmd should be created")
     end)
   end)
 
@@ -131,7 +147,12 @@ describe("gnattest.init", function()
       gnattest_init.setup()
       _G.vim.lsp.get_client_by_id = stub_new().returns(nil)
 
-      captured_callback({ data = { client_id = 1 } })
+      for _, cb_info in ipairs(captured_callbacks) do
+        if cb_info.event == "LspAttach" then
+          cb_info.callback({ data = { client_id = 1 } })
+          break
+        end
+      end
 
       assert.stub(ada_ls_mock.setup).was_not_called()
     end)
@@ -141,7 +162,12 @@ describe("gnattest.init", function()
       local non_ada = { name = "rust_analyzer", id = 1 }
       _G.vim.lsp.get_client_by_id = stub_new().returns(non_ada)
 
-      captured_callback({ data = { client_id = 1 } })
+      for _, cb_info in ipairs(captured_callbacks) do
+        if cb_info.event == "LspAttach" then
+          cb_info.callback({ data = { client_id = 1 } })
+          break
+        end
+      end
 
       assert.stub(ada_ls_mock.setup).was_not_called()
     end)
@@ -155,7 +181,12 @@ describe("gnattest.init", function()
       local ada = { name = "ada_ls", id = 1 }
       _G.vim.lsp.get_client_by_id = stub_new().returns(ada)
 
-      captured_callback({ data = { client_id = 1 } })
+      for _, cb_info in ipairs(captured_callbacks) do
+        if cb_info.event == "LspAttach" then
+          cb_info.callback({ data = { client_id = 1 } })
+          break
+        end
+      end
 
       assert.stub(ada_ls_mock.setup).was_not_called()
     end)
@@ -171,7 +202,12 @@ describe("gnattest.init", function()
         local ada = { name = "ada_ls", id = 1 }
         _G.vim.lsp.get_client_by_id = stub_new().returns(ada)
 
-        captured_callback({ data = { client_id = 1 } })
+        for _, cb_info in ipairs(captured_callbacks) do
+          if cb_info.event == "LspAttach" then
+            cb_info.callback({ data = { client_id = 1 } })
+            break
+          end
+        end
 
         assert.stub(ada_ls_mock.setup).was_called()
       end

@@ -149,6 +149,31 @@ describe("gnattest.ada_ls", function()
 
       assert.stub(ada_ls_utils_mock.notify_server).was_not_called()
     end)
+
+    it("calls is_gnattest_file twice to populate pattern", function()
+      local utils = require("gnattest.utils")
+      local original_is_gnattest = utils.is_gnattest_file
+      local call_count = 0
+      utils.is_gnattest_file = function()
+        call_count = call_count + 1
+        return original_is_gnattest()
+      end
+
+      setup_module_state({
+        is_init = true,
+        harness_dir = "/project/obj/gnattest/harness",
+      })
+
+      ada_ls.setup()
+
+      -- is_gnattest_file should be called at least twice:
+      -- 1. First call in setup() to check if should switch to tests
+      -- 2. Second call to populate gnattest_pattern
+      assert.is_true(
+        call_count >= 2,
+        "is_gnattest_file should be called at least twice"
+      )
+    end)
   end)
 
   describe("get_root_dir()", function()

@@ -1,0 +1,147 @@
+<tests_mapping mode="monolith">
+   <unit source_file="board.ads">
+      <test_unit target_file="Board">
+         <setup file="board-test_data.adb" name="Set_Up" line="8"  column="4"/>
+         <teardown file="board-test_data.adb" name="Tear_Down" line="14"  column="4"/>
+         <tested name="Init" line="29" column="13">
+            <test_case name="test case" line="29" column="4">
+               <test file="board-test_data-tests.adb" line="40" column="1" name="Test_Init_595846" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Cells_Ptr_Null" line="31" column="13">
+            <test_case name="test case" line="31" column="4">
+               <test file="board-test_data-tests.adb" line="97" column="1" name="Test_Is_Cells_Ptr_Null_f1f804" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Cell_Null" line="33" column="13">
+            <test_case name="test case" line="33" column="4">
+               <test file="board-test_data-tests.adb" line="124" column="1" name="Test_Is_Cell_Null_d85fa2" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Cell_Playable" line="35" column="13">
+            <test_case name="test case" line="35" column="4">
+               <test file="board-test_data-tests.adb" line="151" column="1" name="Test_Is_Cell_Playable_7d4eda" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Init" line="43" column="13">
+            <test_case name="test case" line="43" column="4">
+               <test file="board-test_data-tests.adb" line="188" column="1" name="Test_Is_Init_0d9a81" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Full" line="44" column="13">
+            <test_case name="test case" line="44" column="4">
+               <test file="board-test_data-tests.adb" line="219" column="1" name="Test_Is_Full_52856e" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Print" line="45" column="14">
+            <test_case name="test case" line="45" column="4">
+               <test file="board-test_data-tests.adb" line="252" column="1" name="Test_Print_dd6fca" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Get_Cell" line="47" column="13">
+            <test_case name="test case" line="47" column="4">
+               <test file="board-test_data-tests.adb" line="273" column="1" name="Test_Get_Cell_f1b313" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Get_Nb_Cells" line="49" column="13">
+            <test_case name="test case" line="49" column="4">
+               <test file="board-test_data-tests.adb" line="309" column="1" name="Test_Get_Nb_Cells_a840a2" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Get_Score" line="51" column="14">
+            <test_case name="test case" line="51" column="4">
+               <test file="board-test_data-tests.adb" line="353" column="1" name="Test_Get_Score_6e2e4f" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Set_Cell" line="55" column="14">
+            <test_case name="test case" line="55" column="4">
+               <test file="board-test_data-tests.adb" line="380" column="1" name="Test_Set_Cell_6b1fec" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Switch_Help_Mode" line="62" column="14">
+            <test_case name="test case" line="62" column="4">
+               <test file="board-test_data-tests.adb" line="496" column="1" name="Test_Switch_Help_Mode_e085df" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Uninit" line="63" column="14">
+            <test_case name="test case" line="63" column="4">
+               <test file="board-test_data-tests.adb" line="514" column="1" name="Test_Uninit_74e49e" timestamp="modified"/>
+            </test_case>
+         </tested>
+      </test_unit>
+   </unit>
+   <unit source_file="cell.ads">
+      <test_unit target_file="Cell">
+         <tested name="Print" line="10" column="13">
+            <test_case name="test case" line="10" column="4">
+               <test file="cell-test_data-tests.adb" line="39" column="1" name="Test_Print_51aa00" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Init" line="11" column="13">
+            <test_case name="test case" line="11" column="4">
+               <test file="cell-test_data-tests.adb" line="87" column="1" name="Test_Init_cf4d99" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Null" line="13" column="13">
+            <test_case name="test case" line="13" column="4">
+               <test file="cell-test_data-tests.adb" line="109" column="1" name="Test_Is_Null_1b020c" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Free_Access" line="15" column="14">
+            <test_case name="test case" line="15" column="4">
+               <test file="cell-test_data-tests.adb" line="129" column="1" name="Test_Free_Access_3a91f2" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Get_Value" line="16" column="13">
+            <test_case name="test case" line="16" column="4">
+               <test file="cell-test_data-tests.adb" line="150" column="1" name="Test_Get_Value_cb17c9" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Set_Value" line="18" column="14">
+            <test_case name="test case" line="18" column="4">
+               <test file="cell-test_data-tests.adb" line="192" column="1" name="Test_Set_Value_c3ca76" timestamp="modified"/>
+            </test_case>
+         </tested>
+      </test_unit>
+   </unit>
+   <unit source_file="display.ads">
+      <test_unit target_file="Display">
+         <tested name="Init" line="7" column="14">
+            <test_case name="test case" line="7" column="4">
+               <test file="display-test_data-tests.adb" line="39" column="1" name="Test_Init_bf9922" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Is_Initialized" line="9" column="13">
+            <test_case name="test case" line="9" column="4">
+               <test file="display-test_data-tests.adb" line="59" column="1" name="Test_Is_Initialized_a556d7" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Refresh" line="11" column="14">
+            <test_case name="test case" line="11" column="4">
+               <test file="display-test_data-tests.adb" line="79" column="1" name="Test_Refresh_5f7465" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Header" line="16" column="14">
+            <test_case name="test case" line="16" column="4">
+               <test file="display-test_data-tests.adb" line="99" column="1" name="Test_Header_dab7a6" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Msg" line="21" column="14">
+            <test_case name="test case" line="21" column="4">
+               <test file="display-test_data-tests.adb" line="119" column="1" name="Test_Msg_f6de80" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Warn" line="26" column="14">
+            <test_case name="test case" line="26" column="4">
+               <test file="display-test_data-tests.adb" line="139" column="1" name="Test_Warn_023dd6" timestamp="modified"/>
+            </test_case>
+         </tested>
+         <tested name="Over" line="31" column="14">
+            <test_case name="test case" line="31" column="4">
+               <test file="display-test_data-tests.adb" line="159" column="1" name="Test_Over_db5140" timestamp="modified"/>
+            </test_case>
+         </tested>
+      </test_unit>
+   </unit>
+   <additional_tests/>
+</tests_mapping>

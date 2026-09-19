@@ -20,8 +20,12 @@ describe("gnattest.utils", function()
       end,
     })
     _G.vim.fn = helpers.create_vim_fn_mock({
-      expand = function(_)
-        return "gnattest/gnattest_file.adb"
+      expand = function(fmt)
+        if fmt == "%:p" then
+          return "/project/obj/gnattest/harness/gnattest_file.adb"
+        else
+          return "gnattest/gnattest_file.adb"
+        end
       end,
     })
     -- Stub Treesitter as used by utils.lua
@@ -71,10 +75,27 @@ describe("gnattest.utils", function()
       find = function(_)
         return {}
       end,
-      dirname = function(_)
+      dirname = function(path)
+        if path == "/project/obj/gnattest/harness/gnattest_file.adb" then
+          return "/project/obj/gnattest/harness"
+        end
         return "gnattest"
       end,
+      normalize = function(path)
+        return path
+      end,
+      basename = function(path)
+        return path
+      end,
     }
+    _G.vim.list_contains = function(list, item)
+      for _, v in ipairs(list) do
+        if v == item then
+          return true
+        end
+      end
+      return false
+    end
     -- Stub notify plugin and vim.notify
     package.preload["notify"] = function()
       return stub.new()

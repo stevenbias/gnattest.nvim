@@ -103,6 +103,191 @@ local function setup_xml_parsing_mocks(
   end
 end
 
+local function make_mock_node(node_type, text, attrs, children)
+  local node = {
+    _type = node_type,
+    _text = text,
+    _attrs = attrs or {},
+    _children = children or {},
+  }
+
+  function node:type()
+    return self._type
+  end
+
+  function node:iter_children()
+    local idx = 0
+    return function()
+      idx = idx + 1
+      return self._children[idx]
+    end
+  end
+
+  return node
+end
+
+local function make_element(tag_type, attrs, nested)
+  local tag_node = make_mock_node(tag_type, nil, attrs, {})
+  local element_children = { tag_node }
+
+  for _, child in ipairs(nested or {}) do
+    table.insert(element_children, child)
+  end
+
+  return make_mock_node("element", nil, {}, element_children)
+end
+
+local function make_regression_tree()
+  local function create_tested_entry(source_name, pkg_name)
+    local test_name = string.format("Test_%s", source_name)
+    local test_file = string.format("%s-test_data-tests.adb", pkg_name:lower())
+
+    local test_node = make_element("EmptyElemTag", {
+      name = test_name,
+      file = test_file,
+      line = "40",
+      column = "1",
+    })
+
+    local case_node = make_element("STag", {
+      name = "test case",
+      line = "29",
+      column = "4",
+    }, { test_node })
+    case_node._test_elements = { test_node }
+
+    local tested_node = make_element("STag", {
+      name = source_name,
+      line = "29",
+      column = "13",
+    }, { case_node })
+    tested_node._case_elements = { case_node }
+
+    return tested_node
+  end
+
+  local function create_unit(source_file, pkg_name, source_name)
+    local tested_node = create_tested_entry(source_name, pkg_name)
+    local pkg_node = make_element(
+      "STag",
+      { target_file = pkg_name },
+      { tested_node }
+    )
+    pkg_node._tested_elements = { tested_node }
+
+    local unit_node = make_element(
+      "STag",
+      { source_file = source_file },
+      { pkg_node }
+    )
+    unit_node._pkg_elements = { pkg_node }
+
+    return unit_node
+  end
+
+  local root = make_mock_node("root", nil, {}, {})
+  root._unit_elements = {
+    create_unit("board.ads", "Board", "Is_Full"),
+    create_unit("cell.ads", "Cell", "Set_Value"),
+    create_unit("display.ads", "Display", "Warn"),
+  }
+
+  return root
+end
+
+local function make_iter_matches_query(captures, resolver)
+  return {
+    captures = captures,
+    iter_matches = function(_, node, _)
+      local matches = resolver(node)
+      local idx = 0
+
+      return function()
+        idx = idx + 1
+        if matches[idx] == nil then
+          return nil
+        end
+
+        return idx, matches[idx]
+      end
+    end,
+  }
+end
+
+local function make_regression_query_parse(root)
+  local function element_matches(elements)
+    local matches = {}
+    for _, element in ipairs(elements or {}) do
+      table.insert(matches, { [2] = { element } })
+    end
+    return matches
+  end
+
+  local function attr_matches(attrs)
+    local matches = {}
+    for name, value in pairs(attrs or {}) do
+      table.insert(matches, {
+        [1] = { make_mock_node("Name", name, {}, {}) },
+        [2] = {
+          make_mock_node("AttValue", string.format('"%s"', value), {}, {}),
+        },
+      })
+    end
+    return matches
+  end
+
+  return function(_, query_str)
+    if query_str:find("(Attribute", 1, true) then
+      return make_iter_matches_query({ "name", "value" }, function(node)
+        return attr_matches(node and node._attrs)
+      end)
+    end
+
+    if query_str:find('(#eq%? @tag "unit")') then
+      return make_iter_matches_query({ "tag", "element" }, function(node)
+        if node == root then
+          return element_matches(node._unit_elements)
+        end
+        return {}
+      end)
+    end
+
+    if query_str:find('(#eq%? @tag "test_unit")') then
+      return make_iter_matches_query({ "tag", "element" }, function(node)
+        return element_matches(node and node._pkg_elements)
+      end)
+    end
+
+    if query_str:find('(#eq%? @tag "tested")') then
+      return make_iter_matches_query({ "tag", "element" }, function(node)
+        return element_matches(node and node._tested_elements)
+      end)
+    end
+
+    if query_str:find('(#eq%? @tag "test_case")') then
+      return make_iter_matches_query({ "tag", "element" }, function(node)
+        return element_matches(node and node._case_elements)
+      end)
+    end
+
+    if query_str:find('(#eq%? @tag "test")') then
+      return make_iter_matches_query({ "tag", "element" }, function(node)
+        return element_matches(node and node._test_elements)
+      end)
+    end
+
+    return {
+      captures = {},
+      iter_matches = function()
+        return function() end
+      end,
+      iter_captures = function()
+        return function() end
+      end,
+    }
+  end
+end
+
 describe("gnattest.xml", function()
   before_each(function()
     stub_vim_api()
@@ -258,6 +443,81 @@ describe("gnattest.xml", function()
       assert.is_true(string.find(content, "<tested") ~= nil)
       assert.is_true(string.find(content, "<test_case") ~= nil)
       assert.is_true(string.find(content, "<test") ~= nil)
+    end)
+  end)
+
+  describe("regression: missing source.name parsing", function()
+    it("keeps source.name for all tested entries", function()
+      local fixture_path =
+        "spec/fixtures/gnattest_regression_missing_source_name.xml"
+      local xml_lines = {}
+      local file = io.open(fixture_path, "r")
+
+      assert.is_not_nil(file)
+      if file then
+        for line in file:lines() do
+          table.insert(xml_lines, line)
+        end
+        file:close()
+      end
+
+      _G.vim.fs.find = function()
+        return { fixture_path }
+      end
+      _G.vim.fn.readfile = function()
+        return xml_lines
+      end
+
+      local root = make_regression_tree()
+      _G.vim.treesitter.query.parse = make_regression_query_parse(root)
+      _G.vim.treesitter.get_parser = function()
+        return {
+          parse = function()
+            return {
+              {
+                root = function()
+                  return root
+                end,
+              },
+            }
+          end,
+        }
+      end
+      _G.vim.treesitter.get_node_text = function(node)
+        return node and node._text or ""
+      end
+
+      local result = xml.get_xml_info(true)
+      assert.is_not_nil(result["board.ads"])
+      assert.is_not_nil(result["cell.ads"])
+      assert.is_not_nil(result["display.ads"])
+
+      local missing = {}
+      local expected_names = {
+        Is_Full = false,
+        Set_Value = false,
+        Warn = false,
+      }
+
+      for source_file, files in pairs(result) do
+        for pkg, pkg_info in pairs(files) do
+          for idx, info in ipairs(pkg_info) do
+            if info.source == nil or info.source.name == nil then
+              table.insert(
+                missing,
+                string.format("%s:%s[%d]", source_file, pkg, idx)
+              )
+            elseif expected_names[info.source.name] ~= nil then
+              expected_names[info.source.name] = true
+            end
+          end
+        end
+      end
+
+      assert.same({}, missing)
+      assert.is_true(expected_names.Is_Full)
+      assert.is_true(expected_names.Set_Value)
+      assert.is_true(expected_names.Warn)
     end)
   end)
 
