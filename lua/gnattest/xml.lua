@@ -68,18 +68,208 @@ local function create_xml_buf()
   return buf_id
 end
 
-function M.get_xml_info(refresh)
-  if next(xml_info) ~= nil and refresh ~= true then
-    return xml_info
+local function query_tag_elements(tag, empty)
+  local tag_node = empty and "EmptyElemTag" or "STag"
+  local query_string = string.format(
+    [[
+      (element
+        (%s
+          (Name) @tag
+          (#eq? @tag "%s")
+        )
+      ) @element
+    ]],
+    tag_node,
+    tag
+  )
+
+  return vim.treesitter.query.parse("xml", query_string)
+end
+
+local function query_attributes()
+  local query_string = [[
+    (Attribute
+      (Name) @name
+      (AttValue) @value
+    )
+  ]]
+
+  return vim.treesitter.query.parse("xml", query_string)
+end
+
+local function capture_ids(query)
+  local ids = {}
+
+  for id, name in ipairs(query.captures or {}) do
+    ids[name] = id
   end
 
-  local buf_id = create_xml_buf()
-  if buf_id == nil then
+  return ids
+end
+
+local function first_capture_node(match, id)
+  if not id then
     return nil
   end
 
-  local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
+  local nodes = match[id]
+  if nodes == nil then
+    return nil
+  end
 
+  return nodes[1]
+end
+
+local function get_node_text(node, buf_id)
+  if node == nil then
+    return nil
+  end
+
+  return vim.treesitter.get_node_text(node, buf_id):gsub('"', "")
+end
+
+local function get_attributes(node, buf_id, attr_query, attr_ids)
+  local attrs = {}
+
+  for _, attr_match in attr_query:iter_matches(node, buf_id) do
+    local name =
+      get_node_text(first_capture_node(attr_match, attr_ids.name), buf_id)
+    local value =
+      get_node_text(first_capture_node(attr_match, attr_ids.value), buf_id)
+
+    if name ~= nil and value ~= nil then
+      attrs[name] = value
+    end
+  end
+
+  return attrs
+end
+
+local function get_start_tag_node(element_node, empty)
+  local tag_type = empty and "EmptyElemTag" or "STag"
+
+  for child in element_node:iter_children() do
+    if child:type() == tag_type then
+      return child
+    end
+  end
+
+  return nil
+end
+
+local function parse_xml_info_with_matches(root, buf_id)
+  local source_files = {}
+
+  local unit_query = query_tag_elements("unit")
+  local pkg_query = query_tag_elements("test_unit")
+  local tested_query = query_tag_elements("tested")
+  local case_query = query_tag_elements("test_case")
+  local test_query = query_tag_elements("test", true)
+  local attr_query = query_attributes()
+
+  local unit_ids = capture_ids(unit_query)
+  local pkg_ids = capture_ids(pkg_query)
+  local tested_ids = capture_ids(tested_query)
+  local case_ids = capture_ids(case_query)
+  local test_ids = capture_ids(test_query)
+  local attr_ids = capture_ids(attr_query)
+
+  for _, unit_match in unit_query:iter_matches(root, buf_id) do
+    local unit_node = first_capture_node(unit_match, unit_ids.element)
+    local unit_tag = get_start_tag_node(unit_node)
+    local unit_attrs = unit_tag
+        and get_attributes(unit_tag, buf_id, attr_query, attr_ids)
+      or {}
+    local source_file = unit_attrs.source_file
+
+    if source_file ~= nil then
+      local packages = source_files[source_file]
+      if packages == nil then
+        packages = {}
+        source_files[source_file] = packages
+      end
+
+      for _, pkg_match in pkg_query:iter_matches(unit_node, buf_id) do
+        local pkg_node = first_capture_node(pkg_match, pkg_ids.element)
+        local pkg_tag = get_start_tag_node(pkg_node)
+        local pkg_attrs = pkg_tag
+            and get_attributes(pkg_tag, buf_id, attr_query, attr_ids)
+          or {}
+        local pkg_name = pkg_attrs.target_file
+
+        if pkg_name ~= nil then
+          local pkg_info = packages[pkg_name]
+          if pkg_info == nil then
+            pkg_info = {}
+            packages[pkg_name] = pkg_info
+          end
+
+          for _, tested_match in tested_query:iter_matches(pkg_node, buf_id) do
+            local tested_node =
+              first_capture_node(tested_match, tested_ids.element)
+            local tested_tag = get_start_tag_node(tested_node)
+            local source_attrs = tested_tag
+                and get_attributes(tested_tag, buf_id, attr_query, attr_ids)
+              or {}
+
+            local source_info = {
+              name = source_attrs.name,
+              line = source_attrs.line,
+              column = source_attrs.column,
+              case = {},
+            }
+            local tests = {}
+
+            for _, case_match in case_query:iter_matches(tested_node, buf_id) do
+              local case_node = first_capture_node(case_match, case_ids.element)
+              local case_tag = get_start_tag_node(case_node)
+              local case_attrs = case_tag
+                  and get_attributes(case_tag, buf_id, attr_query, attr_ids)
+                or {}
+              local case_info = {
+                name = case_attrs.name,
+                line = case_attrs.line,
+                column = case_attrs.column,
+              }
+
+              for _, test_match in test_query:iter_matches(case_node, buf_id) do
+                local test_node =
+                  first_capture_node(test_match, test_ids.element)
+                local test_tag = get_start_tag_node(test_node, true)
+                local test_attrs = test_tag
+                    and get_attributes(test_tag, buf_id, attr_query, attr_ids)
+                  or {}
+
+                table.insert(source_info.case, {
+                  name = case_info.name,
+                  line = case_info.line,
+                  column = case_info.column,
+                })
+                table.insert(tests, {
+                  name = test_attrs.name,
+                  file = test_attrs.file,
+                  line = test_attrs.line,
+                  column = test_attrs.column,
+                })
+              end
+            end
+
+            if next(tests) ~= nil then
+              table.insert(pkg_info, {
+                source = source_info,
+                tests = tests,
+              })
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return source_files
+end
+
+local function parse_xml_info_legacy(root, buf_id)
   local source_files = {}
 
   --------------
@@ -185,6 +375,31 @@ function M.get_xml_info(refresh)
 
     unit_capture_flag = unit_text
   end
+
+  return source_files
+end
+
+function M.get_xml_info(refresh)
+  if next(xml_info) ~= nil and refresh ~= true then
+    return xml_info
+  end
+
+  local buf_id = create_xml_buf()
+  if buf_id == nil then
+    return nil
+  end
+
+  local root = vim.treesitter.get_parser(buf_id, "xml"):parse()[1]:root()
+
+  local source_files
+  local tested_query = query_test_info()
+
+  if tested_query.iter_matches then
+    source_files = parse_xml_info_with_matches(root, buf_id)
+  else
+    source_files = parse_xml_info_legacy(root, buf_id)
+  end
+
   xml_info = vim.deepcopy(source_files)
 
   return xml_info
